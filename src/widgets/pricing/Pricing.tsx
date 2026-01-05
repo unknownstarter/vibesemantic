@@ -8,7 +8,13 @@ import { Badge } from "@/shared/ui/Badge";
 import { Button } from "@/shared/ui/Button";
 import { Dialog } from "@/shared/ui/Dialog";
 import { cn } from "@/shared/lib/utils";
-import { PricingFormData, PlanType } from "@/entities/pricing/types";
+import {
+  PricingFormData,
+  PlanType,
+  BasicPlanData,
+  PopularPlanData,
+  PremiumPlanData,
+} from "@/entities/pricing/types";
 
 interface PlanFeature {
   text: string;
@@ -90,7 +96,9 @@ function PricingModal({
   onClose: () => void;
   onSubmit: (data: PricingFormData) => Promise<void>;
 }) {
-  const [formData, setFormData] = useState<Partial<PricingFormData>>({});
+  const [formData, setFormData] = useState<
+    Partial<BasicPlanData | PopularPlanData | PremiumPlanData>
+  >({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -101,18 +109,21 @@ function PricingModal({
     const newErrors: Record<string, string> = {};
 
     if (plan?.id === "basic") {
-      if (!formData.email) {
+      const data = formData as Partial<BasicPlanData>;
+      if (!data.email) {
         newErrors.email = "이메일을 입력해주세요.";
       }
     } else if (plan?.id === "popular") {
-      if (!formData.phoneNumber) {
+      const data = formData as Partial<PopularPlanData>;
+      if (!data.phoneNumber) {
         newErrors.phoneNumber = "전화번호를 입력해주세요.";
       }
     } else if (plan?.id === "premium") {
-      if (!formData.email) newErrors.email = "이메일을 입력해주세요.";
-      if (!formData.phoneNumber) newErrors.phoneNumber = "전화번호를 입력해주세요.";
-      if (!formData.contactName) newErrors.contactName = "담당자 이름을 입력해주세요.";
-      if (!formData.companyName) newErrors.companyName = "회사명을 입력해주세요.";
+      const data = formData as Partial<PremiumPlanData>;
+      if (!data.email) newErrors.email = "이메일을 입력해주세요.";
+      if (!data.phoneNumber) newErrors.phoneNumber = "전화번호를 입력해주세요.";
+      if (!data.contactName) newErrors.contactName = "담당자 이름을 입력해주세요.";
+      if (!data.companyName) newErrors.companyName = "회사명을 입력해주세요.";
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -122,7 +133,31 @@ function PricingModal({
 
     setIsSubmitting(true);
     try {
-      await onSubmit(formData as PricingFormData);
+      // 플랜 타입에 맞는 데이터 구성
+      let submitData: PricingFormData;
+      if (plan?.id === "basic") {
+        const data = formData as Partial<BasicPlanData>;
+        submitData = {
+          email: data.email!,
+          planType: "basic",
+        };
+      } else if (plan?.id === "popular") {
+        const data = formData as Partial<PopularPlanData>;
+        submitData = {
+          phoneNumber: data.phoneNumber!,
+          planType: "popular",
+        };
+      } else {
+        const data = formData as Partial<PremiumPlanData>;
+        submitData = {
+          email: data.email!,
+          phoneNumber: data.phoneNumber!,
+          contactName: data.contactName!,
+          companyName: data.companyName!,
+          planType: "premium",
+        };
+      }
+      await onSubmit(submitData);
       setIsSubmitted(true);
     } catch (error) {
       console.error("Error submitting:", error);
@@ -170,7 +205,7 @@ function PricingModal({
             <input
               id="email"
               type="email"
-              value={formData.email || ""}
+              value={(formData as Partial<BasicPlanData>).email || ""}
               onChange={(e) =>
                 setFormData({ ...formData, email: e.target.value, planType: "basic" })
               }
@@ -191,7 +226,7 @@ function PricingModal({
             <input
               id="phoneNumber"
               type="tel"
-              value={formData.phoneNumber || ""}
+              value={(formData as Partial<PopularPlanData>).phoneNumber || ""}
               onChange={(e) =>
                 setFormData({ ...formData, phoneNumber: e.target.value, planType: "popular" })
               }
@@ -213,8 +248,8 @@ function PricingModal({
               <input
                 id="email"
                 type="email"
-                value={formData.email || ""}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                value={(formData as Partial<PremiumPlanData>).email || ""}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value, planType: "premium" })}
                 className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-foreground focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white/20"
                 placeholder="your@email.com"
               />
@@ -229,8 +264,8 @@ function PricingModal({
               <input
                 id="phoneNumber"
                 type="tel"
-                value={formData.phoneNumber || ""}
-                onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+                value={(formData as Partial<PremiumPlanData>).phoneNumber || ""}
+                onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value, planType: "premium" })}
                 className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-foreground focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white/20"
                 placeholder="010-1234-5678"
               />
@@ -245,8 +280,8 @@ function PricingModal({
               <input
                 id="contactName"
                 type="text"
-                value={formData.contactName || ""}
-                onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
+                value={(formData as Partial<PremiumPlanData>).contactName || ""}
+                onChange={(e) => setFormData({ ...formData, contactName: e.target.value, planType: "premium" })}
                 className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-foreground focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white/20"
                 placeholder="홍길동"
               />
@@ -261,8 +296,8 @@ function PricingModal({
               <input
                 id="companyName"
                 type="text"
-                value={formData.companyName || ""}
-                onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                value={(formData as Partial<PremiumPlanData>).companyName || ""}
+                onChange={(e) => setFormData({ ...formData, companyName: e.target.value, planType: "premium" })}
                 className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-foreground focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white/20"
                 placeholder="회사명"
               />
