@@ -31,7 +31,7 @@ export function Hero() {
             </h2>
 
             <p className="text-lg text-gray-400 leading-relaxed max-w-lg">
-              SQL 없이도, 지금 봐야 할 지표와 다음 액션을 제안합니다.
+              SQL 없이도, 지금 봐야 할 지표와 다음 액션을 제안합니다. PO, 창업가, 마케터를 위한 AI 기반 데이터 분석 도구로 DAU, 리텐션, 전환율 등 핵심 지표를 자연어로 질문하고 인사이트를 얻으세요.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4">

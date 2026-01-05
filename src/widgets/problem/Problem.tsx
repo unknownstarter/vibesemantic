@@ -28,6 +28,9 @@ export function Problem() {
           <h2 className="text-4xl md:text-5xl font-bold mb-4 text-white">
             이런 고민 있으신가요?
           </h2>
+          <p className="text-lg text-gray-400 max-w-2xl mx-auto mt-4">
+            데이터 분석가가 없어도, SQL을 몰라도 제품 지표를 분석하고 의사결정할 수 있습니다.
+          </p>
         </div>
 
         <div className="grid md:grid-cols-3 gap-6">

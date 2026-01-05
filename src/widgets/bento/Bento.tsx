@@ -52,7 +52,7 @@ export function Bento() {
             Features
           </h2>
           <p className="text-lg text-gray-400 max-w-2xl mx-auto">
-            SQL 없이도 데이터 인사이트를 얻을 수 있는 모든 기능
+            SQL 없이도 데이터 인사이트를 얻을 수 있는 모든 기능. 데이터 분석가 없어도 제품 지표를 분석하고 의사결정할 수 있습니다.
           </p>
         </div>
 

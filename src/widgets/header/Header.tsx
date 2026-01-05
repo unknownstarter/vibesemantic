@@ -37,13 +37,14 @@ export function Header() {
             <span>Vibe Semantic</span>
           </a>
 
-          <nav className="hidden md:flex items-center gap-6">
+          <nav className="hidden md:flex items-center gap-6" aria-label="Main navigation">
             {navItems.map((item) => (
               <a
                 key={item.href}
                 href={item.href}
                 onClick={(e) => handleAnchorClick(e, item.href)}
                 className="text-sm text-gray-400 hover:text-foreground transition-colors"
+                aria-label={`Navigate to ${item.label} section`}
               >
                 {item.label}
               </a>

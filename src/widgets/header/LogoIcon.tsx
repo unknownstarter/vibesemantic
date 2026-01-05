@@ -7,7 +7,10 @@ export function LogoIcon({ className }: { className?: string }) {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
+      aria-label="Vibe Semantic 로고"
+      role="img"
     >
+      <title>Vibe Semantic 로고</title>
       <g fill="#ffffff">
         <rect x="4" y="8" width="14" height="2" rx="1" />
         <rect x="4" y="13" width="20" height="2" rx="1" />
