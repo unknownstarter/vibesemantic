@@ -2,6 +2,7 @@
 
 import { Button } from "@/shared/ui/Button";
 import { Container } from "@/shared/ui/Container";
+import { LogoIcon } from "./LogoIcon";
 import { cn } from "@/shared/lib/utils";
 
 const navItems = [
@@ -26,13 +27,14 @@ export function Header() {
         <div className="flex items-center justify-between h-16 md:h-20">
           <a
             href="/"
-            className="text-xl md:text-2xl font-bold text-white"
+            className="flex items-center gap-3 text-xl md:text-2xl font-bold text-white"
             onClick={(e) => {
               e.preventDefault();
               window.scrollTo({ top: 0, behavior: "smooth" });
             }}
           >
-            Vibe Semantic
+            <LogoIcon className="flex-shrink-0" />
+            <span>Vibe Semantic</span>
           </a>
 
           <nav className="hidden md:flex items-center gap-6">

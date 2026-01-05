@@ -3,6 +3,7 @@ import { Footer } from "@/widgets/footer/Footer";
 import { Hero } from "@/widgets/hero/Hero";
 import { Problem } from "@/widgets/problem/Problem";
 import { Bento } from "@/widgets/bento/Bento";
+import { Pricing } from "@/widgets/pricing/Pricing";
 import { SuccessCase } from "@/widgets/success-case/SuccessCase";
 import { HowItWorks } from "@/widgets/how-it-works/HowItWorks";
 import { Security } from "@/widgets/security/Security";
@@ -18,6 +19,7 @@ export default function LandingPage() {
         <Hero />
         <Problem />
         <Bento />
+        <Pricing />
         <SuccessCase />
         <HowItWorks />
         <Security />

@@ -1,7 +1,8 @@
 import { LeadFormData } from "@/entities/lead/types";
+import { PricingFormData } from "@/entities/pricing/types";
 
 // Google Apps Script 웹 앱을 통해 Google Sheets에 데이터 추가
-export async function appendToSheet(data: LeadFormData) {
+export async function appendToSheet(data: LeadFormData | PricingFormData | Record<string, any>) {
   const webAppUrl = process.env.GOOGLE_SHEETS_WEB_APP_URL;
 
   if (!webAppUrl) {
