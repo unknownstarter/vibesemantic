@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { Language, translations } from "./translations";
 
-type Translation = typeof translations.ko;
+type Translation = typeof translations[Language];
 
 interface I18nContextType {
   language: Language;
@@ -36,7 +36,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     }
   }, [language]);
 
-  const t = translations[language];
+  const t = translations[language] as Translation;
 
   return (
     <I18nContext.Provider value={{ language, setLanguage, t }}>
