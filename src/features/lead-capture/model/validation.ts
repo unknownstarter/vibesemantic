@@ -11,6 +11,8 @@ export interface ValidationErrors {
   painPoint?: string;
   currentTool?: string;
   expectedFeature?: string;
+  email?: string;
+  phoneNumber?: string;
 }
 
 type ErrorMessages = typeof translations.ko.leadCapture.errors | typeof translations.en.leadCapture.errors;
@@ -55,6 +57,14 @@ export function validateLeadForm(
 
   if (!data.expectedFeature) {
     errors.expectedFeature = errorMessages.expectedFeature;
+  }
+
+  if (!data.email || data.email.trim().length === 0) {
+    errors.email = errorMessages.email;
+  }
+
+  if (!data.phoneNumber || data.phoneNumber.trim().length === 0) {
+    errors.phoneNumber = errorMessages.phoneNumber;
   }
 
   return errors;

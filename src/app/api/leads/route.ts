@@ -17,7 +17,9 @@ export async function POST(request: NextRequest) {
       body.purposes.length === 0 ||
       !body.painPoint ||
       !body.currentTool ||
-      !body.expectedFeature
+      !body.expectedFeature ||
+      !body.email ||
+      !body.phoneNumber
     ) {
       return NextResponse.json(
         { error: "필수 필드가 누락되었습니다." },

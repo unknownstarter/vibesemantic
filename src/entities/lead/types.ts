@@ -38,7 +38,7 @@ export interface LeadFormData {
   painPoint: string;
   currentTool: AnalyticsTool;
   expectedFeature: ExpectedFeature;
-  email?: string;
-  phoneNumber?: string;
+  email: string;
+  phoneNumber: string;
 }
 

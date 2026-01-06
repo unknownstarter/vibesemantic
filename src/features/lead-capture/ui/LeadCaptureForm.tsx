@@ -113,7 +113,7 @@ export function LeadCaptureForm() {
           {/* 이메일 */}
           <div>
             <label htmlFor="email" className="block text-sm font-medium mb-2">
-              {t.leadCapture.fields.email}
+              {t.leadCapture.fields.email} <span className="text-red-400">*</span>
             </label>
             <input
               id="email"
@@ -122,13 +122,21 @@ export function LeadCaptureForm() {
               onChange={(e) => updateField("email", e.target.value)}
               className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-foreground focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white/20"
               placeholder={t.leadCapture.placeholders.email}
+              aria-required="true"
+              aria-invalid={!!errors.email}
+              aria-describedby={errors.email ? "email-error" : undefined}
             />
+            {errors.email && (
+              <p id="email-error" className="mt-1 text-sm text-red-400" role="alert">
+                {errors.email}
+              </p>
+            )}
           </div>
 
           {/* 전화번호 */}
           <div>
             <label htmlFor="phoneNumber" className="block text-sm font-medium mb-2">
-              {t.leadCapture.fields.phoneNumber}
+              {t.leadCapture.fields.phoneNumber} <span className="text-red-400">*</span>
             </label>
             <input
               id="phoneNumber"
@@ -137,7 +145,15 @@ export function LeadCaptureForm() {
               onChange={(e) => updateField("phoneNumber", e.target.value)}
               className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-foreground focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white/20"
               placeholder={t.leadCapture.placeholders.phoneNumber}
+              aria-required="true"
+              aria-invalid={!!errors.phoneNumber}
+              aria-describedby={errors.phoneNumber ? "phoneNumber-error" : undefined}
             />
+            {errors.phoneNumber && (
+              <p id="phoneNumber-error" className="mt-1 text-sm text-red-400" role="alert">
+                {errors.phoneNumber}
+              </p>
+            )}
           </div>
 
           {/* 직책/직무 */}
