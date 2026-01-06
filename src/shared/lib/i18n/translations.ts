@@ -700,7 +700,7 @@ export const translations = {
       placeholders: {
         select: "Please select",
         email: "your@email.com",
-        phoneNumber: "010-1234-5678",
+        phoneNumber: "+Country Code-Numbers-Numbers",
       },
       purposes: [
         "Identify key metrics to monitor now",
