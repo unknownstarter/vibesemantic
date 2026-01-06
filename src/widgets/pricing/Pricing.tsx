@@ -15,6 +15,7 @@ import {
   PopularPlanData,
   PremiumPlanData,
 } from "@/entities/pricing/types";
+import { useI18n } from "@/shared/lib/i18n/context";
 
 interface PlanFeature {
   text: string;
@@ -35,59 +36,6 @@ interface Plan {
   highlighted?: boolean;
 }
 
-const plans: Plan[] = [
-  {
-    id: "basic",
-    title: "기본",
-    badge: "기본",
-    heading: "출시 알림",
-    price: "무료",
-    features: [
-      { text: "출시 시 알림 받기", included: true },
-      { text: "Early Access 우선 초대", included: false },
-    ],
-    buttonText: "이메일 남기기",
-    buttonVariant: "secondary",
-  },
-  {
-    id: "popular",
-    title: "인기",
-    badge: "인기",
-    heading: "Early Access 우선 초대",
-    price: "25,000원",
-    features: [
-      { text: "출시 즉시 우선 초대", included: true },
-      { text: "자연어 질문 50회 제공", included: true },
-      { text: "자동 원인 분석", included: true },
-      { text: "다음 액션 제안", included: true },
-      { text: "기본 리포트 생성", included: true },
-    ],
-    buttonText: "전화번호 등록",
-    buttonVariant: "primary",
-  },
-  {
-    id: "premium",
-    title: "추천",
-    badge: "추천",
-    heading: "평생 프리미엄",
-    price: "평생 ₩69,000",
-    originalPrice: "연 ₩250,000",
-    discountBanner: "73% 할인 100명 한정",
-    features: [
-      { text: "출시 즉시 사용", included: true },
-      { text: "모든 프리미엄 기능 평생 무료", included: true },
-      { text: "자연어 질문 하루 최대 200회", included: true },
-      { text: "고급 분석 기능 (트렌드 예측)", included: true },
-      { text: "커스텀 리포트 & 공유", included: true },
-      { text: "우선 지원 & 피드백 반영", included: true },
-      { text: "창립 멤버 배지", included: true },
-    ],
-    buttonText: "지금 결제하기",
-    buttonVariant: "primary",
-    highlighted: true,
-  },
-];
-
 function PricingModal({
   plan,
   isOpen,
@@ -99,6 +47,7 @@ function PricingModal({
   onClose: () => void;
   onSubmit: (data: PricingFormData) => Promise<void>;
 }) {
+  const { t } = useI18n();
   const [formData, setFormData] = useState<
     Partial<BasicPlanData | PopularPlanData | PremiumPlanData>
   >({});
@@ -114,19 +63,19 @@ function PricingModal({
     if (plan?.id === "basic") {
       const data = formData as Partial<BasicPlanData>;
       if (!data.email) {
-        newErrors.email = "이메일을 입력해주세요.";
+        newErrors.email = t.pricing.modal.errors.email;
       }
     } else if (plan?.id === "popular") {
       const data = formData as Partial<PopularPlanData>;
       if (!data.phoneNumber) {
-        newErrors.phoneNumber = "전화번호를 입력해주세요.";
+        newErrors.phoneNumber = t.pricing.modal.errors.phoneNumber;
       }
     } else if (plan?.id === "premium") {
       const data = formData as Partial<PremiumPlanData>;
-      if (!data.email) newErrors.email = "이메일을 입력해주세요.";
-      if (!data.phoneNumber) newErrors.phoneNumber = "전화번호를 입력해주세요.";
-      if (!data.contactName) newErrors.contactName = "담당자 이름을 입력해주세요.";
-      if (!data.companyName) newErrors.companyName = "회사명을 입력해주세요.";
+      if (!data.email) newErrors.email = t.pricing.modal.errors.email;
+      if (!data.phoneNumber) newErrors.phoneNumber = t.pricing.modal.errors.phoneNumber;
+      if (!data.contactName) newErrors.contactName = t.pricing.modal.errors.contactName;
+      if (!data.companyName) newErrors.companyName = t.pricing.modal.errors.companyName;
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -182,16 +131,16 @@ function PricingModal({
 
   if (isSubmitted) {
     return (
-      <Dialog isOpen={isOpen} onClose={handleClose} title="신청 완료">
+      <Dialog isOpen={isOpen} onClose={handleClose} title={t.pricing.modal.success.title}>
         <div className="text-center py-8">
           <div className="mb-4 text-6xl">✓</div>
-          <h3 className="text-xl font-bold text-white mb-2">신청이 완료되었습니다</h3>
+          <h3 className="text-xl font-bold text-white mb-2">{t.pricing.modal.success.message}</h3>
           {plan.id === "premium" && (
             <p className="text-gray-400 mb-4">
-              남겨주신 이메일로 별도 결제 안내를 드리겠습니다.
+              {t.pricing.modal.success.premiumNote}
             </p>
           )}
-          <p className="text-gray-400">감사합니다.</p>
+          <p className="text-gray-400">{t.pricing.modal.success.thankYou}</p>
         </div>
       </Dialog>
     );
@@ -203,7 +152,7 @@ function PricingModal({
         {plan.id === "basic" && (
           <div>
             <label htmlFor="email" className="block text-sm font-medium mb-2 text-white">
-              이메일 <span className="text-red-400">*</span>
+              {t.pricing.modal.email} <span className="text-red-400">{t.pricing.modal.required}</span>
             </label>
             <input
               id="email"
@@ -213,7 +162,7 @@ function PricingModal({
                 setFormData({ ...formData, email: e.target.value, planType: "basic" })
               }
               className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-foreground focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white/20"
-              placeholder="your@email.com"
+              placeholder={t.pricing.modal.placeholders.email}
             />
             {errors.email && (
               <p className="mt-1 text-sm text-red-400">{errors.email}</p>
@@ -224,7 +173,7 @@ function PricingModal({
         {plan.id === "popular" && (
           <div>
             <label htmlFor="phoneNumber" className="block text-sm font-medium mb-2 text-white">
-              전화번호 <span className="text-red-400">*</span>
+              {t.pricing.modal.phoneNumber} <span className="text-red-400">{t.pricing.modal.required}</span>
             </label>
             <input
               id="phoneNumber"
@@ -234,7 +183,7 @@ function PricingModal({
                 setFormData({ ...formData, phoneNumber: e.target.value, planType: "popular" })
               }
               className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-foreground focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white/20"
-              placeholder="010-1234-5678"
+              placeholder={t.pricing.modal.placeholders.phoneNumber}
             />
             {errors.phoneNumber && (
               <p className="mt-1 text-sm text-red-400">{errors.phoneNumber}</p>
@@ -246,7 +195,7 @@ function PricingModal({
           <>
             <div>
               <label htmlFor="email" className="block text-sm font-medium mb-2 text-white">
-                이메일 <span className="text-red-400">*</span>
+                {t.pricing.modal.email} <span className="text-red-400">{t.pricing.modal.required}</span>
               </label>
               <input
                 id="email"
@@ -254,7 +203,7 @@ function PricingModal({
                 value={(formData as Partial<PremiumPlanData>).email || ""}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value, planType: "premium" })}
                 className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-foreground focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white/20"
-                placeholder="your@email.com"
+                placeholder={t.pricing.modal.placeholders.email}
               />
               {errors.email && (
                 <p className="mt-1 text-sm text-red-400">{errors.email}</p>
@@ -262,7 +211,7 @@ function PricingModal({
             </div>
             <div>
               <label htmlFor="phoneNumber" className="block text-sm font-medium mb-2 text-white">
-                전화번호 <span className="text-red-400">*</span>
+                {t.pricing.modal.phoneNumber} <span className="text-red-400">{t.pricing.modal.required}</span>
               </label>
               <input
                 id="phoneNumber"
@@ -270,7 +219,7 @@ function PricingModal({
                 value={(formData as Partial<PremiumPlanData>).phoneNumber || ""}
                 onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value, planType: "premium" })}
                 className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-foreground focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white/20"
-                placeholder="010-1234-5678"
+                placeholder={t.pricing.modal.placeholders.phoneNumber}
               />
               {errors.phoneNumber && (
                 <p className="mt-1 text-sm text-red-400">{errors.phoneNumber}</p>
@@ -278,7 +227,7 @@ function PricingModal({
             </div>
             <div>
               <label htmlFor="contactName" className="block text-sm font-medium mb-2 text-white">
-                담당자 이름 <span className="text-red-400">*</span>
+                {t.pricing.modal.contactName} <span className="text-red-400">{t.pricing.modal.required}</span>
               </label>
               <input
                 id="contactName"
@@ -286,7 +235,7 @@ function PricingModal({
                 value={(formData as Partial<PremiumPlanData>).contactName || ""}
                 onChange={(e) => setFormData({ ...formData, contactName: e.target.value, planType: "premium" })}
                 className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-foreground focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white/20"
-                placeholder="홍길동"
+                placeholder={t.pricing.modal.placeholders.contactName}
               />
               {errors.contactName && (
                 <p className="mt-1 text-sm text-red-400">{errors.contactName}</p>
@@ -294,7 +243,7 @@ function PricingModal({
             </div>
             <div>
               <label htmlFor="companyName" className="block text-sm font-medium mb-2 text-white">
-                회사명 <span className="text-red-400">*</span>
+                {t.pricing.modal.companyName} <span className="text-red-400">{t.pricing.modal.required}</span>
               </label>
               <input
                 id="companyName"
@@ -302,7 +251,7 @@ function PricingModal({
                 value={(formData as Partial<PremiumPlanData>).companyName || ""}
                 onChange={(e) => setFormData({ ...formData, companyName: e.target.value, planType: "premium" })}
                 className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-foreground focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white/20"
-                placeholder="회사명"
+                placeholder={t.pricing.modal.placeholders.companyName}
               />
               {errors.companyName && (
                 <p className="mt-1 text-sm text-red-400">{errors.companyName}</p>
@@ -310,7 +259,7 @@ function PricingModal({
             </div>
             <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 mt-4">
               <p className="text-sm text-blue-400">
-                남겨주신 이메일로 별도 결제 안내를 드리겠습니다.
+                {t.pricing.modal.premiumNote}
               </p>
             </div>
           </>
@@ -324,7 +273,7 @@ function PricingModal({
             className="flex-1"
             disabled={isSubmitting}
           >
-            취소
+            {t.pricing.modal.cancel}
           </Button>
           <Button
             type="submit"
@@ -332,7 +281,7 @@ function PricingModal({
             className="flex-1"
             disabled={isSubmitting}
           >
-            {isSubmitting ? "제출 중..." : "제출하기"}
+            {isSubmitting ? t.pricing.modal.submitting : t.pricing.modal.submit}
           </Button>
         </div>
       </form>
@@ -341,8 +290,45 @@ function PricingModal({
 }
 
 export function Pricing() {
+  const { t } = useI18n();
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const plans: Plan[] = [
+    {
+      id: "basic",
+      title: t.pricing.plans.basic.title,
+      badge: t.pricing.plans.basic.badge,
+      heading: t.pricing.plans.basic.heading,
+      price: t.pricing.plans.basic.price,
+      features: t.pricing.plans.basic.features,
+      buttonText: t.pricing.plans.basic.buttonText,
+      buttonVariant: "secondary",
+    },
+    {
+      id: "popular",
+      title: t.pricing.plans.popular.title,
+      badge: t.pricing.plans.popular.badge,
+      heading: t.pricing.plans.popular.heading,
+      price: t.pricing.plans.popular.price,
+      features: t.pricing.plans.popular.features,
+      buttonText: t.pricing.plans.popular.buttonText,
+      buttonVariant: "primary",
+    },
+    {
+      id: "premium",
+      title: t.pricing.plans.premium.title,
+      badge: t.pricing.plans.premium.badge,
+      heading: t.pricing.plans.premium.heading,
+      price: t.pricing.plans.premium.price,
+      originalPrice: t.pricing.plans.premium.originalPrice,
+      discountBanner: t.pricing.plans.premium.discountBanner,
+      features: t.pricing.plans.premium.features,
+      buttonText: t.pricing.plans.premium.buttonText,
+      buttonVariant: "primary",
+      highlighted: true,
+    },
+  ];
 
   const handlePlanClick = (plan: Plan) => {
     setSelectedPlan(plan);
@@ -359,7 +345,7 @@ export function Pricing() {
     });
 
     if (!response.ok) {
-      throw new Error("제출에 실패했습니다.");
+      throw new Error(t.pricing.modal.submit);
     }
   };
 
@@ -369,10 +355,10 @@ export function Pricing() {
         <Container size="xl">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold mb-4 text-white">
-              Pricing
+              {t.pricing.title}
             </h2>
             <p className="text-lg text-gray-400 max-w-2xl mx-auto">
-              원하는 플랜을 선택하세요
+              {t.pricing.description}
             </p>
           </div>
 

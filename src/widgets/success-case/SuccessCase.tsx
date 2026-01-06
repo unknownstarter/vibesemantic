@@ -6,6 +6,7 @@ import { Container } from "@/shared/ui/Container";
 import { Card } from "@/shared/ui/Card";
 import { Badge } from "@/shared/ui/Badge";
 import { cn } from "@/shared/lib/utils";
+import { useI18n } from "@/shared/lib/i18n/context";
 
 interface CaseStudy {
   id: string;
@@ -158,6 +159,7 @@ function CaseCard({ caseStudy, isActive, onClick }: { caseStudy: CaseStudy; isAc
 }
 
 export function SuccessCase() {
+  const { t } = useI18n();
   const [selectedCase, setSelectedCase] = useState<string | null>(null);
 
   return (
@@ -165,10 +167,10 @@ export function SuccessCase() {
       <Container size="xl">
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-bold mb-4 text-white">
-            Success Cases
+            {t.successCase.title}
           </h2>
           <p className="text-lg text-gray-400 max-w-2xl mx-auto">
-            실제 데이터로 확인하는 인사이트와 액션
+            {t.successCase.description}
           </p>
         </div>
 
@@ -187,7 +189,7 @@ export function SuccessCase() {
 
         <div className="mt-12 text-center">
           <p className="text-sm text-gray-500">
-            카드를 클릭하면 상세 인사이트를 확인할 수 있습니다
+            {t.successCase.clickHint}
           </p>
         </div>
       </Container>

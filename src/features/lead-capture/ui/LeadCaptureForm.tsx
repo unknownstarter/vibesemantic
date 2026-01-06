@@ -11,36 +11,10 @@ import {
 import { Button } from "@/shared/ui/Button";
 import { Card } from "@/shared/ui/Card";
 import { Container } from "@/shared/ui/Container";
-
-const JOB_ROLES: JobRole[] = ["PO/PM", "Founder/CEO", "Marketer/Growth", "Developer", "기타"];
-
-const DAU_RANGES: DAURange[] = ["0-100", "100-1K", "1K-10K", "10K+"];
-
-const PURPOSE_OPTIONS: PurposeOption[] = [
-  "지금 봐야 할 핵심 지표 파악",
-  "지표 변화 원인 분석",
-  "실험/AB 테스트 인사이트",
-  "SQL 없이 데이터 확인",
-  "데이터 팀 없이 의사결정하기",
-];
-
-const ANALYTICS_TOOLS: AnalyticsTool[] = [
-  "없음",
-  "GA/Firebase",
-  "Metabase/Looker",
-  "직접 SQL",
-  "기타",
-];
-
-const EXPECTED_FEATURES: ExpectedFeature[] = [
-  "지표 자동 추천",
-  "변화 원인 분석",
-  "다음 액션 제안",
-  "자연어 질문",
-  "자동 리포트",
-];
+import { useI18n } from "@/shared/lib/i18n/context";
 
 export function LeadCaptureForm() {
+  const { t } = useI18n();
   const {
     formData,
     errors,
@@ -51,19 +25,25 @@ export function LeadCaptureForm() {
     submit,
   } = useLeadCapture();
 
+  const JOB_ROLES: JobRole[] = t.leadCapture.jobRoles as JobRole[];
+  const DAU_RANGES: DAURange[] = ["0-100", "100-1K", "1K-10K", "10K+"];
+  const PURPOSE_OPTIONS: PurposeOption[] = t.leadCapture.purposes as PurposeOption[];
+  const ANALYTICS_TOOLS: AnalyticsTool[] = t.leadCapture.analyticsTools as AnalyticsTool[];
+  const EXPECTED_FEATURES: ExpectedFeature[] = t.leadCapture.expectedFeatures as ExpectedFeature[];
+
   if (isSubmitted) {
     return (
       <Container size="md">
         <Card className="p-12 text-center">
           <div className="mb-4 text-6xl">✓</div>
           <h2 className="text-3xl font-bold mb-4 text-white">
-            신청이 접수되었습니다
+            {t.leadCapture.success.title}
           </h2>
           <p className="text-gray-400 mb-8">
-            곧 연락드리겠습니다. 감사합니다.
+            {t.leadCapture.success.message}
           </p>
           <Button onClick={() => window.location.reload()}>
-            새로 신청하기
+            {t.leadCapture.success.newApplication}
           </Button>
         </Card>
       </Container>
@@ -75,7 +55,7 @@ export function LeadCaptureForm() {
       <Card className="p-8 md:p-12">
         <div className="mb-8 text-center">
           <p className="text-gray-400 text-lg">
-            Vibe Semantic은 소수의 서비스 운영자와 함께 만드는 Private Preview입니다.
+            {t.leadCapture.intro}
           </p>
         </div>
 
@@ -89,7 +69,7 @@ export function LeadCaptureForm() {
           {/* 회사명 */}
           <div>
             <label htmlFor="companyName" className="block text-sm font-medium mb-2">
-              회사명 <span className="text-red-400">*</span>
+              {t.leadCapture.fields.companyName} <span className="text-red-400">*</span>
             </label>
             <input
               id="companyName"
@@ -111,7 +91,7 @@ export function LeadCaptureForm() {
           {/* 담당자 이름 */}
           <div>
             <label htmlFor="contactName" className="block text-sm font-medium mb-2">
-              담당자 이름 <span className="text-red-400">*</span>
+              {t.leadCapture.fields.contactName} <span className="text-red-400">*</span>
             </label>
             <input
               id="contactName"
@@ -133,7 +113,7 @@ export function LeadCaptureForm() {
           {/* 직책/직무 */}
           <div>
             <label htmlFor="jobRole" className="block text-sm font-medium mb-2">
-              직책/직무 <span className="text-red-400">*</span>
+              {t.leadCapture.fields.jobRole} <span className="text-red-400">*</span>
             </label>
             <select
               id="jobRole"
@@ -144,7 +124,7 @@ export function LeadCaptureForm() {
               aria-invalid={!!errors.jobRole}
               aria-describedby={errors.jobRole ? "jobRole-error" : undefined}
             >
-              <option value="">선택해주세요</option>
+              <option value="">{t.leadCapture.placeholders.select}</option>
               {JOB_ROLES.map((role) => (
                 <option key={role} value={role}>
                   {role}
@@ -161,7 +141,7 @@ export function LeadCaptureForm() {
           {/* 서비스 이름 */}
           <div>
             <label htmlFor="serviceName" className="block text-sm font-medium mb-2">
-              서비스 이름 <span className="text-red-400">*</span>
+              {t.leadCapture.fields.serviceName} <span className="text-red-400">*</span>
             </label>
             <input
               id="serviceName"
@@ -183,7 +163,7 @@ export function LeadCaptureForm() {
           {/* 서비스 DAU */}
           <div>
             <label className="block text-sm font-medium mb-2">
-              서비스 DAU <span className="text-red-400">*</span>
+              {t.leadCapture.fields.dau} <span className="text-red-400">*</span>
             </label>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {DAU_RANGES.map((range) => (
@@ -214,7 +194,7 @@ export function LeadCaptureForm() {
           {/* 사용 목적 */}
           <div>
             <label className="block text-sm font-medium mb-2">
-              사용 목적 <span className="text-red-400">*</span>
+              {t.leadCapture.fields.purpose} <span className="text-red-400">*</span>
             </label>
             <div className="space-y-2">
               {PURPOSE_OPTIONS.map((purpose) => (
@@ -242,7 +222,7 @@ export function LeadCaptureForm() {
           {/* 지금 가장 답답한 점 */}
           <div>
             <label htmlFor="painPoint" className="block text-sm font-medium mb-2">
-              지금 가장 답답한 점 <span className="text-red-400">*</span>
+              {t.leadCapture.fields.painPoint} <span className="text-red-400">*</span>
             </label>
             <textarea
               id="painPoint"
@@ -264,7 +244,7 @@ export function LeadCaptureForm() {
           {/* 현재 사용 중인 분석 도구 */}
           <div>
             <label htmlFor="currentTool" className="block text-sm font-medium mb-2">
-              현재 사용 중인 분석 도구 <span className="text-red-400">*</span>
+              {t.leadCapture.fields.currentTool} <span className="text-red-400">*</span>
             </label>
             <select
               id="currentTool"
@@ -275,7 +255,7 @@ export function LeadCaptureForm() {
               aria-invalid={!!errors.currentTool}
               aria-describedby={errors.currentTool ? "currentTool-error" : undefined}
             >
-              <option value="">선택해주세요</option>
+              <option value="">{t.leadCapture.placeholders.select}</option>
               {ANALYTICS_TOOLS.map((tool) => (
                 <option key={tool} value={tool}>
                   {tool}
@@ -292,7 +272,7 @@ export function LeadCaptureForm() {
           {/* Early Access에서 가장 기대하는 기능 */}
           <div>
             <label htmlFor="expectedFeature" className="block text-sm font-medium mb-2">
-              Early Access에서 가장 기대하는 기능 <span className="text-red-400">*</span>
+              {t.leadCapture.fields.expectedFeature} <span className="text-red-400">*</span>
             </label>
             <select
               id="expectedFeature"
@@ -303,7 +283,7 @@ export function LeadCaptureForm() {
               aria-invalid={!!errors.expectedFeature}
               aria-describedby={errors.expectedFeature ? "expectedFeature-error" : undefined}
             >
-              <option value="">선택해주세요</option>
+              <option value="">{t.leadCapture.placeholders.select}</option>
               {EXPECTED_FEATURES.map((feature) => (
                 <option key={feature} value={feature}>
                   {feature}
@@ -326,7 +306,7 @@ export function LeadCaptureForm() {
               className="w-full"
               disabled={isSubmitting}
             >
-              {isSubmitting ? "제출 중..." : "Early Access 신청하기"}
+              {isSubmitting ? t.leadCapture.submitting : t.leadCapture.submit}
             </Button>
           </div>
         </form>

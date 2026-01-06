@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { LeadFormData } from "@/entities/lead/types";
 import { validateLeadForm, ValidationErrors } from "./validation";
+import { useI18n } from "@/shared/lib/i18n/context";
 
 export function useLeadCapture() {
+  const { t } = useI18n();
   const [formData, setFormData] = useState<Partial<LeadFormData>>({});
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -29,7 +31,7 @@ export function useLeadCapture() {
   };
 
   const submit = async () => {
-    const validationErrors = validateLeadForm(formData);
+    const validationErrors = validateLeadForm(formData, t.leadCapture.errors);
     setErrors(validationErrors);
 
     if (Object.keys(validationErrors).length > 0) {
