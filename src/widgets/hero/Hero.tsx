@@ -18,8 +18,8 @@ export function Hero() {
   return (
     <section className="relative pt-24 pb-32 md:pt-32 md:pb-40 overflow-hidden">
       <Container size="xl">
-        <div className="grid md:grid-cols-2 gap-16 items-center">
-          <div className="space-y-8">
+        <div className="grid md:grid-cols-2 gap-16 items-start">
+          <div className="space-y-8 self-start">
             <Badge variant="info" className="bg-white/10 text-white/80 border-white/20">
               {t.hero.badge}
             </Badge>
