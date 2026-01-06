@@ -20,66 +20,36 @@ interface CaseStudy {
   chartData: Array<{ day: number; value: number }>;
 }
 
-const caseStudies: CaseStudy[] = [
-  {
-    id: "ecommerce",
-    industry: "이커머스",
-    metric: "CVR (전환율)",
-    value: "2.8%",
-    change: "+0.5%",
-    period: "14일",
-    action: "Add to Cart 버튼 위치 최적화",
-    result: "전환율이 14일 이내에 +0.5%p 상승했습니다. 동기간에 적용된 'Add to Cart 버튼 위치 최적화' 기능으로 인한 전환율 개선입니다.",
-    chartData: [
-      { day: 0, value: 2.3 },
-      { day: 2, value: 2.35 },
-      { day: 4, value: 2.4 },
-      { day: 6, value: 2.5 },
-      { day: 8, value: 2.6 },
-      { day: 10, value: 2.7 },
-      { day: 12, value: 2.75 },
-      { day: 14, value: 2.8 },
-    ],
-  },
-  {
-    id: "dau",
-    industry: "모바일 앱",
-    metric: "DAU",
-    value: "15.2K",
-    change: "+10.3%",
-    period: "7일",
-    action: "푸시 알림 타이밍 개선",
-    result: "DAU가 7일 이내에 +10.3% 증가했습니다. 동기간에 적용된 '푸시 알림 타이밍 개선' 기능으로 인한 사용자 참여도 증가입니다.",
-    chartData: [
-      { day: 0, value: 13.8 },
-      { day: 1, value: 14.0 },
-      { day: 2, value: 14.2 },
-      { day: 3, value: 14.5 },
-      { day: 4, value: 14.8 },
-      { day: 5, value: 15.0 },
-      { day: 6, value: 15.1 },
-      { day: 7, value: 15.2 },
-    ],
-  },
-  {
-    id: "ctr",
-    industry: "콘텐츠 플랫폼",
-    metric: "CTR",
-    value: "4.2%",
-    change: "+0.8%",
-    period: "10일",
-    action: "추천 알고리즘 개선",
-    result: "CTR이 10일 이내에 +0.8%p 상승했습니다. 동기간에 적용된 '추천 알고리즘 개선' 기능으로 인한 클릭률 증가입니다.",
-    chartData: [
-      { day: 0, value: 3.4 },
-      { day: 2, value: 3.5 },
-      { day: 4, value: 3.7 },
-      { day: 6, value: 3.9 },
-      { day: 8, value: 4.0 },
-      { day: 10, value: 4.2 },
-    ],
-  },
-];
+const chartDataMap: Record<string, Array<{ day: number; value: number }>> = {
+  ecommerce: [
+    { day: 0, value: 2.3 },
+    { day: 2, value: 2.35 },
+    { day: 4, value: 2.4 },
+    { day: 6, value: 2.5 },
+    { day: 8, value: 2.6 },
+    { day: 10, value: 2.7 },
+    { day: 12, value: 2.75 },
+    { day: 14, value: 2.8 },
+  ],
+  dau: [
+    { day: 0, value: 13.8 },
+    { day: 1, value: 14.0 },
+    { day: 2, value: 14.2 },
+    { day: 3, value: 14.5 },
+    { day: 4, value: 14.8 },
+    { day: 5, value: 15.0 },
+    { day: 6, value: 15.1 },
+    { day: 7, value: 15.2 },
+  ],
+  ctr: [
+    { day: 0, value: 3.4 },
+    { day: 2, value: 3.5 },
+    { day: 4, value: 3.7 },
+    { day: 6, value: 3.9 },
+    { day: 8, value: 4.0 },
+    { day: 10, value: 4.2 },
+  ],
+};
 
 function CaseCard({ caseStudy, isActive, onClick }: { caseStudy: CaseStudy; isActive: boolean; onClick: () => void }) {
   const maxValue = Math.max(...caseStudy.chartData.map((d) => d.value));
@@ -161,6 +131,11 @@ function CaseCard({ caseStudy, isActive, onClick }: { caseStudy: CaseStudy; isAc
 export function SuccessCase() {
   const { t } = useI18n();
   const [selectedCase, setSelectedCase] = useState<string | null>(null);
+
+  const caseStudies: CaseStudy[] = t.successCase.cases.map((caseData) => ({
+    ...caseData,
+    chartData: chartDataMap[caseData.id] || [],
+  }));
 
   return (
     <Section id="success" className="bg-gray-950/30">
