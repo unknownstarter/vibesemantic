@@ -232,6 +232,31 @@ export const translations = {
         },
       ],
     },
+    // Dashboard
+    dashboard: {
+      title: "대시보드",
+      subtitle: "이커머스 · 실시간 모니터링",
+      live: "Live",
+      recommendedActions: "추천 액션",
+      actions: {
+        conversion: "전환율 올리기",
+        retention: "리텐션 개선",
+        engagement: "참여도 증가",
+      },
+      insights: {
+        for: "를 위한 인사이트",
+        conversion: "지난 7일간의 데이터 분석 결과, 관련 기능 적용으로 전환율이",
+        retention: "지난 7일간의 데이터 분석 결과, 관련 기능 적용으로 리텐션이",
+        engagement: "지난 7일간의 데이터 분석 결과, 관련 기능 적용으로 참여도가",
+        increased: "상승했습니다.",
+      },
+      chart: {
+        daysAgo7: "7일 전",
+        daysAgo5: "5일 전",
+        daysAgo3: "3일 전",
+        today: "오늘",
+      },
+    },
     // Success Case
     successCase: {
       title: "Success Cases",
@@ -464,9 +489,9 @@ export const translations = {
         },
         placeholders: {
           email: "your@email.com",
-          phoneNumber: "010-1234-5678",
-          contactName: "John Doe",
-          companyName: "Company name",
+          phoneNumber: "+Country Code-Numbers-Numbers",
+          contactName: "Name",
+          companyName: "Company Name",
         },
       },
     },
@@ -547,6 +572,31 @@ export const translations = {
           badge: "🛡️",
         },
       ],
+    },
+    // Dashboard
+    dashboard: {
+      title: "Dashboard",
+      subtitle: "E-commerce · Real-time Monitoring",
+      live: "Live",
+      recommendedActions: "Recommended Actions",
+      actions: {
+        conversion: "Increase Conversion Rate",
+        retention: "Improve Retention",
+        engagement: "Increase Engagement",
+      },
+      insights: {
+        for: "Insights for",
+        conversion: "As a result of data analysis over the past 7 days, the conversion rate has",
+        retention: "As a result of data analysis over the past 7 days, retention has",
+        engagement: "As a result of data analysis over the past 7 days, engagement has",
+        increased: "increased due to the application of relevant features.",
+      },
+      chart: {
+        daysAgo7: "7 days ago",
+        daysAgo5: "5 days ago",
+        daysAgo3: "3 days ago",
+        today: "Today",
+      },
     },
     // Success Case
     successCase: {
