@@ -15,7 +15,7 @@ export const translations = {
     hero: {
       badge: "Private Preview · Jan 2026",
       title: "Vibe Semantic",
-      subtitle: "Your Product's Personal Data Analyst & BI",
+      subtitle: "Your Product's Data Analyst Agent",
       description:
         "SQL 없이도, 지금 봐야 할 지표와 다음 액션을 제안합니다. PO, 창업가, 마케터를 위한 AI 기반 데이터 분석 도구로 DAU, 리텐션, 전환율 등 핵심 지표를 자연어로 질문하고 인사이트를 얻으세요.",
       earlyAccessButton: "Early Access 신청하기",
@@ -388,9 +388,9 @@ export const translations = {
     hero: {
       badge: "Private Preview · Jan 2026",
       title: "Vibe Semantic",
-      subtitle: "Your Product's Personal Data Analyst & BI",
+      subtitle: "Your Product's Data Analyst Agent",
       description:
-        "Get insights and action recommendations without SQL. An AI-powered data analytics tool for Product Owners, founders, and marketers. Ask questions in natural language about key metrics like DAU, retention, and conversion rates to gain actionable insights.",
+        "Get insights and action recommendations without SQL. An AI-powered data analytics tool for Product managers, founders, and marketers. Ask questions in natural language about key metrics like DAU, retention, and conversion rates to gain actionable insights.",
       earlyAccessButton: "Apply for Early Access",
       howItWorksButton: "How it works",
     },
@@ -421,7 +421,7 @@ export const translations = {
     howItWorks: {
       title: "How it works",
       description:
-        "Start getting data insights in 3 simple steps. A straightforward data analysis process for Product Owners, founders, and marketers.",
+        "Start getting data insights in 3 simple steps. A straightforward data analysis process for Product managers, founders, and marketers.",
       steps: [
         {
           number: "01",
@@ -560,7 +560,7 @@ export const translations = {
         {
           question: "Can I use it without a data analyst?",
           answer:
-            "Yes, exactly. Vibe Semantic is designed to be easy to use for Product Owners, founders, marketers, and others without specialized data analysis knowledge. Just ask questions in natural language and get automatic analysis results and insights.",
+            "Yes, exactly. Vibe Semantic is designed to be easy to use for Product managers, founders, marketers, and others without specialized data analysis knowledge. Just ask questions in natural language and get automatic analysis results and insights.",
         },
         {
           question: "What metrics can I analyze?",
