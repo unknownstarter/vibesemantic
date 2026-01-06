@@ -36,7 +36,7 @@ export function FAQ() {
             </p>
           </div>
 
-          <Accordion items={t.faq.items} />
+          <Accordion items={[...t.faq.items]} />
         </Container>
       </Section>
     </>

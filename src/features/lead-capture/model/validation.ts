@@ -1,4 +1,5 @@
 import { LeadFormData } from "@/entities/lead/types";
+import { translations } from "@/shared/lib/i18n/translations";
 
 export interface ValidationErrors {
   companyName?: string;
@@ -12,9 +13,11 @@ export interface ValidationErrors {
   expectedFeature?: string;
 }
 
+type ErrorMessages = typeof translations.ko.leadCapture.errors | typeof translations.en.leadCapture.errors;
+
 export function validateLeadForm(
   data: Partial<LeadFormData>,
-  errorMessages: typeof import("@/shared/lib/i18n/translations").translations.ko.leadCapture.errors
+  errorMessages: ErrorMessages
 ): ValidationErrors {
   const errors: ValidationErrors = {};
 

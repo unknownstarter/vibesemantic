@@ -201,6 +201,49 @@ export const translations = {
         },
       ],
     },
+    // Security
+    security: {
+      title: "Security & Trust",
+      description: "데이터 보안은 최우선입니다",
+      items: [
+        {
+          title: "Read-only access",
+          description:
+            "데이터베이스에 읽기 전용으로만 연결합니다. 데이터 수정이나 삭제는 불가능합니다.",
+          badge: "🔒",
+        },
+        {
+          title: "Allowlist",
+          description:
+            "analytics schema/view만 접근 가능하도록 제한합니다. 민감한 데이터는 접근하지 않습니다.",
+          badge: "📋",
+        },
+        {
+          title: "Query limit/timeout",
+          description:
+            "쿼리 실행 시간과 리소스 사용량을 제한하여 데이터베이스 부하를 방지합니다.",
+          badge: "⏱️",
+        },
+        {
+          title: "PII 최소화 가이드",
+          description:
+            "개인정보 식별 가능 데이터(PII)는 최소화하고, 필요시 익명화 처리를 안내합니다.",
+          badge: "🛡️",
+        },
+      ],
+    },
+    // Success Case
+    successCase: {
+      title: "Success Cases",
+      description: "실제 데이터로 확인하는 인사이트와 액션",
+      clickHint: "카드를 클릭하면 상세 인사이트를 확인할 수 있습니다",
+    },
+    // Bento
+    bento: {
+      title: "Features",
+      description:
+        "SQL 없이도 데이터 인사이트를 얻을 수 있는 모든 기능. 데이터 분석가 없어도 제품 지표를 분석하고 의사결정할 수 있습니다.",
+    },
     // Footer
     footer: {
       company: "Company: Dropdown",
