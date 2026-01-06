@@ -17,8 +17,8 @@ export function useLeadCapture() {
     value: LeadFormData[K]
   ) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: undefined }));
+    if (field in errors && errors[field as keyof ValidationErrors]) {
+      setErrors((prev) => ({ ...prev, [field as keyof ValidationErrors]: undefined }));
     }
   };
 
