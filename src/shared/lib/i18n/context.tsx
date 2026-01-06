@@ -17,9 +17,9 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguageState] = useState<Language>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("language") as Language;
-      return saved === "en" || saved === "ko" ? saved : "ko";
+      return saved === "en" || saved === "ko" ? saved : "en";
     }
-    return "ko";
+    return "en";
   });
 
   const setLanguage = (lang: Language) => {
