@@ -93,7 +93,7 @@ export const translations = {
           title: "인기",
           badge: "인기",
           heading: "Early Access 우선 초대",
-          price: "25,000원",
+          price: "무료",
           features: [
             { text: "출시 즉시 우선 초대", included: true },
             { text: "자연어 질문 50회 제공", included: true },
@@ -101,7 +101,7 @@ export const translations = {
             { text: "다음 액션 제안", included: true },
             { text: "기본 리포트 생성", included: true },
           ],
-          buttonText: "전화번호 등록",
+          buttonText: "Early Access",
         },
         premium: {
           title: "추천",
@@ -221,9 +221,13 @@ export const translations = {
         painPoint: "지금 가장 답답한 점",
         currentTool: "현재 사용 중인 분석 도구",
         expectedFeature: "Early Access에서 가장 기대하는 기능",
+        email: "이메일",
+        phoneNumber: "전화번호",
       },
       placeholders: {
         select: "선택해주세요",
+        email: "your@email.com",
+        phoneNumber: "010-1234-5678",
       },
       purposes: [
         "지금 봐야 할 핵심 지표 파악",
@@ -360,7 +364,7 @@ export const translations = {
           title: "Popular",
           badge: "Popular",
           heading: "Early Access priority invite",
-          price: "₩25,000",
+          price: "Free",
           features: [
             { text: "Priority invite on launch", included: true },
             { text: "50 natural language queries", included: true },
@@ -368,7 +372,7 @@ export const translations = {
             { text: "Next action recommendations", included: true },
             { text: "Basic report generation", included: true },
           ],
-          buttonText: "Register phone number",
+          buttonText: "Early Access",
         },
         premium: {
           title: "Recommended",
@@ -531,9 +535,13 @@ export const translations = {
         painPoint: "Biggest pain point right now",
         currentTool: "Current analytics tool",
         expectedFeature: "Most expected feature in Early Access",
+        email: "Email",
+        phoneNumber: "Phone number",
       },
       placeholders: {
         select: "Please select",
+        email: "your@email.com",
+        phoneNumber: "010-1234-5678",
       },
       purposes: [
         "Identify key metrics to monitor now",

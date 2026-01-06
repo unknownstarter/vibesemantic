@@ -110,6 +110,36 @@ export function LeadCaptureForm() {
             )}
           </div>
 
+          {/* 이메일 */}
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium mb-2">
+              {t.leadCapture.fields.email}
+            </label>
+            <input
+              id="email"
+              type="email"
+              value={formData.email || ""}
+              onChange={(e) => updateField("email", e.target.value)}
+              className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-foreground focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white/20"
+              placeholder={t.leadCapture.placeholders.email}
+            />
+          </div>
+
+          {/* 전화번호 */}
+          <div>
+            <label htmlFor="phoneNumber" className="block text-sm font-medium mb-2">
+              {t.leadCapture.fields.phoneNumber}
+            </label>
+            <input
+              id="phoneNumber"
+              type="tel"
+              value={formData.phoneNumber || ""}
+              onChange={(e) => updateField("phoneNumber", e.target.value)}
+              className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-foreground focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white/20"
+              placeholder={t.leadCapture.placeholders.phoneNumber}
+            />
+          </div>
+
           {/* 직책/직무 */}
           <div>
             <label htmlFor="jobRole" className="block text-sm font-medium mb-2">

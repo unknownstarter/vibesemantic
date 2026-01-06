@@ -331,6 +331,14 @@ export function Pricing() {
   ];
 
   const handlePlanClick = (plan: Plan) => {
+    // popular 플랜은 모달 대신 최하단 폼으로 스크롤
+    if (plan.id === "popular") {
+      const target = document.querySelector("#apply");
+      if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+      return;
+    }
     setSelectedPlan(plan);
     setIsModalOpen(true);
   };
