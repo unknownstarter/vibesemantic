@@ -25,11 +25,11 @@ export function LeadCaptureForm() {
     submit,
   } = useLeadCapture();
 
-  const JOB_ROLES: JobRole[] = t.leadCapture.jobRoles as JobRole[];
+  const JOB_ROLES: JobRole[] = [...t.leadCapture.jobRoles] as JobRole[];
   const DAU_RANGES: DAURange[] = ["0-100", "100-1K", "1K-10K", "10K+"];
-  const PURPOSE_OPTIONS: PurposeOption[] = t.leadCapture.purposes as PurposeOption[];
-  const ANALYTICS_TOOLS: AnalyticsTool[] = t.leadCapture.analyticsTools as AnalyticsTool[];
-  const EXPECTED_FEATURES: ExpectedFeature[] = t.leadCapture.expectedFeatures as ExpectedFeature[];
+  const PURPOSE_OPTIONS: PurposeOption[] = [...t.leadCapture.purposes] as PurposeOption[];
+  const ANALYTICS_TOOLS: AnalyticsTool[] = [...t.leadCapture.analyticsTools] as AnalyticsTool[];
+  const EXPECTED_FEATURES: ExpectedFeature[] = [...t.leadCapture.expectedFeatures] as ExpectedFeature[];
 
   if (isSubmitted) {
     return (

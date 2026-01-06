@@ -6,12 +6,12 @@ import { Card } from "@/shared/ui/Card";
 import { useI18n } from "@/shared/lib/i18n/context";
 
 export function HowItWorks() {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
 
   const howToSchema = {
     "@context": "https://schema.org",
     "@type": "HowTo",
-    name: t.language === "ko" 
+    name: language === "ko" 
       ? "Vibe Semantic으로 데이터 분석 시작하기"
       : "Getting started with data analysis using Vibe Semantic",
     description: t.howItWorks.description,

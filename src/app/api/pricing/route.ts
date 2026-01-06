@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
 
     // Google Sheets에 저장 시도
     try {
-      await appendToSheet(sheetData as any);
+      await appendToSheet(sheetData as Record<string, unknown>);
       console.log("Pricing form saved to Google Sheets:", sheetData);
     } catch (sheetsError) {
       console.error("Google Sheets error:", sheetsError);
