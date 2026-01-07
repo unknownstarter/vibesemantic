@@ -12,6 +12,7 @@ import { Button } from "@/shared/ui/Button";
 import { Card } from "@/shared/ui/Card";
 import { Container } from "@/shared/ui/Container";
 import { useI18n } from "@/shared/lib/i18n/context";
+import { useSectionView } from "@/shared/lib/useSectionView";
 
 export function LeadCaptureForm() {
   const { t } = useI18n();

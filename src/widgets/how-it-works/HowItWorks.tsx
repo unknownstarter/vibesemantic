@@ -4,9 +4,11 @@ import { Section } from "@/shared/ui/Section";
 import { Container } from "@/shared/ui/Container";
 import { Card } from "@/shared/ui/Card";
 import { useI18n } from "@/shared/lib/i18n/context";
+import { useSectionView } from "@/shared/lib/useSectionView";
 
 export function HowItWorks() {
   const { t, language } = useI18n();
+  const sectionRef = useSectionView("how_it_works");
 
   const howToSchema = {
     "@context": "https://schema.org",
@@ -36,7 +38,7 @@ export function HowItWorks() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(howToSchema) }}
       />
-      <Section id="how" className="bg-gray-950/30">
+      <Section id="how" ref={sectionRef} className="bg-gray-950/30">
         <Container size="lg">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold mb-4 text-white">

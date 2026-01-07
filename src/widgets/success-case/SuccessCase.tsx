@@ -7,6 +7,7 @@ import { Card } from "@/shared/ui/Card";
 import { Badge } from "@/shared/ui/Badge";
 import { cn } from "@/shared/lib/utils";
 import { useI18n } from "@/shared/lib/i18n/context";
+import { useSectionView } from "@/shared/lib/useSectionView";
 
 interface CaseStudy {
   id: string;
@@ -131,6 +132,7 @@ function CaseCard({ caseStudy, isActive, onClick }: { caseStudy: CaseStudy; isAc
 export function SuccessCase() {
   const { t } = useI18n();
   const [selectedCase, setSelectedCase] = useState<string | null>(null);
+  const sectionRef = useSectionView("success_case");
 
   const caseStudies: CaseStudy[] = t.successCase.cases.map((caseData) => ({
     ...caseData,
@@ -138,7 +140,7 @@ export function SuccessCase() {
   }));
 
   return (
-    <Section id="success" className="bg-gray-950/30">
+    <Section id="success" ref={sectionRef} className="bg-gray-950/30">
       <Container size="xl">
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-bold mb-4 text-white">

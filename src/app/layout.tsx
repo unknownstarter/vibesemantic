@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "@/shared/styles/globals.css";
 import { I18nProvider } from "@/shared/lib/i18n/context";
+import { GoogleAnalytics } from "@/shared/lib/GoogleAnalytics";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://vibesemantic.xyz"),
@@ -219,6 +220,7 @@ export default function RootLayout({
         />
       </head>
       <body>
+        <GoogleAnalytics />
         <I18nProvider>{children}</I18nProvider>
       </body>
     </html>

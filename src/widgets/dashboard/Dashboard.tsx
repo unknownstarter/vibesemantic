@@ -5,6 +5,7 @@ import { Card } from "@/shared/ui/Card";
 import { Badge } from "@/shared/ui/Badge";
 import { cn } from "@/shared/lib/utils";
 import { useI18n } from "@/shared/lib/i18n/context";
+import { clickButton } from "@/shared/lib/analytics";
 
 interface MetricCardProps {
   label: string;
@@ -83,10 +84,12 @@ export function Dashboard() {
 
   const handleMetricClick = (metricId: string) => {
     setSelectedMetric(selectedMetric === metricId ? null : metricId);
+    clickButton(`dashboard_metric_${metricId}`, "dashboard");
   };
 
   const handleActionClick = (actionId: string) => {
     setSelectedAction(selectedAction === actionId ? null : actionId);
+    clickButton(`dashboard_action_${actionId}`, "dashboard");
   };
 
   return (

@@ -4,12 +4,14 @@ import { Section } from "@/shared/ui/Section";
 import { Container } from "@/shared/ui/Container";
 import { Card } from "@/shared/ui/Card";
 import { useI18n } from "@/shared/lib/i18n/context";
+import { useSectionView } from "@/shared/lib/useSectionView";
 
 export function Security() {
   const { t } = useI18n();
+  const sectionRef = useSectionView("security");
 
   return (
-    <Section id="security">
+    <Section id="security" ref={sectionRef}>
       <Container size="lg">
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-bold mb-4 text-white">

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { LeadFormData } from "@/entities/lead/types";
 import { validateLeadForm, ValidationErrors } from "./validation";
 import { useI18n } from "@/shared/lib/i18n/context";
+import { submitForm } from "@/shared/lib/analytics";
 
 export function useLeadCapture() {
   const { t } = useI18n();
@@ -59,11 +60,13 @@ export function useLeadCapture() {
       console.log("Lead saved successfully:", result);
       
       setIsSubmitted(true);
+      submitForm("lead_capture", true);
     } catch (error) {
       console.error("Error submitting lead:", error);
       // 에러 발생 시에도 사용자에게는 성공 메시지 표시
       // (실제 프로덕션에서는 에러 메시지를 표시하는 것이 좋습니다)
       setIsSubmitted(true);
+      submitForm("lead_capture", false);
     } finally {
       setIsSubmitting(false);
     }

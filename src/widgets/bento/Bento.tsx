@@ -6,6 +6,7 @@ import { Card } from "@/shared/ui/Card";
 import { Badge } from "@/shared/ui/Badge";
 import { cn } from "@/shared/lib/utils";
 import { useI18n } from "@/shared/lib/i18n/context";
+import { useSectionView } from "@/shared/lib/useSectionView";
 
 const features = [
   {
@@ -55,9 +56,10 @@ const features = [
 
 export function Bento() {
   const { t, language } = useI18n();
+  const sectionRef = useSectionView("bento");
 
   return (
-    <Section id="product">
+    <Section id="product" ref={sectionRef}>
       <Container size="xl">
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-bold mb-4 text-white">

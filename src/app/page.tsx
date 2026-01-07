@@ -10,6 +10,7 @@ import { Security } from "@/widgets/security/Security";
 import { FAQ } from "@/widgets/faq/FAQ";
 import { LeadCaptureForm } from "@/features/lead-capture/ui/LeadCaptureForm";
 import { Section } from "@/shared/ui/Section";
+import { PageViewTracker } from "@/shared/lib/PageViewTracker";
 
 export default function LandingPage() {
   return (
@@ -69,6 +70,7 @@ export default function LandingPage() {
           }),
         }}
       />
+      <PageViewTracker />
       <div className="relative min-h-screen">
         <Header />
         <main>
@@ -89,4 +91,3 @@ export default function LandingPage() {
     </>
   );
 }
-

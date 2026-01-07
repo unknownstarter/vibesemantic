@@ -6,6 +6,7 @@ import { Container } from "@/shared/ui/Container";
 import { LogoIcon } from "./LogoIcon";
 import { cn } from "@/shared/lib/utils";
 import { useI18n } from "@/shared/lib/i18n/context";
+import { clickButton, changeLanguage } from "@/shared/lib/analytics";
 
 function handleAnchorClick(e: React.MouseEvent<HTMLAnchorElement>, href: string) {
   e.preventDefault();
@@ -67,7 +68,10 @@ export function Header() {
               <a
                 key={item.href}
                 href={item.href}
-                onClick={(e) => handleAnchorClick(e, item.href)}
+                onClick={(e) => {
+                  handleAnchorClick(e, item.href);
+                  clickButton(`nav_${item.label}`, "header");
+                }}
                 className="text-sm text-gray-400 hover:text-foreground transition-colors"
                 aria-label={`Navigate to ${item.label} section`}
               >
@@ -91,6 +95,7 @@ export function Header() {
                     onClick={() => {
                       setLanguage("ko");
                       setIsLanguageMenuOpen(false);
+                      changeLanguage("ko");
                     }}
                     className={cn(
                       "w-full text-left px-4 py-2 text-sm transition-colors",
@@ -105,6 +110,7 @@ export function Header() {
                     onClick={() => {
                       setLanguage("en");
                       setIsLanguageMenuOpen(false);
+                      changeLanguage("en");
                     }}
                     className={cn(
                       "w-full text-left px-4 py-2 text-sm transition-colors",
@@ -127,6 +133,7 @@ export function Header() {
                 if (target) {
                   target.scrollIntoView({ behavior: "smooth", block: "start" });
                 }
+                clickButton("early_access", "header");
               }}
             >
               {t.nav.earlyAccess}

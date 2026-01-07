@@ -5,9 +5,16 @@ import { Container } from "@/shared/ui/Container";
 import { Badge } from "@/shared/ui/Badge";
 import { Dashboard } from "@/widgets/dashboard/Dashboard";
 import { useI18n } from "@/shared/lib/i18n/context";
+import { useEffect } from "react";
+import { viewSection, clickButton } from "@/shared/lib/analytics";
 
 export function Hero() {
   const { t } = useI18n();
+
+  useEffect(() => {
+    viewSection("hero");
+  }, []);
+
   const scrollToSection = (id: string) => {
     const target = document.querySelector(id);
     if (target) {
@@ -40,14 +47,20 @@ export function Hero() {
               <Button
                 variant="primary"
                 size="lg"
-                onClick={() => scrollToSection("#apply")}
+                onClick={() => {
+                  scrollToSection("#apply");
+                  clickButton("early_access", "hero");
+                }}
               >
                 {t.hero.earlyAccessButton}
               </Button>
               <Button
                 variant="secondary"
                 size="lg"
-                onClick={() => scrollToSection("#how")}
+                onClick={() => {
+                  scrollToSection("#how");
+                  clickButton("how_it_works", "hero");
+                }}
               >
                 {t.hero.howItWorksButton}
               </Button>

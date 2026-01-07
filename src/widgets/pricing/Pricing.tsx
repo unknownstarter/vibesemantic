@@ -16,6 +16,8 @@ import {
   PremiumPlanData,
 } from "@/entities/pricing/types";
 import { useI18n } from "@/shared/lib/i18n/context";
+import { clickButton, submitForm } from "@/shared/lib/analytics";
+import { useSectionView } from "@/shared/lib/useSectionView";
 
 interface PlanFeature {
   text: string;
@@ -111,8 +113,10 @@ function PricingModal({
       }
       await onSubmit(submitData);
       setIsSubmitted(true);
+      submitForm(`pricing_${plan?.id}`, true);
     } catch (error) {
       console.error("Error submitting:", error);
+      submitForm(`pricing_${plan?.id}`, false);
     } finally {
       setIsSubmitting(false);
     }
@@ -293,6 +297,7 @@ export function Pricing() {
   const { t } = useI18n();
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const sectionRef = useSectionView("pricing");
 
   const plans: Plan[] = [
     {
@@ -359,7 +364,7 @@ export function Pricing() {
 
   return (
     <>
-      <Section id="pricing" className="bg-gray-950/30">
+      <Section id="pricing" ref={sectionRef} className="bg-gray-950/30">
         <Container size="xl">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold mb-4 text-white">
