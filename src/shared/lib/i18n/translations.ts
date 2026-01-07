@@ -55,7 +55,7 @@ export const translations = {
           title: "Connect",
           description: "Read-only 연결",
           detail:
-            "데이터베이스에 읽기 전용으로 연결합니다. Supabase, BigQuery 등 주요 데이터베이스를 지원합니다.",
+            "데이터베이스에 읽기 전용으로 연결합니다. Supabase, GA4, BigQuery 등 주요 데이터베이스를 지원합니다.",
         },
         {
           number: "02",
@@ -170,9 +170,9 @@ export const translations = {
             "아니요, Vibe Semantic은 데이터를 저장하지 않습니다. 읽기 전용으로 연결하여 쿼리 결과만 일시적으로 처리하며, 원본 데이터는 그대로 유지됩니다. 모든 데이터는 사용자의 데이터베이스에만 저장되며, Vibe Semantic은 분석 결과만 제공합니다.",
         },
         {
-          question: "Supabase/BigQuery 둘 다 되나요?",
+          question: "Supabase/GA4/BigQuery 셋 다 되나요?",
           answer:
-            "네, Supabase와 BigQuery를 모두 지원합니다. 읽기 전용 연결을 통해 안전하게 데이터에 접근하며, 추후 더 많은 데이터베이스를 지원할 예정입니다. 현재는 PostgreSQL 기반 데이터베이스와 BigQuery를 지원합니다.",
+            "네, Supabase, GA4, BigQuery를 모두 지원합니다. 읽기 전용 연결을 통해 안전하게 데이터에 접근하며, 추후 더 많은 데이터베이스를 지원할 예정입니다. 현재는 PostgreSQL 기반 데이터베이스와 BigQuery를 지원합니다.",
         },
         {
           question: "오픈 일정은 어떻게 되나요?",
@@ -428,7 +428,7 @@ export const translations = {
           title: "Connect",
           description: "Read-only connection",
           detail:
-            "Connect to your database in read-only mode. Supports major databases including Supabase and BigQuery.",
+            "Connect to your database in read-only mode. Supports major databases including Supabase, GA4, and BigQuery.",
         },
         {
           number: "02",
@@ -543,9 +543,9 @@ export const translations = {
             "No, Vibe Semantic does not store data. We connect in read-only mode and only process query results temporarily, keeping your original data intact. All data remains stored only in your database, and Vibe Semantic only provides analysis results.",
         },
         {
-          question: "Does it work with both Supabase and BigQuery?",
+          question: "Does it work with both Supabase, GA4, and BigQuery?",
           answer:
-            "Yes, we support both Supabase and BigQuery. We safely access data through read-only connections, and plan to support more databases in the future. Currently, we support PostgreSQL-based databases and BigQuery.",
+            "Yes, we support both Supabase, GA4, and BigQuery. We safely access data through read-only connections, and plan to support more databases in the future. Currently, we support PostgreSQL-based databases and BigQuery.",
         },
         {
           question: "What's the launch schedule?",
