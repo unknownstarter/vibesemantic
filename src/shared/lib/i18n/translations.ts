@@ -336,7 +336,7 @@ export const translations = {
         "SQL 없이 데이터 확인",
         "데이터 팀 없이 의사결정하기",
       ],
-      jobRoles: ["PO/PM", "Founder/CEO", "Marketer/Growth", "Developer", "기타"],
+      jobRoles: ["PO/PM", "Founder/CEO", "Marketer/Growth", "Developer", "Data Analyst", "Sales", "CS", "Other"],
       analyticsTools: [
         "없음",
         "GA/Firebase",
@@ -709,7 +709,7 @@ export const translations = {
         "Check data without SQL",
         "Make decisions without a data team",
       ],
-      jobRoles: ["PO/PM", "Founder/CEO", "Marketer/Growth", "Developer", "Other"],
+      jobRoles: ["PO/PM", "Founder/CEO", "Marketer/Growth", "Developer", "Data Analyst", "Sales", "CS", "Other"],
       analyticsTools: [
         "None",
         "GA/Firebase",
