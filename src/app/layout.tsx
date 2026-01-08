@@ -53,7 +53,7 @@ export const metadata: Metadata = {
       "SQL 없이도 제품 지표를 분석하고 다음 액션을 제안받으세요. PO, 창업가, 마케터를 위한 AI 기반 데이터 분석 도구.",
     images: [
       {
-        url: "/og-image.png",
+        url: "/icon.svg",
         width: 1200,
         height: 630,
         alt: "Vibe Semantic - AI 기반 데이터 분석 도구",
@@ -65,7 +65,7 @@ export const metadata: Metadata = {
     title: "Vibe Semantic - SQL 없이 데이터 분석하는 AI BI 도구",
     description:
       "SQL 없이도 제품 지표를 분석하고 다음 액션을 제안받으세요. PO, 창업가, 마케터를 위한 AI 기반 데이터 분석 도구.",
-    images: ["/og-image.png"],
+    images: ["/icon.svg"],
   },
   alternates: {
     canonical: "https://vibesemantic.xyz",
@@ -120,7 +120,7 @@ export default function RootLayout({
                 ratingCount: "1",
               },
               applicationSubCategory: "Business Intelligence",
-              screenshot: "https://vibesemantic.xyz/og-image.png",
+              screenshot: "https://vibesemantic.xyz/icon.svg",
             }),
           }}
         />
