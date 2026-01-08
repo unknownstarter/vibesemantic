@@ -46,30 +46,70 @@ export const translations = {
     },
     // How it works
     howItWorks: {
-      title: "How it works",
+      badge: "• Workflow Simplified",
+      title: "Turn Data into Decisions in 3 Steps",
       description:
-        "3단계로 시작하는 데이터 인사이트. PO, 창업가, 마케터를 위한 간단한 데이터 분석 프로세스입니다.",
+        "스프레드시트와 씨름하지 마세요. 데이터 소스를 연결하고 목표를 정의하면, 시맨틱 엔진이 실제로 도움이 되는 인사이트를 찾아드립니다.",
       steps: [
         {
           number: "01",
-          title: "Connect",
-          description: "Read-only 연결",
-          detail:
-            "데이터베이스에 읽기 전용으로 연결합니다. Supabase, GA4, BigQuery 등 주요 데이터베이스를 지원합니다.",
+          title: "Connect Your Universe",
+          description:
+            "데이터 소스를 즉시 통합하세요. Supabase, Google Sheets, GA4, BigQuery 등 주요 데이터 소스를 제로 설정으로 지원합니다.",
+          dataSources: ["Supabase", "Google Sheets", "GA4", "BigQuery"],
+          uiExample: {
+            title: "Data Sources",
+            addButton: "+ Add New",
+            sources: [
+              {
+                name: "Production DB",
+                type: "Supabase",
+                status: "active",
+                lastSync: "Last sync 2m ago",
+              },
+              {
+                name: "Analytics Data",
+                type: "GA4",
+                status: "syncing",
+                lastSync: "Syncing...",
+              },
+              {
+                name: "Q3 Sales Sheet",
+                type: "Google Sheets",
+                status: "paused",
+                lastSync: "Paused",
+              },
+            ],
+          },
         },
         {
           number: "02",
-          title: "Understand",
-          description: "서비스 목적/목표 입력",
-          detail:
-            "서비스의 목적과 핵심 지표를 간단히 입력하면, Vibe Semantic이 자동으로 이해합니다.",
+          title: "Define Your Goals",
+          description:
+            "자연어를 사용하여 Vibe Semantic에게 가장 중요한 KPI를 알려주세요. 복잡한 쿼리 언어가 필요 없습니다—데이터 분석가와 대화하듯 질문하세요.",
+          uiExample: {
+            prompts: [
+              "What insights are you looking for today?",
+              "Analyzing revenue streams...",
+            ],
+            userMessage: "Show me the customer churn rate for Q3 broken down by region.",
+            inputPlaceholder: "Ask follow up...",
+          },
         },
         {
           number: "03",
-          title: "Analyze & Suggest",
-          description: "차트/인사이트/다음 액션",
-          detail:
-            "자연어로 질문하거나 자동 분석을 통해 지표 변화 원인과 다음 액션을 제안받습니다.",
+          title: "AI-Driven Strategy",
+          description:
+            "원시 데이터가 아닌 실행 가능한 전략을 얻으세요. 우리 엔진은 이상 징후를 강조하고 비즈니스를 위한 최적화된 경로를 제안합니다.",
+          uiExample: {
+            title: "CHURN ANALYSIS",
+            period: "Last 30 Days",
+            metric: "4.2%",
+            change: "+0.8%",
+            recommendation:
+              "High churn detected in the 'Enterprise' segment. Consider launching a re-engagement campaign offering extended support.",
+            buttonText: "Generate Campaign",
+          },
         },
       ],
     },
@@ -419,30 +459,70 @@ export const translations = {
     },
     // How it works
     howItWorks: {
-      title: "How it works",
+      badge: "• Workflow Simplified",
+      title: "Turn Data into Decisions in 3 Steps",
       description:
-        "Start getting data insights in 3 simple steps. A straightforward data analysis process for Product managers, founders, and marketers.",
+        "Stop wrestling with spreadsheets. Connect your sources, define your goals, and let our semantic engine surface the insights that actually move the needle.",
       steps: [
         {
           number: "01",
-          title: "Connect",
-          description: "Read-only connection",
-          detail:
-            "Connect to your database in read-only mode. Supports major databases including Supabase, GA4, and BigQuery.",
+          title: "Connect Your Universe",
+          description:
+            "Integrate your data sources instantly. We support Supabase, Google Sheets, GA4, BigQuery, and more with zero-config setup.",
+          dataSources: ["Supabase", "Google Sheets", "GA4", "BigQuery"],
+          uiExample: {
+            title: "Data Sources",
+            addButton: "+ Add New",
+            sources: [
+              {
+                name: "Production DB",
+                type: "Supabase",
+                status: "active",
+                lastSync: "Last sync 2m ago",
+              },
+              {
+                name: "Analytics Data",
+                type: "GA4",
+                status: "syncing",
+                lastSync: "Syncing...",
+              },
+              {
+                name: "Q3 Sales Sheet",
+                type: "Google Sheets",
+                status: "paused",
+                lastSync: "Paused",
+              },
+            ],
+          },
         },
         {
           number: "02",
-          title: "Understand",
-          description: "Enter service goals and objectives",
-          detail:
-            "Simply enter your service's purpose and key metrics, and Vibe Semantic will automatically understand them.",
+          title: "Define Your Goals",
+          description:
+            "Tell Vibe Semantic what KPIs matter most using natural language. No complex query languages needed—just ask as if you were talking to a data analyst.",
+          uiExample: {
+            prompts: [
+              "What insights are you looking for today?",
+              "Analyzing revenue streams...",
+            ],
+            userMessage: "Show me the customer churn rate for Q3 broken down by region.",
+            inputPlaceholder: "Ask follow up...",
+          },
         },
         {
           number: "03",
-          title: "Analyze & Suggest",
-          description: "Charts, insights, and next actions",
-          detail:
-            "Ask questions in natural language or use automatic analysis to get root cause analysis and actionable recommendations.",
+          title: "AI-Driven Strategy",
+          description:
+            "Get actionable strategies, not just raw numbers. Our engine highlights anomalies and suggests optimized paths forward for your business.",
+          uiExample: {
+            title: "CHURN ANALYSIS",
+            period: "Last 30 Days",
+            metric: "4.2%",
+            change: "+0.8%",
+            recommendation:
+              "High churn detected in the 'Enterprise' segment. Consider launching a re-engagement campaign offering extended support.",
+            buttonText: "Generate Campaign",
+          },
         },
       ],
     },
