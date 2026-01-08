@@ -158,34 +158,53 @@ export function HowItWorks() {
 
                     {idx === 1 && (
                       <div className="bg-gray-900/80 border border-gray-800 rounded-xl p-6 space-y-4 backdrop-blur-sm">
-                        <div className="space-y-3">
-                          {"prompts" in step.uiExample && step.uiExample.prompts.map((prompt, i) => (
-                            <div
-                              key={i}
-                              className="flex items-center gap-2 text-gray-400 text-sm"
+                        {/* AI Prompt */}
+                        <div className="flex items-start gap-3">
+                          <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center flex-shrink-0">
+                            <svg
+                              className="w-4 h-4 text-emerald-400"
+                              fill="currentColor"
+                              viewBox="0 0 24 24"
                             >
-                              <span className="text-emerald-400">+</span>
-                              <span>{prompt}</span>
-                            </div>
-                          ))}
+                              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                            </svg>
+                          </div>
+                          <p className="text-gray-300 text-sm leading-relaxed">
+                            {"prompts" in step.uiExample && step.uiExample.prompts[0]}
+                          </p>
                         </div>
-                        <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700/50">
-                          <div className="flex items-start gap-3">
-                            <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center flex-shrink-0">
-                              <div className="w-4 h-4 rounded-full bg-emerald-400"></div>
+                        {/* User Message */}
+                        <div className="flex items-start gap-3">
+                          <div className="w-8 h-8 rounded-full bg-gray-700 border border-gray-600 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                            <div className="w-full h-full bg-gradient-to-br from-gray-600 to-gray-800 flex items-center justify-center">
+                              <div className="w-4 h-4 rounded-full bg-gray-500"></div>
                             </div>
-                            <p className="text-white text-sm leading-relaxed">
+                          </div>
+                          <div className="bg-emerald-500/20 border border-emerald-500/30 rounded-lg px-4 py-3 max-w-[85%]">
+                            <p className="text-emerald-100 text-sm leading-relaxed">
                               {"userMessage" in step.uiExample && step.uiExample.userMessage}
                             </p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 text-gray-400 text-sm">
-                          <span className="text-emerald-400">+</span>
-                          <span>{"prompts" in step.uiExample && step.uiExample.prompts[1]}</span>
+                        {/* AI Response */}
+                        <div className="flex items-start gap-3">
+                          <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center flex-shrink-0">
+                            <svg
+                              className="w-4 h-4 text-emerald-400"
+                              fill="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                            </svg>
+                          </div>
+                          <p className="text-gray-300 text-sm leading-relaxed">
+                            {"prompts" in step.uiExample && step.uiExample.prompts[1]}
+                          </p>
                         </div>
+                        {/* Input Field */}
                         <div className="mt-4 pt-4 border-t border-gray-800">
                           <div className="flex items-center gap-2 px-4 py-3 bg-gray-800/50 rounded-lg border border-gray-700/50">
-                            <span className="text-gray-500 text-sm flex-1">
+                            <span className="text-gray-400 text-sm flex-1">
                               {"inputPlaceholder" in step.uiExample && step.uiExample.inputPlaceholder}
                             </span>
                             <button className="text-emerald-400 hover:text-emerald-300 transition-colors">
@@ -210,29 +229,43 @@ export function HowItWorks() {
 
                     {idx === 2 && (
                       <div className="bg-gray-900/80 border border-gray-800 rounded-xl p-6 space-y-4 backdrop-blur-sm">
-                        <div className="flex items-center justify-between mb-4">
-                          <h4 className="text-white font-semibold text-lg">
+                        {/* Header */}
+                        <div className="flex items-center justify-between mb-6">
+                          <h4 className="text-white font-semibold text-lg tracking-wide">
                             {"title" in step.uiExample && step.uiExample.title}
                           </h4>
-                          <span className="text-gray-400 text-sm">
+                          <button className="px-3 py-1.5 bg-gray-800/50 hover:bg-gray-800 border border-gray-700 rounded-lg text-gray-300 text-sm font-medium transition-colors">
                             {"period" in step.uiExample && step.uiExample.period}
-                          </span>
+                          </button>
                         </div>
+                        {/* Metric */}
                         <div className="flex items-baseline gap-4 mb-6">
-                          <div className="text-5xl font-bold text-white">
+                          <div className="text-6xl font-bold text-white">
                             {"metric" in step.uiExample && step.uiExample.metric}
                           </div>
-                          <div className="text-lg font-semibold text-red-400">
+                          <div className="text-xl font-semibold text-red-400">
                             ↑ {"change" in step.uiExample && step.uiExample.change}
                           </div>
                         </div>
-                        <div className="h-24 bg-gray-800/50 rounded-lg mb-4 flex items-end p-4 border border-gray-700/50">
-                          <div className="w-full h-16 bg-emerald-500/30 rounded-t"></div>
+                        {/* Chart */}
+                        <div className="h-32 bg-gray-800/50 rounded-lg mb-6 flex items-end justify-between gap-2 p-4 border border-gray-700/50">
+                          <div className="flex-1 h-20 bg-gray-700/50 rounded-t"></div>
+                          <div className="flex-1 h-16 bg-gray-700/50 rounded-t"></div>
+                          <div className="flex-1 h-24 bg-emerald-500/40 rounded-t relative">
+                            <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-blue-400"></div>
+                          </div>
                         </div>
-                        <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4">
-                          <div className="flex items-start gap-2 mb-2">
-                            <div className="w-4 h-4 mt-1">
-                              <div className="w-0 h-0 border-l-[6px] border-r-[6px] border-b-[10px] border-l-transparent border-r-transparent border-b-emerald-400"></div>
+                        {/* Recommendation */}
+                        <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4 mb-4">
+                          <div className="flex items-start gap-3">
+                            <div className="w-5 h-5 mt-0.5 flex items-center justify-center">
+                              <svg
+                                className="w-5 h-5 text-emerald-400"
+                                fill="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path d="M9 21c0 .5.4 1 1 1h4c.6 0 1-.5 1-1v-1H9v1zm3-19C8.1 2 5 5.1 5 9c0 2.4 1.2 4.5 3 5.7V17c0 .5.4 1 1 1h6c.6 0 1-.5 1-1v-2.3c1.8-1.3 3-3.4 3-5.7 0-3.9-3.1-7-7-7z" />
+                              </svg>
                             </div>
                             <div className="flex-1">
                               <div className="text-emerald-400 font-semibold text-sm mb-1">
@@ -243,10 +276,11 @@ export function HowItWorks() {
                       </p>
                     </div>
                           </div>
+                          {/* Generate Campaign Button */}
+                          <button className="w-full mt-4 px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white font-medium text-sm rounded-lg transition-colors">
+                            {"buttonText" in step.uiExample && step.uiExample.buttonText}
+                          </button>
                         </div>
-                        <button className="w-full mt-4 px-4 py-3 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/50 rounded-lg text-emerald-400 font-medium text-sm transition-colors">
-                          {"buttonText" in step.uiExample && step.uiExample.buttonText}
-                        </button>
                       </div>
                     )}
                   </div>
