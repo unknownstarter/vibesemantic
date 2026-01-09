@@ -76,10 +76,10 @@ export default function LandingPage() {
         <main>
           <Hero />
           <Problem />
-          <Bento />
-          <Pricing />
-          <SuccessCase />
           <HowItWorks />
+          <Bento />
+          <SuccessCase />
+          <Pricing />
           <Security />
           <FAQ />
           <Section id="apply" className="bg-gray-950/30">
