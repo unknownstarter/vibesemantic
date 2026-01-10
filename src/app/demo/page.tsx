@@ -570,8 +570,8 @@ export default function DemoPage() {
                   <Button
                     variant="primary"
                     onClick={() => {
-                      setStep(4);
                       clickButton("demo_apply_early_access", "demo_page");
+                      router.push("/#apply");
                     }}
                     className="inline-flex items-center gap-2"
                   >

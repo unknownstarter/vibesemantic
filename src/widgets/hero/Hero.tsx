@@ -48,11 +48,11 @@ export function Hero() {
                 variant="primary"
                 size="lg"
                 onClick={() => {
-                  scrollToSection("#apply");
-                  clickButton("early_access", "hero");
+                  window.location.href = "/demo";
+                  clickButton("demo_try", "hero");
                 }}
               >
-                {t.hero.earlyAccessButton}
+                {t.hero.demoButton}
               </Button>
               <Button
                 variant="secondary"
@@ -68,11 +68,11 @@ export function Hero() {
                 variant="secondary"
                 size="lg"
                 onClick={() => {
-                  window.location.href = "/demo";
-                  clickButton("demo_try", "hero");
+                  scrollToSection("#apply");
+                  clickButton("early_access", "hero");
                 }}
               >
-                {t.hero.demoButton}
+                {t.hero.earlyAccessButton}
               </Button>
             </div>
           </div>

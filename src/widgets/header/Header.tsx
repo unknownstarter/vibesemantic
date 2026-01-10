@@ -19,7 +19,14 @@ function handleAnchorClick(
   
   if (pathname === "/demo") {
     // 데모 페이지에서 클릭한 경우 메인 페이지로 이동
-    router.push(href);
+    router.push("/");
+    // 페이지 이동 후 스크롤을 위해 약간의 지연
+    setTimeout(() => {
+      const target = document.querySelector(href);
+      if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }, 500);
   } else {
     // 메인 페이지에서 클릭한 경우 스크롤
     const target = document.querySelector(href);
