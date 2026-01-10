@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
 import { TrendingDown, AlertCircle, CheckCircle, Sparkles, ArrowRight, MessageSquare } from "lucide-react";
@@ -43,6 +43,13 @@ export default function DemoPage() {
     { step: "First Action", users: 1800, rate: 18 },
     { step: "Activation", users: 1200, rate: 12 },
   ];
+
+  // Scroll to top when step changes (except step 3 which needs scrolling)
+  useEffect(() => {
+    if (step !== 3) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [step]);
 
   const handleAnalyze = () => {
     setIsAnalyzing(true);
@@ -89,49 +96,50 @@ export default function DemoPage() {
     switch (step) {
       case 0:
         return (
-          <Section className="bg-gray-950/30">
+          <Section className="bg-gray-950/30 min-h-[calc(100vh-8rem)] flex items-center py-12 md:py-16">
             <Container size="lg">
-              <div className="max-w-2xl w-full mx-auto text-center space-y-8">
-                <div className="space-y-4">
+              <div className="max-w-2xl w-full mx-auto text-center space-y-6 md:space-y-8">
+                <div className="space-y-3 md:space-y-4">
                   <Badge variant="info" className="bg-[#22c55e]/20 text-[#22c55e] border-[#22c55e]/30 mb-4">
                     {t.demo.step0.badge}
                   </Badge>
-                  <h1 className="text-4xl md:text-6xl font-bold text-white leading-tight">
+                  <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight">
                     {t.demo.step0.title}
                     <br />
                     <span className="text-[#22c55e]">{t.demo.step0.titleHighlight}</span>
                   </h1>
-                  <p className="text-lg text-gray-400 max-w-xl mx-auto whitespace-pre-line">
+                  <p className="text-base md:text-lg text-gray-400 max-w-xl mx-auto whitespace-pre-line px-4">
                     {t.demo.step0.description}
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6 mt-8 md:mt-12 px-4">
                   {t.demo.step0.beforeItems.map((item, idx) => (
-                    <Card key={idx} variant="bento" className="p-6 bg-white/5 border-white/10 hover:bg-white/10 transition-all">
-                      <div className="flex items-center gap-2 mb-3">
+                    <Card key={idx} variant="bento" className="p-4 md:p-6 bg-white/5 border-white/10 hover:bg-white/10 transition-all">
+                      <div className="flex items-center gap-2 mb-2 md:mb-3">
                         <div className="w-2 h-2 rounded-full bg-red-400"></div>
                         <span className="text-red-400 text-xs font-semibold uppercase tracking-wide">{t.demo.step0.beforeTitle}</span>
                       </div>
-                      <p className="text-gray-300 text-base leading-relaxed whitespace-pre-line font-medium">{item.text}</p>
+                      <p className="text-gray-300 text-sm md:text-base leading-relaxed whitespace-pre-line font-medium">{item.text}</p>
                     </Card>
                   ))}
                 </div>
 
-                <Button
-                  variant="primary"
-                  size="lg"
-                  onClick={() => {
-                    setStep(1);
-                    clickButton("demo_start", "demo_page");
-                  }}
-                  className="mt-8 inline-flex items-center gap-2 text-sm sm:text-base"
-                >
-                  {t.demo.step0.startButton}
-                  <ArrowRight size={20} className="flex-shrink-0" />
-                </Button>
-
-                <p className="text-sm text-gray-500 mt-4">{t.demo.step0.disclaimer}</p>
+                <div className="mt-6 md:mt-8">
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    onClick={() => {
+                      setStep(1);
+                      clickButton("demo_start", "demo_page");
+                    }}
+                    className="inline-flex items-center gap-2 text-sm sm:text-base"
+                  >
+                    {t.demo.step0.startButton}
+                    <ArrowRight size={20} className="flex-shrink-0" />
+                  </Button>
+                  <p className="text-xs md:text-sm text-gray-500 mt-3 md:mt-4">{t.demo.step0.disclaimer}</p>
+                </div>
               </div>
             </Container>
           </Section>
@@ -139,15 +147,15 @@ export default function DemoPage() {
 
       case 1:
         return (
-          <Section className="bg-gray-950/30">
+          <Section className="bg-gray-950/30 min-h-[calc(100vh-8rem)] flex items-center py-12 md:py-16">
             <Container size="lg">
-              <div className="max-w-2xl mx-auto">
-                <div className="mb-8 text-center">
-                  <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">{t.demo.step1.title}</h2>
-                  <p className="text-lg text-gray-400">{t.demo.step1.description}</p>
+              <div className="max-w-2xl mx-auto w-full">
+                <div className="mb-6 md:mb-8 text-center px-4">
+                  <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-3 md:mb-4">{t.demo.step1.title}</h2>
+                  <p className="text-base md:text-lg text-gray-400">{t.demo.step1.description}</p>
                 </div>
 
-                <Card variant="bento" className="p-6 space-y-4">
+                <Card variant="bento" className="p-4 md:p-6 space-y-4">
                   <div className="flex items-center justify-between mb-4">
                     <h4 className="text-white font-semibold text-lg">Data Sources</h4>
                     <button className="px-3 py-1.5 text-xs font-medium text-[#22c55e] hover:text-[#16a34a] transition-colors">
@@ -248,7 +256,7 @@ export default function DemoPage() {
                       clickButton("demo_step1_next", "demo_page");
                     }}
                     disabled={!serviceInfo.name || !serviceInfo.funnel || !serviceInfo.conversion}
-                    className="w-full mt-6 text-sm sm:text-base"
+                    className="w-full mt-4 md:mt-6 text-sm sm:text-base"
                   >
                     {t.demo.step1.nextButton}
                   </Button>
@@ -260,28 +268,28 @@ export default function DemoPage() {
 
       case 2:
         return (
-          <Section className="bg-gray-950/30">
+          <Section className="bg-gray-950/30 min-h-[calc(100vh-8rem)] flex items-center py-12 md:py-16">
             <Container size="lg">
-              <div className="max-w-3xl mx-auto">
-                <div className="mb-8 text-center">
-                  <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">{t.demo.step2.title}</h2>
-                  <p className="text-lg text-gray-400">{t.demo.step2.description}</p>
+              <div className="max-w-3xl mx-auto w-full">
+                <div className="mb-6 md:mb-8 text-center px-4">
+                  <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-3 md:mb-4">{t.demo.step2.title}</h2>
+                  <p className="text-base md:text-lg text-gray-400">{t.demo.step2.description}</p>
                 </div>
 
                 <Card variant="bento" className="overflow-hidden">
-                  <div className="p-6 bg-[#22c55e]/10 border-b border-[#22c55e]/20">
+                  <div className="p-4 md:p-6 bg-[#22c55e]/10 border-b border-[#22c55e]/20">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-[#22c55e]/20 border border-[#22c55e]/30 rounded-full flex items-center justify-center">
-                        <Sparkles className="text-[#22c55e]" size={20} />
+                      <div className="w-8 h-8 md:w-10 md:h-10 bg-[#22c55e]/20 border border-[#22c55e]/30 rounded-full flex items-center justify-center flex-shrink-0">
+                        <Sparkles className="text-[#22c55e]" size={18} />
                       </div>
                       <div>
-                        <div className="font-semibold text-white">{t.demo.step2.agentTitle}</div>
-                        <div className="text-sm text-gray-400">{t.demo.step2.agentSubtitle}</div>
+                        <div className="font-semibold text-white text-sm md:text-base">{t.demo.step2.agentTitle}</div>
+                        <div className="text-xs md:text-sm text-gray-400">{t.demo.step2.agentSubtitle}</div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="p-6 space-y-4 min-h-[300px]">
+                  <div className="p-4 md:p-6 space-y-4">
                     {!isAnalyzing && !showResults && (
                       <div className="space-y-3">
                         <div className="text-gray-500 text-sm mb-4">{t.demo.step2.suggestionTitle}</div>
@@ -351,21 +359,21 @@ export default function DemoPage() {
 
       case 3:
         return (
-          <Section className="bg-gray-950/30">
+          <Section className="bg-gray-950/30 py-12 md:py-16">
             <Container size="xl">
-              <div className="max-w-5xl mx-auto space-y-6">
-                <div className="mb-8 text-center">
-                  <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">{t.demo.step3.title}</h2>
-                  <p className="text-lg text-gray-400">{t.demo.step3.subtitle}</p>
+              <div className="max-w-5xl mx-auto space-y-4 md:space-y-6">
+                <div className="mb-6 md:mb-8 text-center px-4">
+                  <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-3 md:mb-4">{t.demo.step3.title}</h2>
+                  <p className="text-base md:text-lg text-gray-400">{t.demo.step3.subtitle}</p>
                 </div>
 
                 {/* Key Insights */}
-                <Card variant="bento" className="p-6">
-                  <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                    <AlertCircle className="text-orange-400" size={20} />
+                <Card variant="bento" className="p-4 md:p-6">
+                  <h3 className="text-base md:text-lg font-bold text-white mb-3 md:mb-4 flex items-center gap-2">
+                    <AlertCircle className="text-orange-400" size={18} />
                     {t.demo.step3.keyIssues}
                   </h3>
-                  <div className="space-y-3">
+                  <div className="space-y-2 md:space-y-3">
                     <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
                       <div className="flex items-start gap-3">
                         <TrendingDown className="text-red-400 flex-shrink-0 mt-1" size={20} />
@@ -393,10 +401,10 @@ export default function DemoPage() {
                 </Card>
 
                 {/* Charts */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Card variant="bento" className="p-6">
-                    <h3 className="text-lg font-bold text-white mb-4">{t.demo.step3.retentionTitle}</h3>
-                    <ResponsiveContainer width="100%" height={250}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                  <Card variant="bento" className="p-4 md:p-6">
+                    <h3 className="text-base md:text-lg font-bold text-white mb-3 md:mb-4">{t.demo.step3.retentionTitle}</h3>
+                    <ResponsiveContainer width="100%" height={200}>
                       <LineChart data={retentionData}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                         <XAxis dataKey="day" stroke="#9ca3af" />
@@ -422,9 +430,9 @@ export default function DemoPage() {
                     </ResponsiveContainer>
                   </Card>
 
-                  <Card variant="bento" className="p-6">
-                    <h3 className="text-lg font-bold text-white mb-4">{t.demo.step3.funnelTitle}</h3>
-                    <ResponsiveContainer width="100%" height={250}>
+                  <Card variant="bento" className="p-4 md:p-6">
+                    <h3 className="text-base md:text-lg font-bold text-white mb-3 md:mb-4">{t.demo.step3.funnelTitle}</h3>
+                    <ResponsiveContainer width="100%" height={200}>
                       <BarChart data={funnelData}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                         <XAxis dataKey="step" stroke="#9ca3af" />
@@ -467,13 +475,13 @@ export default function DemoPage() {
                 </div>
 
                 {/* Action Items - Success Case Style */}
-                <Card variant="bento" className="p-6">
-                  <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                    <CheckCircle className="text-[#22c55e]" size={20} />
+                <Card variant="bento" className="p-4 md:p-6">
+                  <h3 className="text-base md:text-lg font-bold text-white mb-3 md:mb-4 flex items-center gap-2">
+                    <CheckCircle className="text-[#22c55e]" size={18} />
                     {t.demo.step3.actionItems}
                   </h3>
-                  <div className="grid md:grid-cols-3 gap-6">
-                    <Card variant="bento" className="p-6">
+                  <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+                    <Card variant="bento" className="p-4 md:p-6">
                       <div className="flex items-start justify-between mb-4">
                         <Badge variant="info" className="bg-red-500/10 text-red-400 border-red-500/20">
                           {t.demo.step3.action1.impact}
@@ -590,9 +598,9 @@ export default function DemoPage() {
                 </Card>
 
                 {/* CTA */}
-                <Card variant="bento" className="p-8 text-center bg-white/5 border-white/10">
-                  <h3 className="text-2xl font-bold text-white mb-3">{t.demo.step3.ctaTitle}</h3>
-                  <p className="text-gray-400 mb-6">{t.demo.step3.ctaDescription}</p>
+                <Card variant="bento" className="p-6 md:p-8 text-center bg-white/5 border-white/10">
+                  <h3 className="text-xl md:text-2xl font-bold text-white mb-2 md:mb-3">{t.demo.step3.ctaTitle}</h3>
+                  <p className="text-sm md:text-base text-gray-400 mb-4 md:mb-6">{t.demo.step3.ctaDescription}</p>
                   <Button
                     variant="primary"
                     onClick={() => {
@@ -612,20 +620,20 @@ export default function DemoPage() {
 
       case 4:
         return (
-          <Section className="bg-gray-950/30">
+          <Section className="bg-gray-950/30 min-h-[calc(100vh-8rem)] flex items-center py-12 md:py-16">
             <Container size="md">
-              <Card variant="bento" className="p-8">
-                <div className="text-center mb-6">
-                  <div className="w-16 h-16 bg-[#22c55e]/20 border border-[#22c55e]/30 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <CheckCircle className="text-[#22c55e]" size={32} />
+              <Card variant="bento" className="p-6 md:p-8">
+                <div className="text-center mb-4 md:mb-6">
+                  <div className="w-12 h-12 md:w-16 md:h-16 bg-[#22c55e]/20 border border-[#22c55e]/30 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-4">
+                    <CheckCircle className="text-[#22c55e]" size={24} />
                   </div>
-                  <h2 className="text-2xl font-bold text-white mb-2">{t.demo.step4.title}</h2>
-                  <p className="text-gray-400">{t.demo.step4.description}</p>
+                  <h2 className="text-xl md:text-2xl font-bold text-white mb-2">{t.demo.step4.title}</h2>
+                  <p className="text-sm md:text-base text-gray-400">{t.demo.step4.description}</p>
                 </div>
 
-                <div className="space-y-4 mb-6">
-                  <div className="p-4 bg-[#22c55e]/10 border border-[#22c55e]/20 rounded-lg">
-                    <p className="text-sm text-[#22c55e]/90 whitespace-pre-line">{t.demo.step4.disclaimer}</p>
+                <div className="space-y-3 md:space-y-4 mb-4 md:mb-6">
+                  <div className="p-3 md:p-4 bg-[#22c55e]/10 border border-[#22c55e]/20 rounded-lg">
+                    <p className="text-xs md:text-sm text-[#22c55e]/90 whitespace-pre-line">{t.demo.step4.disclaimer}</p>
                   </div>
 
                   <div className="space-y-3">

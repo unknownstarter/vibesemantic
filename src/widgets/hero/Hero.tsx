@@ -47,17 +47,6 @@ export function Hero() {
               <Button
                 variant="secondary"
                 size="lg"
-                className="bg-[#22c55e] text-white hover:bg-[#16a34a] border-[#22c55e]/20 whitespace-nowrap text-sm sm:text-base"
-                onClick={() => {
-                  window.location.href = "/demo";
-                  clickButton("demo_try", "hero");
-                }}
-              >
-                {t.hero.demoButton}
-              </Button>
-              <Button
-                variant="secondary"
-                size="lg"
                 className="whitespace-nowrap text-sm sm:text-base"
                 onClick={() => {
                   scrollToSection("#how");
@@ -65,6 +54,17 @@ export function Hero() {
                 }}
               >
                 {t.hero.howItWorksButton}
+              </Button>
+              <Button
+                variant="secondary"
+                size="lg"
+                className="bg-[#22c55e] text-white hover:bg-[#16a34a] border-[#22c55e]/20 whitespace-nowrap text-sm sm:text-base"
+                onClick={() => {
+                  window.location.href = "/demo";
+                  clickButton("demo_try", "hero");
+                }}
+              >
+                {t.hero.demoButton}
               </Button>
               <Button
                 variant="primary"
