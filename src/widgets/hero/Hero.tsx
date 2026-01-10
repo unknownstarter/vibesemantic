@@ -64,6 +64,16 @@ export function Hero() {
               >
                 {t.hero.howItWorksButton}
               </Button>
+              <Button
+                variant="secondary"
+                size="lg"
+                onClick={() => {
+                  window.location.href = "/demo";
+                  clickButton("demo_try", "hero");
+                }}
+              >
+                {t.hero.demoButton}
+              </Button>
             </div>
           </div>
 

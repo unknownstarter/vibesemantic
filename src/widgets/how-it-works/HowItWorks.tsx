@@ -5,6 +5,8 @@ import { Container } from "@/shared/ui/Container";
 import { useI18n } from "@/shared/lib/i18n/context";
 import { useSectionView } from "@/shared/lib/useSectionView";
 import { Badge } from "@/shared/ui/Badge";
+import { Button } from "@/shared/ui/Button";
+import { clickButton } from "@/shared/lib/analytics";
 
 export function HowItWorks() {
   const { t, language } = useI18n();
@@ -57,6 +59,18 @@ export function HowItWorks() {
             <p className="text-lg text-gray-400 max-w-3xl mx-auto leading-relaxed">
               {t.howItWorks.description}
             </p>
+            <div className="mt-8">
+              <Button
+                variant="primary"
+                size="lg"
+                onClick={() => {
+                  window.location.href = "/demo";
+                  clickButton("demo_try", "how_it_works");
+                }}
+              >
+                {t.howItWorks.demoButton}
+              </Button>
+            </div>
           </div>
 
           <div className="space-y-24 relative">

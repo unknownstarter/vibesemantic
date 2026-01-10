@@ -77,8 +77,8 @@ export default function LandingPage() {
           <Hero />
           <Problem />
           <HowItWorks />
-          <Bento />
           <SuccessCase />
+          <Bento />
           <Pricing />
           <Security />
           <FAQ />
