@@ -45,8 +45,9 @@ export function Hero() {
 
             <div className="flex flex-col sm:flex-row gap-4">
               <Button
-                variant="primary"
+                variant="secondary"
                 size="lg"
+                className="bg-emerald-500 text-white hover:bg-emerald-600 border-emerald-500/20"
                 onClick={() => {
                   window.location.href = "/demo";
                   clickButton("demo_try", "hero");
@@ -65,7 +66,7 @@ export function Hero() {
                 {t.hero.howItWorksButton}
               </Button>
               <Button
-                variant="secondary"
+                variant="primary"
                 size="lg"
                 onClick={() => {
                   scrollToSection("#apply");

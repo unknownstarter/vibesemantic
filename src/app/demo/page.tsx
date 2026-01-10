@@ -433,10 +433,33 @@ export default function DemoPage() {
                             borderRadius: "8px",
                             color: "#f3f4f6",
                           }}
+                          cursor={false}
                         />
-                        <Bar dataKey="rate" fill="#22c55e" />
+                        <Bar 
+                          dataKey="rate" 
+                          fill="#22c55e"
+                          radius={[4, 4, 0, 0]}
+                        />
                       </BarChart>
                     </ResponsiveContainer>
+                    <style jsx global>{`
+                      .recharts-bar-rectangle {
+                        transition: transform 0.2s ease-in-out !important;
+                        transform-origin: bottom !important;
+                      }
+                      .recharts-bar-rectangle:hover {
+                        transform: scaleY(1.05) !important;
+                      }
+                      .recharts-tooltip-cursor {
+                        display: none !important;
+                      }
+                      .recharts-active-bar {
+                        background: transparent !important;
+                      }
+                      .recharts-bar {
+                        background: transparent !important;
+                      }
+                    `}</style>
                   </Card>
                 </div>
 

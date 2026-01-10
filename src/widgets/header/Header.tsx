@@ -152,6 +152,22 @@ export function Header() {
             </div>
 
             <Button
+              variant="secondary"
+              size="sm"
+              className="bg-emerald-500 text-white hover:bg-emerald-600 border-emerald-500/20"
+              onClick={() => {
+                if (pathname === "/demo") {
+                  router.push("/demo");
+                } else {
+                  router.push("/demo");
+                }
+                clickButton("demo_try", "header");
+              }}
+            >
+              {t.hero.demoButton}
+            </Button>
+
+            <Button
               variant="primary"
               size="sm"
               onClick={() => {
