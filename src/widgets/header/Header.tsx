@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/shared/ui/Button";
 import { Container } from "@/shared/ui/Container";
 import { LogoIcon } from "./LogoIcon";
@@ -8,16 +9,30 @@ import { cn } from "@/shared/lib/utils";
 import { useI18n } from "@/shared/lib/i18n/context";
 import { clickButton, changeLanguage } from "@/shared/lib/analytics";
 
-function handleAnchorClick(e: React.MouseEvent<HTMLAnchorElement>, href: string) {
+function handleAnchorClick(
+  e: React.MouseEvent<HTMLAnchorElement>,
+  href: string,
+  pathname: string,
+  router: ReturnType<typeof useRouter>
+) {
   e.preventDefault();
-  const target = document.querySelector(href);
-  if (target) {
-    target.scrollIntoView({ behavior: "smooth", block: "start" });
+  
+  if (pathname === "/demo") {
+    // 데모 페이지에서 클릭한 경우 메인 페이지로 이동
+    router.push(href);
+  } else {
+    // 메인 페이지에서 클릭한 경우 스크롤
+    const target = document.querySelector(href);
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   }
 }
 
 export function Header() {
   const { t, language, setLanguage } = useI18n();
+  const pathname = usePathname();
+  const router = useRouter();
   const [isLanguageMenuOpen, setIsLanguageMenuOpen] = useState(false);
   const languageMenuRef = useRef<HTMLDivElement>(null);
 
@@ -56,7 +71,11 @@ export function Header() {
             className="flex items-center gap-3 text-xl md:text-2xl font-bold text-white"
             onClick={(e) => {
               e.preventDefault();
-              window.scrollTo({ top: 0, behavior: "smooth" });
+              if (pathname === "/demo") {
+                router.push("/");
+              } else {
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }
             }}
           >
             <LogoIcon className="flex-shrink-0" />
@@ -69,7 +88,7 @@ export function Header() {
                 key={item.href}
                 href={item.href}
                 onClick={(e) => {
-                  handleAnchorClick(e, item.href);
+                  handleAnchorClick(e, item.href, pathname, router);
                   clickButton(`nav_${item.label}`, "header");
                 }}
                 className="text-sm text-gray-400 hover:text-foreground transition-colors"
@@ -129,9 +148,13 @@ export function Header() {
               variant="primary"
               size="sm"
               onClick={() => {
-                const target = document.querySelector("#apply");
-                if (target) {
-                  target.scrollIntoView({ behavior: "smooth", block: "start" });
+                if (pathname === "/demo") {
+                  router.push("/#apply");
+                } else {
+                  const target = document.querySelector("#apply");
+                  if (target) {
+                    target.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }
                 }
                 clickButton("early_access", "header");
               }}

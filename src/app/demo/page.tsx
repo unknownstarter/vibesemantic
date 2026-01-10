@@ -1,14 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
-import { TrendingDown, TrendingUp, AlertCircle, CheckCircle, Database, Sparkles, ArrowRight, MessageSquare } from "lucide-react";
+import { TrendingDown, AlertCircle, CheckCircle, Sparkles, ArrowRight, MessageSquare } from "lucide-react";
 import { useI18n } from "@/shared/lib/i18n/context";
 import { Button } from "@/shared/ui/Button";
 import { Card } from "@/shared/ui/Card";
 import { Container } from "@/shared/ui/Container";
 import { Badge } from "@/shared/ui/Badge";
+import { Section } from "@/shared/ui/Section";
 import { Header } from "@/widgets/header/Header";
 import { Footer } from "@/widgets/footer/Footer";
 import { clickButton, submitForm } from "@/shared/lib/analytics";
@@ -88,29 +89,28 @@ export default function DemoPage() {
     switch (step) {
       case 0:
         return (
-          <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 flex items-center justify-center p-4">
+          <Section className="bg-gray-950/30">
             <Container size="lg">
-              <div className="max-w-2xl w-full text-center space-y-8">
+              <div className="max-w-2xl w-full mx-auto text-center space-y-8">
                 <div className="space-y-4">
-                  <Badge variant="info" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 mb-4">
-                    <Sparkles size={16} className="mr-2" />
+                  <Badge variant="info" className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 mb-4">
                     {t.demo.step0.badge}
                   </Badge>
-                  <h1 className="text-5xl md:text-6xl font-bold text-white leading-tight">
+                  <h1 className="text-4xl md:text-6xl font-bold text-white leading-tight">
                     {t.demo.step0.title}
                     <br />
                     <span className="text-emerald-400">{t.demo.step0.titleHighlight}</span>
                   </h1>
-                  <p className="text-xl text-gray-400 max-w-xl mx-auto whitespace-pre-line">
+                  <p className="text-lg text-gray-400 max-w-xl mx-auto whitespace-pre-line">
                     {t.demo.step0.description}
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-12">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
                   {t.demo.step0.beforeItems.map((item, idx) => (
                     <Card key={idx} variant="bento" className="p-6">
                       <div className="text-red-400 font-semibold mb-2">{t.demo.step0.beforeTitle}</div>
-                      <p className="text-gray-300 text-sm whitespace-pre-line">{item.text}</p>
+                      <p className="text-gray-400 text-sm whitespace-pre-line">{item.text}</p>
                     </Card>
                   ))}
                 </div>
@@ -131,31 +131,75 @@ export default function DemoPage() {
                 <p className="text-sm text-gray-500 mt-4">{t.demo.step0.disclaimer}</p>
               </div>
             </Container>
-          </div>
+          </Section>
         );
 
       case 1:
         return (
-          <div className="min-h-screen bg-gray-950 p-4 py-8">
+          <Section className="bg-gray-950/30">
             <Container size="lg">
               <div className="max-w-2xl mx-auto">
-                <div className="mb-8">
-                  <h2 className="text-2xl font-bold text-white mb-2">{t.demo.step1.title}</h2>
-                  <p className="text-gray-400">{t.demo.step1.description}</p>
+                <div className="mb-8 text-center">
+                  <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">{t.demo.step1.title}</h2>
+                  <p className="text-lg text-gray-400">{t.demo.step1.description}</p>
                 </div>
 
                 <Card variant="bento" className="p-6 space-y-4">
-                  <div className="flex items-center gap-3 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-                    <CheckCircle className="text-emerald-400" size={24} />
-                    <div>
-                      <div className="font-semibold text-emerald-400">{t.demo.step1.connected}</div>
-                      <div className="text-sm text-gray-400">my-app.supabase.co</div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-white font-semibold text-lg">Data Sources</h4>
+                    <button className="px-3 py-1.5 text-xs font-medium text-emerald-400 hover:text-emerald-300 transition-colors">
+                      + Add New
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/10">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold text-sm">
+                          SB
+                        </div>
+                        <div>
+                          <div className="text-white font-medium text-sm">Production DB</div>
+                          <div className="text-gray-400 text-xs">Supabase • Last sync 2m ago</div>
+                        </div>
+                      </div>
+                      <div className="w-10 h-6 rounded-full bg-emerald-500/30 border border-emerald-500/50 relative">
+                        <div className="absolute right-1 top-1 w-4 h-4 rounded-full bg-emerald-400"></div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/10">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold text-sm">
+                          GA
+                        </div>
+                        <div>
+                          <div className="text-white font-medium text-sm">Analytics Data</div>
+                          <div className="text-gray-400 text-xs">GA4 • Syncing...</div>
+                        </div>
+                      </div>
+                      <div className="w-5 h-5 border-2 border-emerald-500/50 border-t-emerald-400 rounded-full animate-spin"></div>
+                    </div>
+                    
+                    <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/10">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold text-sm">
+                          GS
+                        </div>
+                        <div>
+                          <div className="text-white font-medium text-sm">Q3 Sales Sheet</div>
+                          <div className="text-gray-400 text-xs">Google Sheets • Paused</div>
+                        </div>
+                      </div>
+                      <div className="w-10 h-6 rounded-full bg-gray-700 border border-gray-600 relative">
+                        <div className="absolute left-1 top-1 w-4 h-4 rounded-full bg-gray-500"></div>
+                      </div>
                     </div>
                   </div>
 
                   <div className="space-y-3 pt-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                      <label className="block text-sm font-medium text-gray-400 mb-2">
                         {t.demo.step1.serviceName}
                       </label>
                       <input
@@ -163,12 +207,12 @@ export default function DemoPage() {
                         placeholder={t.demo.step1.serviceNamePlaceholder}
                         value={serviceInfo.name}
                         onChange={(e) => setServiceInfo({ ...serviceInfo, name: e.target.value })}
-                        className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500/50"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                      <label className="block text-sm font-medium text-gray-400 mb-2">
                         {t.demo.step1.funnel}
                       </label>
                       <input
@@ -176,12 +220,12 @@ export default function DemoPage() {
                         placeholder={t.demo.step1.funnelPlaceholder}
                         value={serviceInfo.funnel}
                         onChange={(e) => setServiceInfo({ ...serviceInfo, funnel: e.target.value })}
-                        className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500/50"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                      <label className="block text-sm font-medium text-gray-400 mb-2">
                         {t.demo.step1.conversion}
                       </label>
                       <input
@@ -189,7 +233,7 @@ export default function DemoPage() {
                         placeholder={t.demo.step1.conversionPlaceholder}
                         value={serviceInfo.conversion}
                         onChange={(e) => setServiceInfo({ ...serviceInfo, conversion: e.target.value })}
-                        className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500/50"
                       />
                     </div>
                   </div>
@@ -208,24 +252,24 @@ export default function DemoPage() {
                 </Card>
               </div>
             </Container>
-          </div>
+          </Section>
         );
 
       case 2:
         return (
-          <div className="min-h-screen bg-gray-950 p-4 py-8">
+          <Section className="bg-gray-950/30">
             <Container size="lg">
               <div className="max-w-3xl mx-auto">
-                <div className="mb-8">
-                  <h2 className="text-2xl font-bold text-white mb-2">{t.demo.step2.title}</h2>
-                  <p className="text-gray-400">{t.demo.step2.description}</p>
+                <div className="mb-8 text-center">
+                  <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">{t.demo.step2.title}</h2>
+                  <p className="text-lg text-gray-400">{t.demo.step2.description}</p>
                 </div>
 
                 <Card variant="bento" className="overflow-hidden">
                   <div className="p-6 bg-emerald-500/10 border-b border-emerald-500/20">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center">
-                        <Sparkles className="text-white" size={20} />
+                      <div className="w-10 h-10 bg-emerald-500/20 border border-emerald-500/30 rounded-full flex items-center justify-center">
+                        <Sparkles className="text-emerald-400" size={20} />
                       </div>
                       <div>
                         <div className="font-semibold text-white">{t.demo.step2.agentTitle}</div>
@@ -243,7 +287,7 @@ export default function DemoPage() {
                           <button
                             key={idx}
                             onClick={handleAnalyze}
-                            className="w-full text-left p-4 bg-gray-900/50 hover:bg-emerald-500/10 border border-gray-700 hover:border-emerald-500/30 rounded-lg transition-all group"
+                            className="w-full text-left p-4 bg-white/5 hover:bg-emerald-500/10 border border-white/10 hover:border-emerald-500/30 rounded-lg transition-all group"
                           >
                             <div className="font-medium text-gray-300 group-hover:text-emerald-400">
                               {question}
@@ -255,10 +299,10 @@ export default function DemoPage() {
 
                     {chatMessages.map((msg, idx) => (
                       <div key={idx} className="flex gap-3 animate-fade-in">
-                        <div className="w-8 h-8 bg-emerald-500/20 rounded-full flex items-center justify-center flex-shrink-0">
+                        <div className="w-8 h-8 bg-emerald-500/20 border border-emerald-500/30 rounded-full flex items-center justify-center flex-shrink-0">
                           <MessageSquare className="text-emerald-400" size={16} />
                         </div>
-                        <div className="flex-1 p-3 bg-gray-900/50 rounded-lg">
+                        <div className="flex-1 p-3 bg-white/5 rounded-lg border border-white/10">
                           <p className="text-gray-300">{msg.text}</p>
                         </div>
                       </div>
@@ -299,17 +343,17 @@ export default function DemoPage() {
                 </Card>
               </div>
             </Container>
-          </div>
+          </Section>
         );
 
       case 3:
         return (
-          <div className="min-h-screen bg-gray-950 p-4 py-8">
+          <Section className="bg-gray-950/30">
             <Container size="xl">
               <div className="max-w-5xl mx-auto space-y-6">
-                <div className="mb-8">
-                  <h2 className="text-2xl font-bold text-white mb-2">{t.demo.step3.title}</h2>
-                  <p className="text-gray-400">{t.demo.step3.subtitle}</p>
+                <div className="mb-8 text-center">
+                  <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">{t.demo.step3.title}</h2>
+                  <p className="text-lg text-gray-400">{t.demo.step3.subtitle}</p>
                 </div>
 
                 {/* Key Insights */}
@@ -396,61 +440,133 @@ export default function DemoPage() {
                   </Card>
                 </div>
 
-                {/* Action Items */}
+                {/* Action Items - Success Case Style */}
                 <Card variant="bento" className="p-6">
                   <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
                     <CheckCircle className="text-emerald-400" size={20} />
                     {t.demo.step3.actionItems}
                   </h3>
-                  <div className="space-y-4">
-                    <div className="p-5 border-l-4 border-emerald-500 bg-emerald-500/10">
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="font-semibold text-white">{t.demo.step3.action1.title}</div>
+                  <div className="grid md:grid-cols-3 gap-6">
+                    <Card variant="bento" className="p-6">
+                      <div className="flex items-start justify-between mb-4">
                         <Badge variant="info" className="bg-red-500/10 text-red-400 border-red-500/20">
                           {t.demo.step3.action1.impact}
                         </Badge>
                       </div>
-                      <p className="text-sm text-gray-300 mb-3">{t.demo.step3.action1.description}</p>
-                      <div className="text-sm text-gray-400">
-                        <div>• {t.demo.step3.action1.testPeriod}</div>
-                        <div>• {t.demo.step3.action1.resources}</div>
-                      </div>
-                    </div>
-
-                    <div className="p-5 border-l-4 border-purple-500 bg-purple-500/10">
                       <div className="flex items-start justify-between mb-2">
-                        <div className="font-semibold text-white">{t.demo.step3.action2.title}</div>
+                        <h3 className="text-xl font-semibold text-white mb-1">CVR</h3>
+                        <div className="text-right">
+                          <p className="text-2xl font-bold text-white mb-1">+8%p</p>
+                          <p className="text-sm text-green-400 font-medium">개선 예상</p>
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-400 mb-4">{t.demo.step3.action1.title.replace("1. ", "")}</p>
+                      <div className="h-24 bg-black/40 rounded-lg p-3 relative overflow-hidden border border-white/5">
+                        <svg className="w-full h-full" viewBox="0 0 200 80" preserveAspectRatio="none">
+                          <defs>
+                            <linearGradient id="chart-action1" x1="0%" y1="0%" x2="0%" y2="100%">
+                              <stop offset="0%" stopColor="#22c55e" stopOpacity="0.3" />
+                              <stop offset="100%" stopColor="#22c55e" stopOpacity="0.05" />
+                            </linearGradient>
+                          </defs>
+                          <polygon
+                            points="10,70 50,65 90,60 130,55 170,50 190,48 190,80 10,80"
+                            fill="url(#chart-action1)"
+                          />
+                          <polyline
+                            points="10,70 50,65 90,60 130,55 170,50 190,48"
+                            fill="none"
+                            stroke="#22c55e"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      </div>
+                    </Card>
+
+                    <Card variant="bento" className="p-6">
+                      <div className="flex items-start justify-between mb-4">
                         <Badge variant="info" className="bg-orange-500/10 text-orange-400 border-orange-500/20">
                           {t.demo.step3.action2.impact}
                         </Badge>
                       </div>
-                      <p className="text-sm text-gray-300 mb-3">{t.demo.step3.action2.description}</p>
-                      <div className="text-sm text-gray-400">
-                        <div>• {t.demo.step3.action2.testPeriod}</div>
-                        <div>• {t.demo.step3.action2.resources}</div>
-                      </div>
-                    </div>
-
-                    <div className="p-5 border-l-4 border-green-500 bg-green-500/10">
                       <div className="flex items-start justify-between mb-2">
-                        <div className="font-semibold text-white">{t.demo.step3.action3.title}</div>
+                        <h3 className="text-xl font-semibold text-white mb-1">D7 리텐션</h3>
+                        <div className="text-right">
+                          <p className="text-2xl font-bold text-white mb-1">+3%p</p>
+                          <p className="text-sm text-green-400 font-medium">개선 예상</p>
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-400 mb-4">{t.demo.step3.action2.title.replace("2. ", "")}</p>
+                      <div className="h-24 bg-black/40 rounded-lg p-3 relative overflow-hidden border border-white/5">
+                        <svg className="w-full h-full" viewBox="0 0 200 80" preserveAspectRatio="none">
+                          <defs>
+                            <linearGradient id="chart-action2" x1="0%" y1="0%" x2="0%" y2="100%">
+                              <stop offset="0%" stopColor="#22c55e" stopOpacity="0.3" />
+                              <stop offset="100%" stopColor="#22c55e" stopOpacity="0.05" />
+                            </linearGradient>
+                          </defs>
+                          <polygon
+                            points="10,75 50,70 90,65 130,60 170,55 190,53 190,80 10,80"
+                            fill="url(#chart-action2)"
+                          />
+                          <polyline
+                            points="10,75 50,70 90,65 130,60 170,55 190,53"
+                            fill="none"
+                            stroke="#22c55e"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      </div>
+                    </Card>
+
+                    <Card variant="bento" className="p-6">
+                      <div className="flex items-start justify-between mb-4">
                         <Badge variant="info" className="bg-yellow-500/10 text-yellow-400 border-yellow-500/20">
                           {t.demo.step3.action3.impact}
                         </Badge>
                       </div>
-                      <p className="text-sm text-gray-300 mb-3">{t.demo.step3.action3.description}</p>
-                      <div className="text-sm text-gray-400">
-                        <div>• {t.demo.step3.action3.testPeriod}</div>
-                        <div>• {t.demo.step3.action3.resources}</div>
+                      <div className="flex items-start justify-between mb-2">
+                        <h3 className="text-xl font-semibold text-white mb-1">활성화율</h3>
+                        <div className="text-right">
+                          <p className="text-2xl font-bold text-white mb-1">+5%p</p>
+                          <p className="text-sm text-green-400 font-medium">개선 예상</p>
+                        </div>
                       </div>
-                    </div>
+                      <p className="text-sm text-gray-400 mb-4">{t.demo.step3.action3.title.replace("3. ", "")}</p>
+                      <div className="h-24 bg-black/40 rounded-lg p-3 relative overflow-hidden border border-white/5">
+                        <svg className="w-full h-full" viewBox="0 0 200 80" preserveAspectRatio="none">
+                          <defs>
+                            <linearGradient id="chart-action3" x1="0%" y1="0%" x2="0%" y2="100%">
+                              <stop offset="0%" stopColor="#22c55e" stopOpacity="0.3" />
+                              <stop offset="100%" stopColor="#22c55e" stopOpacity="0.05" />
+                            </linearGradient>
+                          </defs>
+                          <polygon
+                            points="10,72 50,68 90,64 130,58 170,52 190,50 190,80 10,80"
+                            fill="url(#chart-action3)"
+                          />
+                          <polyline
+                            points="10,72 50,68 90,64 130,58 170,52 190,50"
+                            fill="none"
+                            stroke="#22c55e"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      </div>
+                    </Card>
                   </div>
                 </Card>
 
                 {/* CTA */}
-                <Card variant="glow" className="p-8 text-center bg-gradient-to-br from-emerald-500/20 to-purple-500/20 border-emerald-500/30">
+                <Card variant="bento" className="p-8 text-center bg-white/5 border-white/10">
                   <h3 className="text-2xl font-bold text-white mb-3">{t.demo.step3.ctaTitle}</h3>
-                  <p className="text-gray-300 mb-6">{t.demo.step3.ctaDescription}</p>
+                  <p className="text-gray-400 mb-6">{t.demo.step3.ctaDescription}</p>
                   <Button
                     variant="primary"
                     onClick={() => {
@@ -465,16 +581,16 @@ export default function DemoPage() {
                 </Card>
               </div>
             </Container>
-          </div>
+          </Section>
         );
 
       case 4:
         return (
-          <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 flex items-center justify-center p-4">
+          <Section className="bg-gray-950/30">
             <Container size="md">
               <Card variant="bento" className="p-8">
                 <div className="text-center mb-6">
-                  <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <div className="w-16 h-16 bg-emerald-500/20 border border-emerald-500/30 rounded-full flex items-center justify-center mx-auto mb-4">
                     <CheckCircle className="text-emerald-400" size={32} />
                   </div>
                   <h2 className="text-2xl font-bold text-white mb-2">{t.demo.step4.title}</h2>
@@ -490,22 +606,22 @@ export default function DemoPage() {
                     <input
                       type="text"
                       placeholder={t.demo.step4.companyName}
-                      className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500/50"
                     />
                     <input
                       type="text"
                       placeholder={t.demo.step4.jobRole}
-                      className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500/50"
                     />
                     <input
                       type="text"
                       placeholder={t.demo.step4.dau}
-                      className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500/50"
                     />
                     <textarea
                       placeholder={t.demo.step4.painPoint}
                       rows={4}
-                      className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500/50 resize-none"
                     />
                   </div>
                 </div>
@@ -513,11 +629,6 @@ export default function DemoPage() {
                 <Button
                   variant="primary"
                   onClick={() => {
-                    alert(
-                      language === "ko"
-                        ? "신청이 접수되었습니다! (데모용)\n\n실제 서비스 오픈 시 안내드리겠습니다."
-                        : "Application received! (Demo)\n\nWe'll notify you when the service opens."
-                    );
                     submitForm("demo_early_access", true);
                     router.push("/#apply");
                   }}
@@ -529,7 +640,7 @@ export default function DemoPage() {
                 <p className="text-xs text-gray-500 text-center mt-4">{t.demo.step4.applyNote}</p>
               </Card>
             </Container>
-          </div>
+          </Section>
         );
 
       default:
@@ -538,7 +649,7 @@ export default function DemoPage() {
   };
 
   return (
-    <div className="font-sans bg-gray-950 min-h-screen">
+    <div className="relative min-h-screen bg-gray-950">
       <style>{`
         @keyframes fade-in {
           from {
@@ -555,7 +666,7 @@ export default function DemoPage() {
         }
       `}</style>
       <Header />
-      {renderStep()}
+      <main>{renderStep()}</main>
       <Footer />
     </div>
   );
