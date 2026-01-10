@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
-import { TrendingDown, AlertCircle, CheckCircle, Sparkles, ArrowRight, MessageSquare } from "lucide-react";
+import { TrendingDown, AlertCircle, CheckCircle, Sparkles, ArrowRight, MessageSquare, X, ChevronDown, ChevronUp } from "lucide-react";
 import { useI18n } from "@/shared/lib/i18n/context";
 import { Button } from "@/shared/ui/Button";
 import { Card } from "@/shared/ui/Card";
@@ -21,6 +21,7 @@ export default function DemoPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [chatMessages, setChatMessages] = useState<Array<{ type: string; text: string }>>([]);
+  const [expandedAction, setExpandedAction] = useState<number | null>(null);
   const [serviceInfo, setServiceInfo] = useState({
     name: "",
     funnel: "",
@@ -96,36 +97,37 @@ export default function DemoPage() {
     switch (step) {
       case 0:
         return (
-          <Section className="bg-gray-950/30 min-h-[calc(100vh-8rem)] flex items-center py-12 md:py-16">
+          <Section className="bg-gray-950/30 min-h-[calc(100vh-8rem)] flex items-center py-8 md:py-12 lg:py-16">
             <Container size="lg">
-              <div className="max-w-2xl w-full mx-auto text-center space-y-6 md:space-y-8">
-                <div className="space-y-3 md:space-y-4">
-                  <Badge variant="info" className="bg-[#22c55e]/20 text-[#22c55e] border-[#22c55e]/30 mb-4">
+              <div className="w-full mx-auto text-center space-y-8 md:space-y-10 lg:space-y-12">
+                <div className="space-y-4 md:space-y-5 px-4">
+                  <Badge variant="info" className="bg-[#22c55e]/20 text-[#22c55e] border-[#22c55e]/30 mb-2 md:mb-4">
                     {t.demo.step0.badge}
                   </Badge>
-                  <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight">
+                  <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-white leading-tight px-2">
                     {t.demo.step0.title}
                     <br />
                     <span className="text-[#22c55e]">{t.demo.step0.titleHighlight}</span>
                   </h1>
-                  <p className="text-base md:text-lg text-gray-400 max-w-xl mx-auto whitespace-pre-line px-4">
+                  <p className="text-sm sm:text-base md:text-lg text-gray-400 max-w-2xl mx-auto whitespace-pre-line leading-relaxed px-4">
                     {t.demo.step0.description}
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6 mt-8 md:mt-12 px-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 md:gap-6 mt-6 md:mt-8 lg:mt-10 px-4 sm:px-6 max-w-6xl mx-auto">
                   {t.demo.step0.beforeItems.map((item, idx) => (
-                    <Card key={idx} variant="bento" className="p-4 md:p-6 bg-white/5 border-white/10 hover:bg-white/10 transition-all">
-                      <div className="flex items-center gap-2 mb-2 md:mb-3">
-                        <div className="w-2 h-2 rounded-full bg-red-400"></div>
-                        <span className="text-red-400 text-xs font-semibold uppercase tracking-wide">{t.demo.step0.beforeTitle}</span>
+                    <Card key={idx} variant="bento" className="p-5 sm:p-6 md:p-7 bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all text-left">
+                      <div className="flex items-center gap-2 mb-3 md:mb-4">
+                        <div className="w-2 h-2 rounded-full bg-red-400 flex-shrink-0"></div>
+                        <X className="w-3 h-3 text-red-400 flex-shrink-0" />
+                        <span className="text-red-400 text-xs sm:text-sm font-semibold uppercase tracking-wide">{t.demo.step0.beforeTitle.replace("❌ ", "")}</span>
                       </div>
-                      <p className="text-gray-300 text-sm md:text-base leading-relaxed whitespace-pre-line font-medium">{item.text}</p>
+                      <p className="text-gray-200 text-sm sm:text-base md:text-lg leading-relaxed whitespace-pre-line font-medium">{item.text}</p>
                     </Card>
                   ))}
                 </div>
 
-                <div className="mt-6 md:mt-8">
+                <div className="mt-6 md:mt-8 lg:mt-10 px-4">
                   <Button
                     variant="primary"
                     size="lg"
@@ -133,12 +135,12 @@ export default function DemoPage() {
                       setStep(1);
                       clickButton("demo_start", "demo_page");
                     }}
-                    className="inline-flex items-center gap-2 text-sm sm:text-base"
+                    className="inline-flex items-center gap-2 text-sm sm:text-base md:text-lg px-6 md:px-8 py-3 md:py-4"
                   >
                     {t.demo.step0.startButton}
                     <ArrowRight size={20} className="flex-shrink-0" />
                   </Button>
-                  <p className="text-xs md:text-sm text-gray-500 mt-3 md:mt-4">{t.demo.step0.disclaimer}</p>
+                  <p className="text-xs sm:text-sm text-gray-500 mt-4 md:mt-5 max-w-xl mx-auto">{t.demo.step0.disclaimer}</p>
                 </div>
               </div>
             </Container>
@@ -270,8 +272,8 @@ export default function DemoPage() {
         return (
           <Section className="bg-gray-950/30 min-h-[calc(100vh-8rem)] flex items-center py-12 md:py-16">
             <Container size="lg">
-              <div className="max-w-3xl mx-auto w-full">
-                <div className="mb-6 md:mb-8 text-center px-4">
+              <div className="max-w-2xl mx-auto w-full px-4">
+                <div className="mb-6 md:mb-8 text-center">
                   <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-3 md:mb-4">{t.demo.step2.title}</h2>
                   <p className="text-base md:text-lg text-gray-400">{t.demo.step2.description}</p>
                 </div>
@@ -481,119 +483,118 @@ export default function DemoPage() {
                     {t.demo.step3.actionItems}
                   </h3>
                   <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
-                    <Card variant="bento" className="p-4 md:p-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <Badge variant="info" className="bg-red-500/10 text-red-400 border-red-500/20">
-                          {t.demo.step3.action1.impact}
-                        </Badge>
-                      </div>
-                      <div className="flex items-start justify-between mb-2">
-                        <h3 className="text-xl font-semibold text-white mb-1">CVR</h3>
-                        <div className="text-right">
-                          <p className="text-2xl font-bold text-white mb-1">+8%p</p>
-                          <p className="text-sm text-[#22c55e] font-medium">개선 예상</p>
-                        </div>
-                      </div>
-                      <p className="text-sm text-gray-400 mb-4">{t.demo.step3.action1.title.replace("1. ", "")}</p>
-                      <div className="h-24 bg-black/40 rounded-lg p-3 relative overflow-hidden border border-white/5">
-                        <svg className="w-full h-full" viewBox="0 0 200 80" preserveAspectRatio="none">
-                          <defs>
-                            <linearGradient id="chart-action1" x1="0%" y1="0%" x2="0%" y2="100%">
-                              <stop offset="0%" stopColor="#22c55e" stopOpacity="0.3" />
-                              <stop offset="100%" stopColor="#22c55e" stopOpacity="0.05" />
-                            </linearGradient>
-                          </defs>
-                          <polygon
-                            points="10,70 50,65 90,60 130,55 170,50 190,48 190,80 10,80"
-                            fill="url(#chart-action1)"
-                          />
-                          <polyline
-                            points="10,70 50,65 90,60 130,55 170,50 190,48"
-                            fill="none"
-                            stroke="#22c55e"
-                            strokeWidth="1.5"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      </div>
-                    </Card>
+                    {[
+                      { action: t.demo.step3.action1, metric: "CVR", value: "+8%p", color: "red", id: 1 },
+                      { action: t.demo.step3.action2, metric: "D7 리텐션", value: "+3%p", color: "orange", id: 2 },
+                      { action: t.demo.step3.action3, metric: "활성화율", value: "+5%p", color: "yellow", id: 3 },
+                    ].map(({ action, metric, value, color, id }) => {
+                      const isExpanded = expandedAction === id;
+                      const colorClasses = {
+                        red: "bg-red-500/10 text-red-400 border-red-500/20",
+                        orange: "bg-orange-500/10 text-orange-400 border-orange-500/20",
+                        yellow: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
+                      };
 
-                    <Card variant="bento" className="p-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <Badge variant="info" className="bg-orange-500/10 text-orange-400 border-orange-500/20">
-                          {t.demo.step3.action2.impact}
-                        </Badge>
-                      </div>
-                      <div className="flex items-start justify-between mb-2">
-                        <h3 className="text-xl font-semibold text-white mb-1">D7 리텐션</h3>
-                        <div className="text-right">
-                          <p className="text-2xl font-bold text-white mb-1">+3%p</p>
-                          <p className="text-sm text-[#22c55e] font-medium">개선 예상</p>
-                        </div>
-                      </div>
-                      <p className="text-sm text-gray-400 mb-4">{t.demo.step3.action2.title.replace("2. ", "")}</p>
-                      <div className="h-24 bg-black/40 rounded-lg p-3 relative overflow-hidden border border-white/5">
-                        <svg className="w-full h-full" viewBox="0 0 200 80" preserveAspectRatio="none">
-                          <defs>
-                            <linearGradient id="chart-action2" x1="0%" y1="0%" x2="0%" y2="100%">
-                              <stop offset="0%" stopColor="#22c55e" stopOpacity="0.3" />
-                              <stop offset="100%" stopColor="#22c55e" stopOpacity="0.05" />
-                            </linearGradient>
-                          </defs>
-                          <polygon
-                            points="10,75 50,70 90,65 130,60 170,55 190,53 190,80 10,80"
-                            fill="url(#chart-action2)"
-                          />
-                          <polyline
-                            points="10,75 50,70 90,65 130,60 170,55 190,53"
-                            fill="none"
-                            stroke="#22c55e"
-                            strokeWidth="1.5"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      </div>
-                    </Card>
+                      return (
+                        <Card
+                          key={id}
+                          variant="bento"
+                          className={`p-4 md:p-6 cursor-pointer transition-all hover:bg-white/10 hover:border-white/20 ${
+                            isExpanded ? "bg-white/10 border-white/20" : ""
+                          }`}
+                          onClick={() => {
+                            setExpandedAction(isExpanded ? null : id);
+                            clickButton(`demo_action_${id}_${isExpanded ? "collapse" : "expand"}`, "demo_page");
+                          }}
+                        >
+                          <div className="flex items-start justify-between mb-3 md:mb-4">
+                            <Badge variant="info" className={colorClasses[color as keyof typeof colorClasses]}>
+                              {action.impact}
+                            </Badge>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setExpandedAction(isExpanded ? null : id);
+                                clickButton(`demo_action_${id}_${isExpanded ? "collapse" : "expand"}`, "demo_page");
+                              }}
+                              className="text-gray-400 hover:text-white transition-colors flex-shrink-0"
+                              aria-label={isExpanded ? "Collapse" : "Expand"}
+                            >
+                              {isExpanded ? (
+                                <ChevronUp size={20} />
+                              ) : (
+                                <ChevronDown size={20} />
+                              )}
+                            </button>
+                          </div>
+                          <div className="flex items-start justify-between mb-2">
+                            <h3 className="text-lg md:text-xl font-semibold text-white mb-1">{metric}</h3>
+                            <div className="text-right">
+                              <p className="text-xl md:text-2xl font-bold text-white mb-1">{value}</p>
+                              <p className="text-xs md:text-sm text-[#22c55e] font-medium">
+                                {language === "ko" ? "개선 예상" : "Expected"}
+                              </p>
+                            </div>
+                          </div>
+                          <p className="text-xs md:text-sm text-gray-400 mb-3 md:mb-4">
+                            {action.title.replace(/^\d+\.\s*/, "")}
+                          </p>
+                          <div className="h-20 md:h-24 bg-black/40 rounded-lg p-2 md:p-3 relative overflow-hidden border border-white/5">
+                            <svg className="w-full h-full" viewBox="0 0 200 80" preserveAspectRatio="none">
+                              <defs>
+                                <linearGradient id={`chart-action${id}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                                  <stop offset="0%" stopColor="#22c55e" stopOpacity="0.3" />
+                                  <stop offset="100%" stopColor="#22c55e" stopOpacity="0.05" />
+                                </linearGradient>
+                              </defs>
+                              <polygon
+                                points="10,70 50,65 90,60 130,55 170,50 190,48 190,80 10,80"
+                                fill={`url(#chart-action${id})`}
+                              />
+                              <polyline
+                                points="10,70 50,65 90,60 130,55 170,50 190,48"
+                                fill="none"
+                                stroke="#22c55e"
+                                strokeWidth="1.5"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          </div>
 
-                    <Card variant="bento" className="p-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <Badge variant="info" className="bg-yellow-500/10 text-yellow-400 border-yellow-500/20">
-                          {t.demo.step3.action3.impact}
-                        </Badge>
-                      </div>
-                      <div className="flex items-start justify-between mb-2">
-                        <h3 className="text-xl font-semibold text-white mb-1">활성화율</h3>
-                        <div className="text-right">
-                          <p className="text-2xl font-bold text-white mb-1">+5%p</p>
-                          <p className="text-sm text-[#22c55e] font-medium">개선 예상</p>
-                        </div>
-                      </div>
-                      <p className="text-sm text-gray-400 mb-4">{t.demo.step3.action3.title.replace("3. ", "")}</p>
-                      <div className="h-24 bg-black/40 rounded-lg p-3 relative overflow-hidden border border-white/5">
-                        <svg className="w-full h-full" viewBox="0 0 200 80" preserveAspectRatio="none">
-                          <defs>
-                            <linearGradient id="chart-action3" x1="0%" y1="0%" x2="0%" y2="100%">
-                              <stop offset="0%" stopColor="#22c55e" stopOpacity="0.3" />
-                              <stop offset="100%" stopColor="#22c55e" stopOpacity="0.05" />
-                            </linearGradient>
-                          </defs>
-                          <polygon
-                            points="10,72 50,68 90,64 130,58 170,52 190,50 190,80 10,80"
-                            fill="url(#chart-action3)"
-                          />
-                          <polyline
-                            points="10,72 50,68 90,64 130,58 170,52 190,50"
-                            fill="none"
-                            stroke="#22c55e"
-                            strokeWidth="1.5"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      </div>
-                    </Card>
+                          {/* Expanded Details */}
+                          {isExpanded && (
+                            <div className="mt-4 pt-4 border-t border-white/10 animate-fade-in space-y-3">
+                              <div className="space-y-2">
+                                <p className="text-sm md:text-base text-gray-300 leading-relaxed">
+                                  {action.description}
+                                </p>
+                              </div>
+                              <div className="space-y-1.5 pt-2">
+                                <div className="flex items-start gap-2 text-xs md:text-sm text-gray-400">
+                                  <span className="text-gray-500">•</span>
+                                  <span>{action.testPeriod}</span>
+                                </div>
+                                <div className="flex items-start gap-2 text-xs md:text-sm text-gray-400">
+                                  <span className="text-gray-500">•</span>
+                                  <span>{action.resources}</span>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Click hint when not expanded */}
+                          {!isExpanded && (
+                            <div className="mt-3 pt-3 border-t border-white/5">
+                              <p className="text-xs text-gray-500 text-center flex items-center justify-center gap-1">
+                                <span>{language === "ko" ? "클릭하여 상세 정보 보기" : "Click to view details"}</span>
+                                <ChevronDown size={14} className="opacity-50" />
+                              </p>
+                            </div>
+                          )}
+                        </Card>
+                      );
+                    })}
                   </div>
                 </Card>
 
