@@ -17,7 +17,7 @@ interface MetricCardProps {
 
 function MetricCard({ label, value, change, changeType, onClick }: MetricCardProps) {
   const changeColors = {
-    positive: "text-green-400",
+    positive: "text-[#22c55e]",
     negative: "text-red-400",
     neutral: "text-gray-400",
   };
@@ -100,7 +100,7 @@ export function Dashboard() {
           <h3 className="text-lg font-semibold text-white mb-1">{t.dashboard.title}</h3>
           <p className="text-sm text-gray-400">{t.dashboard.subtitle}</p>
         </div>
-        <Badge variant="info" className="bg-green-500/10 text-green-400 border-green-500/20">
+        <Badge variant="info" className="bg-[#22c55e]/10 text-[#22c55e] border-[#22c55e]/20">
           {t.dashboard.live}
         </Badge>
       </div>
@@ -148,7 +148,7 @@ export function Dashboard() {
             {selectedAction === "retention" && t.dashboard.insights.retention}
             {selectedAction === "engagement" && t.dashboard.insights.engagement}
             {" "}
-            <span className="text-green-400 font-medium">+12.3%</span>{" "}
+            <span className="text-[#22c55e] font-medium">+12.3%</span>{" "}
             {t.dashboard.insights.increased}
           </p>
         </div>

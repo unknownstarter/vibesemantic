@@ -93,13 +93,13 @@ export default function DemoPage() {
             <Container size="lg">
               <div className="max-w-2xl w-full mx-auto text-center space-y-8">
                 <div className="space-y-4">
-                  <Badge variant="info" className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 mb-4">
+                  <Badge variant="info" className="bg-[#22c55e]/20 text-[#22c55e] border-[#22c55e]/30 mb-4">
                     {t.demo.step0.badge}
                   </Badge>
                   <h1 className="text-4xl md:text-6xl font-bold text-white leading-tight">
                     {t.demo.step0.title}
                     <br />
-                    <span className="text-emerald-400">{t.demo.step0.titleHighlight}</span>
+                    <span className="text-[#22c55e]">{t.demo.step0.titleHighlight}</span>
                   </h1>
                   <p className="text-lg text-gray-400 max-w-xl mx-auto whitespace-pre-line">
                     {t.demo.step0.description}
@@ -108,9 +108,12 @@ export default function DemoPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
                   {t.demo.step0.beforeItems.map((item, idx) => (
-                    <Card key={idx} variant="bento" className="p-6">
-                      <div className="text-red-400 font-semibold mb-2">{t.demo.step0.beforeTitle}</div>
-                      <p className="text-gray-400 text-sm whitespace-pre-line">{item.text}</p>
+                    <Card key={idx} variant="bento" className="p-6 bg-white/5 border-white/10 hover:bg-white/10 transition-all">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-2 h-2 rounded-full bg-red-400"></div>
+                        <span className="text-red-400 text-xs font-semibold uppercase tracking-wide">{t.demo.step0.beforeTitle}</span>
+                      </div>
+                      <p className="text-gray-300 text-base leading-relaxed whitespace-pre-line font-medium">{item.text}</p>
                     </Card>
                   ))}
                 </div>
@@ -122,10 +125,10 @@ export default function DemoPage() {
                     setStep(1);
                     clickButton("demo_start", "demo_page");
                   }}
-                  className="mt-8 inline-flex items-center gap-2"
+                  className="mt-8 inline-flex items-center gap-2 text-sm sm:text-base"
                 >
                   {t.demo.step0.startButton}
-                  <ArrowRight size={20} />
+                  <ArrowRight size={20} className="flex-shrink-0" />
                 </Button>
 
                 <p className="text-sm text-gray-500 mt-4">{t.demo.step0.disclaimer}</p>
@@ -147,7 +150,7 @@ export default function DemoPage() {
                 <Card variant="bento" className="p-6 space-y-4">
                   <div className="flex items-center justify-between mb-4">
                     <h4 className="text-white font-semibold text-lg">Data Sources</h4>
-                    <button className="px-3 py-1.5 text-xs font-medium text-emerald-400 hover:text-emerald-300 transition-colors">
+                    <button className="px-3 py-1.5 text-xs font-medium text-[#22c55e] hover:text-[#16a34a] transition-colors">
                       + Add New
                     </button>
                   </div>
@@ -155,7 +158,7 @@ export default function DemoPage() {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/10">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold text-sm">
+                        <div className="w-10 h-10 rounded-full bg-[#22c55e]/20 border border-[#22c55e]/30 flex items-center justify-center text-[#22c55e] font-bold text-sm">
                           SB
                         </div>
                         <div>
@@ -163,14 +166,14 @@ export default function DemoPage() {
                           <div className="text-gray-400 text-xs">Supabase • Last sync 2m ago</div>
                         </div>
                       </div>
-                      <div className="w-10 h-6 rounded-full bg-emerald-500/30 border border-emerald-500/50 relative">
-                        <div className="absolute right-1 top-1 w-4 h-4 rounded-full bg-emerald-400"></div>
+                      <div className="w-10 h-6 rounded-full bg-[#22c55e]/30 border border-[#22c55e]/50 relative">
+                        <div className="absolute right-1 top-1 w-4 h-4 rounded-full bg-[#22c55e]"></div>
                       </div>
                     </div>
                     
                     <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/10">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold text-sm">
+                        <div className="w-10 h-10 rounded-full bg-[#22c55e]/20 border border-[#22c55e]/30 flex items-center justify-center text-[#22c55e] font-bold text-sm">
                           GA
                         </div>
                         <div>
@@ -178,12 +181,12 @@ export default function DemoPage() {
                           <div className="text-gray-400 text-xs">GA4 • Syncing...</div>
                         </div>
                       </div>
-                      <div className="w-5 h-5 border-2 border-emerald-500/50 border-t-emerald-400 rounded-full animate-spin"></div>
+                      <div className="w-5 h-5 border-2 border-[#22c55e]/50 border-t-[#22c55e] rounded-full animate-spin"></div>
                     </div>
                     
                     <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/10">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold text-sm">
+                        <div className="w-10 h-10 rounded-full bg-[#22c55e]/20 border border-[#22c55e]/30 flex items-center justify-center text-[#22c55e] font-bold text-sm">
                           GS
                         </div>
                         <div>
@@ -207,7 +210,7 @@ export default function DemoPage() {
                         placeholder={t.demo.step1.serviceNamePlaceholder}
                         value={serviceInfo.name}
                         onChange={(e) => setServiceInfo({ ...serviceInfo, name: e.target.value })}
-                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500/50"
+                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-[#22c55e] focus:border-[#22c55e]/50"
                       />
                     </div>
 
@@ -220,7 +223,7 @@ export default function DemoPage() {
                         placeholder={t.demo.step1.funnelPlaceholder}
                         value={serviceInfo.funnel}
                         onChange={(e) => setServiceInfo({ ...serviceInfo, funnel: e.target.value })}
-                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500/50"
+                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-[#22c55e] focus:border-[#22c55e]/50"
                       />
                     </div>
 
@@ -233,7 +236,7 @@ export default function DemoPage() {
                         placeholder={t.demo.step1.conversionPlaceholder}
                         value={serviceInfo.conversion}
                         onChange={(e) => setServiceInfo({ ...serviceInfo, conversion: e.target.value })}
-                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500/50"
+                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-[#22c55e] focus:border-[#22c55e]/50"
                       />
                     </div>
                   </div>
@@ -245,7 +248,7 @@ export default function DemoPage() {
                       clickButton("demo_step1_next", "demo_page");
                     }}
                     disabled={!serviceInfo.name || !serviceInfo.funnel || !serviceInfo.conversion}
-                    className="w-full mt-6"
+                    className="w-full mt-6 text-sm sm:text-base"
                   >
                     {t.demo.step1.nextButton}
                   </Button>
@@ -266,10 +269,10 @@ export default function DemoPage() {
                 </div>
 
                 <Card variant="bento" className="overflow-hidden">
-                  <div className="p-6 bg-emerald-500/10 border-b border-emerald-500/20">
+                  <div className="p-6 bg-[#22c55e]/10 border-b border-[#22c55e]/20">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-emerald-500/20 border border-emerald-500/30 rounded-full flex items-center justify-center">
-                        <Sparkles className="text-emerald-400" size={20} />
+                      <div className="w-10 h-10 bg-[#22c55e]/20 border border-[#22c55e]/30 rounded-full flex items-center justify-center">
+                        <Sparkles className="text-[#22c55e]" size={20} />
                       </div>
                       <div>
                         <div className="font-semibold text-white">{t.demo.step2.agentTitle}</div>
@@ -287,9 +290,9 @@ export default function DemoPage() {
                           <button
                             key={idx}
                             onClick={handleAnalyze}
-                            className="w-full text-left p-4 bg-white/5 hover:bg-emerald-500/10 border border-white/10 hover:border-emerald-500/30 rounded-lg transition-all group"
+                            className="w-full text-left p-4 bg-white/5 hover:bg-[#22c55e]/10 border border-white/10 hover:border-[#22c55e]/30 rounded-lg transition-all group"
                           >
-                            <div className="font-medium text-gray-300 group-hover:text-emerald-400">
+                            <div className="font-medium text-gray-300 group-hover:text-[#22c55e]">
                               {question}
                             </div>
                           </button>
@@ -299,8 +302,8 @@ export default function DemoPage() {
 
                     {chatMessages.map((msg, idx) => (
                       <div key={idx} className="flex gap-3 animate-fade-in">
-                        <div className="w-8 h-8 bg-emerald-500/20 border border-emerald-500/30 rounded-full flex items-center justify-center flex-shrink-0">
-                          <MessageSquare className="text-emerald-400" size={16} />
+                        <div className="w-8 h-8 bg-[#22c55e]/20 border border-[#22c55e]/30 rounded-full flex items-center justify-center flex-shrink-0">
+                          <MessageSquare className="text-[#22c55e]" size={16} />
                         </div>
                         <div className="flex-1 p-3 bg-white/5 rounded-lg border border-white/10">
                           <p className="text-gray-300">{msg.text}</p>
@@ -312,15 +315,15 @@ export default function DemoPage() {
                       <div className="flex justify-center py-8">
                         <div className="flex gap-2">
                           <div
-                            className="w-3 h-3 bg-emerald-500 rounded-full animate-bounce"
+                            className="w-3 h-3 bg-[#22c55e] rounded-full animate-bounce"
                             style={{ animationDelay: "0ms" }}
                           ></div>
                           <div
-                            className="w-3 h-3 bg-emerald-500 rounded-full animate-bounce"
+                            className="w-3 h-3 bg-[#22c55e] rounded-full animate-bounce"
                             style={{ animationDelay: "150ms" }}
                           ></div>
                           <div
-                            className="w-3 h-3 bg-emerald-500 rounded-full animate-bounce"
+                            className="w-3 h-3 bg-[#22c55e] rounded-full animate-bounce"
                             style={{ animationDelay: "300ms" }}
                           ></div>
                         </div>
@@ -334,7 +337,7 @@ export default function DemoPage() {
                           setStep(3);
                           clickButton("demo_view_results", "demo_page");
                         }}
-                        className="w-full mt-4"
+                        className="w-full mt-4 text-sm sm:text-base"
                       >
                         {t.demo.step2.viewResults}
                       </Button>
@@ -466,7 +469,7 @@ export default function DemoPage() {
                 {/* Action Items - Success Case Style */}
                 <Card variant="bento" className="p-6">
                   <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                    <CheckCircle className="text-emerald-400" size={20} />
+                    <CheckCircle className="text-[#22c55e]" size={20} />
                     {t.demo.step3.actionItems}
                   </h3>
                   <div className="grid md:grid-cols-3 gap-6">
@@ -480,7 +483,7 @@ export default function DemoPage() {
                         <h3 className="text-xl font-semibold text-white mb-1">CVR</h3>
                         <div className="text-right">
                           <p className="text-2xl font-bold text-white mb-1">+8%p</p>
-                          <p className="text-sm text-green-400 font-medium">개선 예상</p>
+                          <p className="text-sm text-[#22c55e] font-medium">개선 예상</p>
                         </div>
                       </div>
                       <p className="text-sm text-gray-400 mb-4">{t.demo.step3.action1.title.replace("1. ", "")}</p>
@@ -518,7 +521,7 @@ export default function DemoPage() {
                         <h3 className="text-xl font-semibold text-white mb-1">D7 리텐션</h3>
                         <div className="text-right">
                           <p className="text-2xl font-bold text-white mb-1">+3%p</p>
-                          <p className="text-sm text-green-400 font-medium">개선 예상</p>
+                          <p className="text-sm text-[#22c55e] font-medium">개선 예상</p>
                         </div>
                       </div>
                       <p className="text-sm text-gray-400 mb-4">{t.demo.step3.action2.title.replace("2. ", "")}</p>
@@ -556,7 +559,7 @@ export default function DemoPage() {
                         <h3 className="text-xl font-semibold text-white mb-1">활성화율</h3>
                         <div className="text-right">
                           <p className="text-2xl font-bold text-white mb-1">+5%p</p>
-                          <p className="text-sm text-green-400 font-medium">개선 예상</p>
+                          <p className="text-sm text-[#22c55e] font-medium">개선 예상</p>
                         </div>
                       </div>
                       <p className="text-sm text-gray-400 mb-4">{t.demo.step3.action3.title.replace("3. ", "")}</p>
@@ -596,10 +599,10 @@ export default function DemoPage() {
                       clickButton("demo_apply_early_access", "demo_page");
                       router.push("/#apply");
                     }}
-                    className="inline-flex items-center gap-2"
+                    className="inline-flex items-center gap-2 text-sm sm:text-base"
                   >
                     {t.demo.step3.ctaButton}
-                    <ArrowRight size={20} />
+                    <ArrowRight size={20} className="flex-shrink-0" />
                   </Button>
                 </Card>
               </div>
@@ -613,16 +616,16 @@ export default function DemoPage() {
             <Container size="md">
               <Card variant="bento" className="p-8">
                 <div className="text-center mb-6">
-                  <div className="w-16 h-16 bg-emerald-500/20 border border-emerald-500/30 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <CheckCircle className="text-emerald-400" size={32} />
+                  <div className="w-16 h-16 bg-[#22c55e]/20 border border-[#22c55e]/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <CheckCircle className="text-[#22c55e]" size={32} />
                   </div>
                   <h2 className="text-2xl font-bold text-white mb-2">{t.demo.step4.title}</h2>
                   <p className="text-gray-400">{t.demo.step4.description}</p>
                 </div>
 
                 <div className="space-y-4 mb-6">
-                  <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-                    <p className="text-sm text-emerald-300 whitespace-pre-line">{t.demo.step4.disclaimer}</p>
+                  <div className="p-4 bg-[#22c55e]/10 border border-[#22c55e]/20 rounded-lg">
+                    <p className="text-sm text-[#22c55e]/90 whitespace-pre-line">{t.demo.step4.disclaimer}</p>
                   </div>
 
                   <div className="space-y-3">
@@ -655,7 +658,7 @@ export default function DemoPage() {
                     submitForm("demo_early_access", true);
                     router.push("/#apply");
                   }}
-                  className="w-full"
+                  className="w-full text-sm sm:text-base"
                 >
                   {t.demo.step4.applyButton}
                 </Button>

@@ -75,7 +75,7 @@ export function Header() {
         <div className="flex items-center justify-between h-16 md:h-20">
           <a
             href="/"
-            className="flex items-center gap-3 text-xl md:text-2xl font-bold text-white"
+            className="flex items-center gap-2 sm:gap-3 text-lg sm:text-xl md:text-2xl font-bold text-white"
             onClick={(e) => {
               e.preventDefault();
               if (pathname === "/demo") {
@@ -85,8 +85,9 @@ export function Header() {
               }
             }}
           >
-            <LogoIcon className="flex-shrink-0" />
-            <span>Vibe Semantic</span>
+            <LogoIcon className="flex-shrink-0 w-6 h-6 sm:w-8 sm:h-8" />
+            <span className="hidden sm:inline">Vibe Semantic</span>
+            <span className="sm:hidden">VS</span>
           </a>
 
           <nav className="hidden md:flex items-center gap-6" aria-label="Main navigation">
@@ -106,11 +107,11 @@ export function Header() {
             ))}
           </nav>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <div className="relative" ref={languageMenuRef}>
               <button
                 onClick={() => setIsLanguageMenuOpen(!isLanguageMenuOpen)}
-                className="text-sm text-gray-400 hover:text-foreground transition-colors px-3 py-2 rounded-lg hover:bg-white/5"
+                className="text-xs sm:text-sm text-gray-400 hover:text-foreground transition-colors px-2 sm:px-3 py-2 rounded-lg hover:bg-white/5 whitespace-nowrap"
                 aria-label="Language selector"
               >
                 {t.nav.language}
@@ -154,13 +155,9 @@ export function Header() {
             <Button
               variant="secondary"
               size="sm"
-              className="bg-emerald-500 text-white hover:bg-emerald-600 border-emerald-500/20"
+              className="bg-[#22c55e] text-white hover:bg-[#16a34a] border-[#22c55e]/20 text-xs sm:text-sm px-3 sm:px-4"
               onClick={() => {
-                if (pathname === "/demo") {
-                  router.push("/demo");
-                } else {
-                  router.push("/demo");
-                }
+                router.push("/demo");
                 clickButton("demo_try", "header");
               }}
             >
@@ -168,8 +165,9 @@ export function Header() {
             </Button>
 
             <Button
-              variant="primary"
+              variant="secondary"
               size="sm"
+              className="bg-white text-black hover:bg-gray-100 border-white/10 text-xs sm:text-sm px-3 sm:px-4"
               onClick={() => {
                 if (pathname === "/demo") {
                   router.push("/#apply");

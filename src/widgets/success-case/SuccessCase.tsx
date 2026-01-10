@@ -76,7 +76,7 @@ function CaseCard({ caseStudy, isActive, onClick }: { caseStudy: CaseStudy; isAc
         </div>
         <div className="text-right">
           <p className="text-2xl font-bold text-white mb-1">{caseStudy.value}</p>
-          <p className="text-sm text-green-400 font-medium">{caseStudy.change}</p>
+          <p className="text-sm text-[#22c55e] font-medium">{caseStudy.change}</p>
         </div>
       </div>
 

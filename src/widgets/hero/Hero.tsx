@@ -43,11 +43,11 @@ export function Hero() {
               {t.hero.description}
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
               <Button
                 variant="secondary"
                 size="lg"
-                className="bg-emerald-500 text-white hover:bg-emerald-600 border-emerald-500/20"
+                className="bg-[#22c55e] text-white hover:bg-[#16a34a] border-[#22c55e]/20 whitespace-nowrap text-sm sm:text-base"
                 onClick={() => {
                   window.location.href = "/demo";
                   clickButton("demo_try", "hero");
@@ -58,6 +58,7 @@ export function Hero() {
               <Button
                 variant="secondary"
                 size="lg"
+                className="whitespace-nowrap text-sm sm:text-base"
                 onClick={() => {
                   scrollToSection("#how");
                   clickButton("how_it_works", "hero");
@@ -68,6 +69,7 @@ export function Hero() {
               <Button
                 variant="primary"
                 size="lg"
+                className="whitespace-nowrap text-sm sm:text-base"
                 onClick={() => {
                   scrollToSection("#apply");
                   clickButton("early_access", "hero");

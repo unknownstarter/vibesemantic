@@ -46,13 +46,13 @@ export function HowItWorks() {
           <div className="text-center mb-20">
             <Badge
               variant="info"
-              className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 mb-6"
+              className="bg-[#22c55e]/20 text-[#22c55e] border-[#22c55e]/30 mb-6"
             >
               {t.howItWorks.badge}
             </Badge>
             <h2 className="text-4xl md:text-6xl font-bold mb-6 text-white">
               <span className="text-white">{t.howItWorks.title.split(" ").slice(0, -3).join(" ")}</span>{" "}
-              <span className="text-emerald-400">
+              <span className="text-[#22c55e]">
                 {t.howItWorks.title.split(" ").slice(-3).join(" ")}
               </span>
             </h2>
@@ -67,6 +67,7 @@ export function HowItWorks() {
                   window.location.href = "/demo";
                   clickButton("demo_try", "how_it_works");
                 }}
+                className="text-sm sm:text-base"
               >
                 {t.howItWorks.demoButton}
               </Button>
@@ -75,15 +76,15 @@ export function HowItWorks() {
 
           <div className="space-y-24 relative">
             {/* Vertical connecting line */}
-            <div className="absolute left-8 md:left-12 top-0 bottom-0 w-0.5 bg-emerald-500/30 hidden md:block"></div>
+            <div className="absolute left-8 md:left-12 top-0 bottom-0 w-0.5 bg-[#22c55e]/30 hidden md:block"></div>
 
             {t.howItWorks.steps.map((step, idx) => (
               <div key={idx} className="relative">
                 {/* Step number circle with icon */}
                 <div className="absolute left-0 md:left-8 top-0 z-10 hidden md:flex items-center justify-center">
-                  <div className="w-16 h-16 rounded-full bg-gray-900 border-2 border-emerald-500/50 flex items-center justify-center relative">
-                    <div className="absolute inset-0 rounded-full bg-emerald-500/20 animate-pulse"></div>
-                    <span className="text-emerald-400 text-xl font-bold relative z-10">
+                  <div className="w-16 h-16 rounded-full bg-gray-900 border-2 border-[#22c55e]/50 flex items-center justify-center relative">
+                    <div className="absolute inset-0 rounded-full bg-[#22c55e]/20 animate-pulse"></div>
+                    <span className="text-[#22c55e] text-xl font-bold relative z-10">
                         {step.number}
                     </span>
                   </div>
@@ -107,7 +108,7 @@ export function HowItWorks() {
                         {step.dataSources.map((source, i) => (
                           <button
                             key={i}
-                            className="px-4 py-2 rounded-full bg-gray-800/50 border border-gray-700 text-gray-300 hover:border-emerald-500/50 hover:text-emerald-400 transition-colors text-sm font-medium"
+                            className="px-4 py-2 rounded-full bg-gray-800/50 border border-gray-700 text-gray-300 hover:border-[#22c55e]/50 hover:text-[#22c55e] transition-colors text-sm font-medium"
                           >
                             {source}
                           </button>
@@ -124,7 +125,7 @@ export function HowItWorks() {
                           <h4 className="text-white font-semibold text-lg">
                             {"title" in step.uiExample && step.uiExample.title}
                           </h4>
-                          <button className="px-3 py-1.5 text-xs font-medium text-emerald-400 hover:text-emerald-300 transition-colors">
+                          <button className="px-3 py-1.5 text-xs font-medium text-[#22c55e] hover:text-[#16a34a] transition-colors">
                             {"addButton" in step.uiExample && step.uiExample.addButton}
                           </button>
                         </div>
@@ -135,7 +136,7 @@ export function HowItWorks() {
                               className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg border border-gray-700/50"
                             >
                               <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold text-sm">
+                                <div className="w-10 h-10 rounded-full bg-[#22c55e]/20 border border-[#22c55e]/30 flex items-center justify-center text-[#22c55e] font-bold text-sm">
                                   {source.type === "Supabase"
                                     ? "SB"
                                     : source.type === "GA4"
@@ -152,12 +153,12 @@ export function HowItWorks() {
                                 </div>
                               </div>
                               {source.status === "active" && (
-                                <div className="w-10 h-6 rounded-full bg-emerald-500/30 border border-emerald-500/50 relative">
-                                  <div className="absolute right-1 top-1 w-4 h-4 rounded-full bg-emerald-400"></div>
+                                <div className="w-10 h-6 rounded-full bg-[#22c55e]/30 border border-[#22c55e]/50 relative">
+                                  <div className="absolute right-1 top-1 w-4 h-4 rounded-full bg-[#22c55e]"></div>
                                 </div>
                               )}
                               {source.status === "syncing" && (
-                                <div className="w-5 h-5 border-2 border-emerald-500/50 border-t-emerald-400 rounded-full animate-spin"></div>
+                                <div className="w-5 h-5 border-2 border-[#22c55e]/50 border-t-[#22c55e] rounded-full animate-spin"></div>
                               )}
                               {source.status === "paused" && (
                                 <div className="w-10 h-6 rounded-full bg-gray-700 border border-gray-600 relative">
@@ -174,9 +175,9 @@ export function HowItWorks() {
                       <div className="bg-gray-900/80 border border-gray-800 rounded-xl p-6 space-y-4 backdrop-blur-sm">
                         {/* AI Prompt */}
                         <div className="flex items-start gap-3">
-                          <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center flex-shrink-0">
+                          <div className="w-8 h-8 rounded-full bg-[#22c55e]/20 border border-[#22c55e]/30 flex items-center justify-center flex-shrink-0">
                             <svg
-                              className="w-4 h-4 text-emerald-400"
+                              className="w-4 h-4 text-[#22c55e]"
                               fill="currentColor"
                               viewBox="0 0 24 24"
                             >
@@ -194,17 +195,17 @@ export function HowItWorks() {
                               <div className="w-4 h-4 rounded-full bg-gray-500"></div>
                             </div>
                           </div>
-                          <div className="bg-emerald-500/20 border border-emerald-500/30 rounded-lg px-4 py-3 max-w-[85%]">
-                            <p className="text-emerald-100 text-sm leading-relaxed">
+                          <div className="bg-[#22c55e]/20 border border-[#22c55e]/30 rounded-lg px-4 py-3 max-w-[85%]">
+                            <p className="text-[#22c55e]/90 text-sm leading-relaxed">
                               {"userMessage" in step.uiExample && step.uiExample.userMessage}
                             </p>
                           </div>
                         </div>
                         {/* AI Response */}
                         <div className="flex items-start gap-3">
-                          <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center flex-shrink-0">
+                          <div className="w-8 h-8 rounded-full bg-[#22c55e]/20 border border-[#22c55e]/30 flex items-center justify-center flex-shrink-0">
                             <svg
-                              className="w-4 h-4 text-emerald-400"
+                              className="w-4 h-4 text-[#22c55e]"
                               fill="currentColor"
                               viewBox="0 0 24 24"
                             >
@@ -221,7 +222,7 @@ export function HowItWorks() {
                             <span className="text-gray-400 text-sm flex-1">
                               {"inputPlaceholder" in step.uiExample && step.uiExample.inputPlaceholder}
                             </span>
-                            <button className="text-emerald-400 hover:text-emerald-300 transition-colors">
+                            <button className="text-[#22c55e] hover:text-[#16a34a] transition-colors">
                               <svg
                                 className="w-5 h-5"
                                 fill="none"
@@ -265,16 +266,16 @@ export function HowItWorks() {
                         <div className="h-32 bg-gray-800/50 rounded-lg mb-6 flex items-end justify-between gap-2 p-4 border border-gray-700/50">
                           <div className="flex-1 h-20 bg-gray-700/50 rounded-t"></div>
                           <div className="flex-1 h-16 bg-gray-700/50 rounded-t"></div>
-                          <div className="flex-1 h-24 bg-emerald-500/40 rounded-t relative">
+                          <div className="flex-1 h-24 bg-[#22c55e]/40 rounded-t relative">
                             <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-blue-400"></div>
                           </div>
                         </div>
                         {/* Recommendation */}
-                        <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4 mb-4">
+                        <div className="bg-[#22c55e]/10 border border-[#22c55e]/30 rounded-lg p-4 mb-4">
                           <div className="flex items-start gap-3">
                             <div className="w-5 h-5 mt-0.5 flex items-center justify-center">
                               <svg
-                                className="w-5 h-5 text-emerald-400"
+                                className="w-5 h-5 text-[#22c55e]"
                                 fill="currentColor"
                                 viewBox="0 0 24 24"
                               >
@@ -282,7 +283,7 @@ export function HowItWorks() {
                               </svg>
                             </div>
                             <div className="flex-1">
-                              <div className="text-emerald-400 font-semibold text-sm mb-1">
+                              <div className="text-[#22c55e] font-semibold text-sm mb-1">
                                 Recommendation
                               </div>
                               <p className="text-gray-300 text-sm leading-relaxed">

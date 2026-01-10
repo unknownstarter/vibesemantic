@@ -274,7 +274,7 @@ function PricingModal({
             type="button"
             variant="secondary"
             onClick={handleClose}
-            className="flex-1"
+            className="flex-1 text-sm sm:text-base"
             disabled={isSubmitting}
           >
             {t.pricing.modal.cancel}
@@ -282,7 +282,7 @@ function PricingModal({
           <Button
             type="submit"
             variant={plan.buttonVariant}
-            className="flex-1"
+            className="flex-1 text-sm sm:text-base"
             disabled={isSubmitting}
           >
             {isSubmitting ? t.pricing.modal.submitting : t.pricing.modal.submit}
@@ -417,7 +417,7 @@ export function Pricing() {
                     <li key={idx} className="flex items-start gap-2">
                       {feature.included ? (
                         <svg
-                          className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5"
+                          className="w-5 h-5 text-[#22c55e] flex-shrink-0 mt-0.5"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -459,7 +459,7 @@ export function Pricing() {
                 <Button
                   variant={plan.buttonVariant}
                   size="lg"
-                  className="w-full"
+                  className="w-full text-sm sm:text-base"
                   onClick={() => handlePlanClick(plan)}
                 >
                   {plan.buttonText}
