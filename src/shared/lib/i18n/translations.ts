@@ -5,8 +5,8 @@ export const translations = {
     // Header
     nav: {
       product: "Product",
-      howItWorks: "How it works",
-      security: "Security",
+      features: "Features",
+      price: "Pricing",
       faq: "FAQ",
       earlyAccess: "Early Access",
       language: "언어",
@@ -19,7 +19,7 @@ export const translations = {
       description:
         "SQL 없이도, 지금 봐야 할 지표와 다음 액션을 제안합니다. PO, 창업가, 마케터를 위한 AI 기반 데이터 분석 도구로 DAU, 리텐션, 전환율 등 핵심 지표를 자연어로 질문하고 인사이트를 얻으세요.",
       earlyAccessButton: "Early Access 신청하기",
-      howItWorksButton: "How it works",
+      productButton: "Product",
       demoButton: "데모 체험",
     },
     // Problem
@@ -45,8 +45,8 @@ export const translations = {
         },
       ],
     },
-    // How it works
-    howItWorks: {
+    // Product
+    product: {
       badge: "• Workflow Simplified",
       title: "Turn Data into Decisions in 3 Steps",
       description:
@@ -118,7 +118,7 @@ export const translations = {
     // Pricing
     pricing: {
       title: "Pricing",
-      description: "원하는 플랜을 선택하세요",
+      description: "사전 신청부터 라이프타임 혜택까지 원하는 옵션을 선택하세요",
       plans: {
         basic: {
           title: "기본",
@@ -149,9 +149,9 @@ export const translations = {
           title: "추천",
           badge: "추천",
           heading: "평생 프리미엄",
-          price: "평생 $49",
-          originalPrice: "연 $199",
-          discountBanner: "75% 할인 100명 한정",
+          price: "평생 $999",
+          originalPrice: "최소 $2,000 이상",
+          discountBanner: "50% 할인 100명 한정",
           features: [
             { text: "출시 즉시 사용", included: true },
             { text: "모든 프리미엄 기능 평생 무료", included: true },
@@ -313,7 +313,8 @@ export const translations = {
           change: "+0.5%",
           period: "14일",
           action: "Add to Cart 버튼 위치 최적화",
-          result: "전환율이 14일 이내에 +0.5%p 상승했습니다. 동기간에 적용된 'Add to Cart 버튼 위치 최적화' 기능으로 인한 전환율 개선입니다.",
+          result:
+            "전환율이 14일 동안 +0.5%p 상승했습니다. 구매 퍼널에서 상세 → 장바구니 구간 이탈이 줄었고, 특히 모바일 유입에서 전환 기여도가 크게 개선되었습니다. 신규 방문자 대비 재방문자 전환율도 동반 상승했습니다.",
         },
         {
           id: "dau",
@@ -323,7 +324,8 @@ export const translations = {
           change: "+10.3%",
           period: "7일",
           action: "푸시 알림 타이밍 개선",
-          result: "DAU가 7일 이내에 +10.3% 증가했습니다. 동기간에 적용된 '푸시 알림 타이밍 개선' 기능으로 인한 사용자 참여도 증가입니다.",
+          result:
+            "DAU가 7일 동안 +10.3% 증가했습니다. 개인별 활동 시간대에 맞춘 푸시로 재방문 빈도가 늘었고, 주말 리텐션이 평일 대비 더 빠르게 회복되었습니다. 특히 첫 주차 유저의 이탈률이 눈에 띄게 감소했습니다.",
         },
         {
           id: "ctr",
@@ -333,7 +335,8 @@ export const translations = {
           change: "+0.8%",
           period: "10일",
           action: "추천 알고리즘 개선",
-          result: "CTR이 10일 이내에 +0.8%p 상승했습니다. 동기간에 적용된 '추천 알고리즘 개선' 기능으로 인한 클릭률 증가입니다.",
+          result:
+            "CTR이 10일 동안 +0.8%p 상승했습니다. 관심사 기반 가중치를 재조정해 개인화 정확도가 개선되었고, 롱테일 콘텐츠의 노출·클릭 비중이 증가했습니다. 세션당 클릭 수와 체류 시간이 함께 개선되는 흐름입니다.",
         },
       ],
     },
@@ -423,9 +426,9 @@ export const translations = {
         description: "지표는 보이는데 '왜 변했는지', '다음엔 뭘 해야 하는지' 모를 때,\n전담 분석가처럼 데이터를 해석하고 액션을 제안합니다.",
         beforeTitle: "❌ Before",
         beforeItems: [
-          { text: "리텐션이 떨어졌는데\n어떤 기능이 원인인지\n알 수 없어요" },
-          { text: "GA4, DB, 시트 데이터가\n각각 다른 곳에 있어서\n종합 분석이 어려워요" },
-          { text: "지표는 보이는데\n다음에 뭘 해야 할지\n모르겠어요" },
+          { text: "리텐션이 떨어졌는데 어떤 기능이 원인인지 알 수 없어요" },
+          { text: "GA4, DB, 시트 데이터가 각각 다른 곳에 있어서 종합 분석이 어려워요" },
+          { text: "지표는 보이는데 다음에 뭘 해야 할지 모르겠어요" },
         ],
         startButton: "데모 체험하기",
         disclaimer: "⚠️ 이것은 Private Preview 데모입니다. 실제 데이터는 연결되지 않습니다.",
@@ -462,9 +465,22 @@ export const translations = {
         title: "분석 결과 및 액션 아이템",
         subtitle: "지난 30일간 데이터 분석 완료",
         keyIssues: "핵심 이슈",
+        keyIssue1Title: "D7 리텐션 14% 하락",
+        keyIssue1Description:
+          "지난주 대비 24% → 21%. 온보딩 완료 후 7일 내 이탈이 증가했습니다.",
+        keyIssue2Title: "온보딩 → 첫 액션 전환율 75%",
+        keyIssue2Description:
+          "업계 평균(85%)보다 낮습니다. 온보딩 단계에서 이탈이 발생하고 있습니다.",
         retentionTitle: "리텐션 추이",
         funnelTitle: "전환 퍼널",
+        chartLegendCurrent: "현재",
+        chartLegendPrevious: "이전",
         actionItems: "추천 액션 아이템",
+        metrics: {
+          conversion: "CVR",
+          retention: "D7 리텐션",
+          activation: "활성화율",
+        },
         action1: {
           title: "1. 온보딩 프로세스 단순화",
           impact: "High Impact",
@@ -507,8 +523,8 @@ export const translations = {
     // Header
     nav: {
       product: "Product",
-      howItWorks: "How it works",
-      security: "Security",
+      features: "Features",
+      price: "Pricing",
       faq: "FAQ",
       earlyAccess: "Early Access",
       language: "Language",
@@ -521,7 +537,7 @@ export const translations = {
       description:
         "Get insights and action recommendations without SQL. An AI-powered data analytics tool for Product managers, founders, and marketers. Ask questions in natural language about key metrics like DAU, retention, and conversion rates to gain actionable insights.",
       earlyAccessButton: "Apply for Early Access",
-      howItWorksButton: "How it works",
+      productButton: "Product",
       demoButton: "Try Demo",
     },
     // Problem
@@ -547,8 +563,8 @@ export const translations = {
         },
       ],
     },
-    // How it works
-    howItWorks: {
+    // Product
+    product: {
       badge: "• Workflow Simplified",
       title: "Turn Data into Decisions in 3 Steps",
       description:
@@ -620,7 +636,7 @@ export const translations = {
     // Pricing
     pricing: {
       title: "Pricing",
-      description: "Choose your plan",
+      description: "Choose your plan from early access to lifetime benefits",
       plans: {
         basic: {
           title: "Basic",
@@ -651,9 +667,9 @@ export const translations = {
           title: "Recommended",
           badge: "Recommended",
           heading: "Lifetime Premium",
-          price: "Lifetime $49",
-          originalPrice: "Annual $199",
-          discountBanner: "75% off - Limited to 100 applications",
+          price: "Lifetime $999",
+          originalPrice: "Annual $2,000 minimum",
+          discountBanner: "50% off - Limited to 100 applications",
           features: [
             { text: "Use immediately on launch", included: true },
             { text: "All premium features free for life", included: true },
@@ -815,7 +831,8 @@ export const translations = {
           change: "+0.5%",
           period: "14 days",
           action: "Add to Cart button position optimization",
-          result: "The conversion rate increased by +0.5%p within 14 days. This is a conversion rate improvement due to the 'Add to Cart button position optimization' feature applied during the same period.",
+          result:
+            "CVR increased by +0.5%p over 14 days. Drop-off from product detail to cart decreased, with the biggest lift coming from mobile traffic. Returning users also showed a higher conversion lift than new visitors.",
         },
         {
           id: "dau",
@@ -825,7 +842,8 @@ export const translations = {
           change: "+10.3%",
           period: "7 days",
           action: "Push notification timing improvement",
-          result: "DAU increased by +10.3% within 7 days. This is an increase in user engagement due to the 'Push notification timing improvement' feature applied during the same period.",
+          result:
+            "DAU rose by +10.3% in 7 days. Time-windowed push delivery increased revisit frequency, and weekend retention recovered faster than weekdays. First-week churn also trended down.",
         },
         {
           id: "ctr",
@@ -835,7 +853,8 @@ export const translations = {
           change: "+0.8%",
           period: "10 days",
           action: "Recommendation algorithm improvement",
-          result: "CTR increased by +0.8%p within 10 days. This is an increase in click-through rate due to the 'Recommendation algorithm improvement' feature applied during the same period.",
+          result:
+            "CTR climbed by +0.8%p over 10 days. Interest-weight tuning improved personalization accuracy, lifting long-tail impressions and clicks. Clicks per session and dwell time also moved upward.",
         },
       ],
     },
@@ -924,9 +943,9 @@ export const translations = {
         description: "When you see metrics but don't know 'why they changed' or 'what to do next',\nit interprets data and suggests actions like a dedicated analyst.",
         beforeTitle: "❌ Before",
         beforeItems: [
-          { text: "Retention dropped but\ncan't identify which\nfeature caused it" },
-          { text: "GA4, DB, Sheets data\nare scattered—hard to\nsynthesize insights" },
-          { text: "Metrics are visible but\ndon't know what action\nto take next" },
+          { text: "Retention dropped but can't identify which feature caused it" },
+          { text: "GA4, DB, Sheets data are scattered—hard to synthesize insights" },
+          { text: "Metrics are visible but don't know what action to take next" },
         ],
         startButton: "Try Demo",
         disclaimer: "⚠️ This is a Private Preview demo. No real data is connected.",
@@ -963,9 +982,22 @@ export const translations = {
         title: "Analysis Results & Action Items",
         subtitle: "Last 30 days data analysis completed",
         keyIssues: "Key Issues",
+        keyIssue1Title: "D7 retention down 14%",
+        keyIssue1Description:
+          "Down from 24% to 21% week over week. Churn is rising within 7 days after onboarding.",
+        keyIssue2Title: "Onboarding → first action conversion at 75%",
+        keyIssue2Description:
+          "Below the industry average (85%). Drop-off is happening during onboarding.",
         retentionTitle: "Retention Trend",
         funnelTitle: "Conversion Funnel",
+        chartLegendCurrent: "Current",
+        chartLegendPrevious: "Previous",
         actionItems: "Recommended Action Items",
+        metrics: {
+          conversion: "CVR",
+          retention: "D7 Retention",
+          activation: "Activation Rate",
+        },
         action1: {
           title: "1. Simplify Onboarding Process",
           impact: "High Impact",

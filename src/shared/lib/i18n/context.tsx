@@ -13,22 +13,46 @@ interface I18nContextType {
 
 const I18nContext = createContext<I18nContextType | undefined>(undefined);
 
-export function I18nProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguageState] = useState<Language>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("language") as Language;
-      return saved === "en" || saved === "ko" ? saved : "en";
-    }
-    return "en";
-  });
+interface I18nProviderProps {
+  children: React.ReactNode;
+  initialLanguage?: Language;
+}
+
+export function I18nProvider({
+  children,
+  initialLanguage = "en",
+}: I18nProviderProps) {
+  const [language, setLanguageState] = useState<Language>(initialLanguage);
 
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);
     if (typeof window !== "undefined") {
       localStorage.setItem("language", lang);
+      document.cookie = `language=${lang}; path=/; max-age=31536000; samesite=lax`;
       document.documentElement.lang = lang;
     }
   };
+
+  useEffect(() => {
+    const cookieMatch = document.cookie.match(/(?:^|; )language=([^;]+)/);
+    const cookieLang = cookieMatch?.[1] as Language | undefined;
+    const saved = localStorage.getItem("language") as Language | null;
+
+    if (cookieLang === "en" || cookieLang === "ko") {
+      setLanguageState(cookieLang);
+      localStorage.setItem("language", cookieLang);
+      document.documentElement.lang = cookieLang;
+      return;
+    }
+
+    if (saved === "en" || saved === "ko") {
+      setLanguageState(saved);
+      document.cookie = `language=${saved}; path=/; max-age=31536000; samesite=lax`;
+      document.documentElement.lang = saved;
+    } else {
+      document.documentElement.lang = language;
+    }
+  }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined") {

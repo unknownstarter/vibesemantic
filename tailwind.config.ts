@@ -1,5 +1,7 @@
 import type { Config } from "tailwindcss";
 
+const withOpacity = (variable: string) => `rgb(var(${variable}) / <alpha-value>)`;
+
 const config: Config = {
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
@@ -10,8 +12,30 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: "var(--background)",
-        foreground: "var(--foreground)",
+        background: withOpacity("--color-background"),
+        foreground: withOpacity("--color-foreground"),
+        primary: withOpacity("--color-primary"),
+        accent: withOpacity("--color-accent"),
+        muted: withOpacity("--color-muted"),
+        subtle: withOpacity("--color-subtle"),
+        surface: {
+          DEFAULT: withOpacity("--color-surface"),
+          strong: withOpacity("--color-surface-strong"),
+          inset: withOpacity("--color-surface-inset"),
+        },
+        border: {
+          DEFAULT: withOpacity("--color-border"),
+          strong: withOpacity("--color-border-strong"),
+        },
+        success: withOpacity("--color-success"),
+        warning: withOpacity("--color-warning"),
+        danger: withOpacity("--color-danger"),
+        info: withOpacity("--color-info"),
+        chart: {
+          primary: withOpacity("--color-primary"),
+          muted: withOpacity("--color-muted"),
+          grid: withOpacity("--color-border"),
+        },
       },
       animation: {
         "fade-in": "fadeIn 0.6s ease-in-out",

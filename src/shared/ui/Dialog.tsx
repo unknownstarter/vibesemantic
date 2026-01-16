@@ -42,7 +42,7 @@ export function Dialog({ isOpen, onClose, title, children, className }: DialogPr
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto sm:items-center"
       onClick={onClose}
     >
       <div
@@ -51,7 +51,7 @@ export function Dialog({ isOpen, onClose, title, children, className }: DialogPr
       />
       <div
         className={cn(
-          "relative z-50 w-full max-w-md rounded-2xl border border-white/10 bg-gray-900 p-6 shadow-xl",
+          "relative z-50 w-full max-w-md rounded-2xl border border-border/20 bg-surface p-6 shadow-xl max-h-[calc(100vh-2rem)] overflow-y-auto",
           className
         )}
         onClick={(e) => e.stopPropagation()}

@@ -165,7 +165,7 @@ function PricingModal({
               onChange={(e) =>
                 setFormData({ ...formData, email: e.target.value, planType: "basic" })
               }
-              className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-foreground focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white/20"
+              className="w-full px-4 py-3 rounded-lg bg-surface-inset text-foreground border border-border/20 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-border/40"
               placeholder={t.pricing.modal.placeholders.email}
             />
             {errors.email && (
@@ -186,7 +186,7 @@ function PricingModal({
               onChange={(e) =>
                 setFormData({ ...formData, phoneNumber: e.target.value, planType: "popular" })
               }
-              className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-foreground focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white/20"
+              className="w-full px-4 py-3 rounded-lg bg-surface-inset text-foreground border border-border/20 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-border/40"
               placeholder={t.pricing.modal.placeholders.phoneNumber}
             />
             {errors.phoneNumber && (
@@ -206,7 +206,7 @@ function PricingModal({
                 type="email"
                 value={(formData as Partial<PremiumPlanData>).email || ""}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value, planType: "premium" })}
-                className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-foreground focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white/20"
+                className="w-full px-4 py-3 rounded-lg bg-surface-inset text-foreground border border-border/20 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-border/40"
                 placeholder={t.pricing.modal.placeholders.email}
               />
               {errors.email && (
@@ -222,7 +222,7 @@ function PricingModal({
                 type="tel"
                 value={(formData as Partial<PremiumPlanData>).phoneNumber || ""}
                 onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value, planType: "premium" })}
-                className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-foreground focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white/20"
+                className="w-full px-4 py-3 rounded-lg bg-surface-inset text-foreground border border-border/20 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-border/40"
                 placeholder={t.pricing.modal.placeholders.phoneNumber}
               />
               {errors.phoneNumber && (
@@ -238,7 +238,7 @@ function PricingModal({
                 type="text"
                 value={(formData as Partial<PremiumPlanData>).contactName || ""}
                 onChange={(e) => setFormData({ ...formData, contactName: e.target.value, planType: "premium" })}
-                className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-foreground focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white/20"
+                className="w-full px-4 py-3 rounded-lg bg-surface-inset text-foreground border border-border/20 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-border/40"
                 placeholder={t.pricing.modal.placeholders.contactName}
               />
               {errors.contactName && (
@@ -254,15 +254,15 @@ function PricingModal({
                 type="text"
                 value={(formData as Partial<PremiumPlanData>).companyName || ""}
                 onChange={(e) => setFormData({ ...formData, companyName: e.target.value, planType: "premium" })}
-                className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-foreground focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white/20"
+                className="w-full px-4 py-3 rounded-lg bg-surface-inset text-foreground border border-border/20 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-border/40"
                 placeholder={t.pricing.modal.placeholders.companyName}
               />
               {errors.companyName && (
                 <p className="mt-1 text-sm text-red-400">{errors.companyName}</p>
               )}
             </div>
-            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 mt-4">
-              <p className="text-sm text-blue-400">
+            <div className="bg-info/10 border border-info/30 rounded-lg p-4 mt-4">
+              <p className="text-sm text-info">
                 {t.pricing.modal.premiumNote}
               </p>
             </div>
@@ -459,7 +459,11 @@ export function Pricing() {
                 <Button
                   variant={plan.buttonVariant}
                   size="lg"
-                  className="w-full text-sm sm:text-base"
+                  className={cn(
+                    "w-full text-sm sm:text-base",
+                    plan.id === "premium" &&
+                      "bg-white text-black hover:bg-gray-100 border border-white/10"
+                  )}
                   onClick={() => handlePlanClick(plan)}
                 >
                   {plan.buttonText}

@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import "@/shared/styles/globals.css";
 import { I18nProvider } from "@/shared/lib/i18n/context";
 import { GoogleAnalytics } from "@/shared/lib/GoogleAnalytics";
+import type { Language } from "@/shared/lib/i18n/translations";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://vibesemantic.xyz"),
@@ -81,13 +83,18 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cookieStore = await cookies();
+  const savedLanguage = cookieStore.get("language")?.value;
+  const initialLanguage =
+    savedLanguage === "ko" || savedLanguage === "en" ? savedLanguage : "en";
+
   return (
-    <html lang="en">
+    <html lang={initialLanguage}>
       <head>
         {/* SoftwareApplication 스키마 */}
         <script
@@ -167,8 +174,8 @@ export default function RootLayout({
                 {
                   "@type": "ListItem",
                   position: 3,
-                  name: "사용 방법",
-                  item: "https://vibesemantic.xyz#how",
+                  name: "Features",
+                  item: "https://vibesemantic.xyz#features",
                 },
                 {
                   "@type": "ListItem",
@@ -221,7 +228,9 @@ export default function RootLayout({
       </head>
       <body>
         <GoogleAnalytics />
-        <I18nProvider>{children}</I18nProvider>
+        <I18nProvider initialLanguage={initialLanguage as Language}>
+          {children}
+        </I18nProvider>
       </body>
     </html>
   );

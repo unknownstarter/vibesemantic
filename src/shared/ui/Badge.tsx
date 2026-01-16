@@ -7,13 +7,13 @@ interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
 
 export const Badge = forwardRef<HTMLSpanElement, BadgeProps>(
   ({ className, variant = "default", children, ...props }, ref) => {
-    const baseStyles = "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium";
+    const baseStyles = "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium border";
     
     const variants = {
-      default: "bg-white/10 text-gray-300 border border-white/10",
-      success: "bg-[#22c55e]/10 text-[#22c55e] border border-[#22c55e]/20",
-      warning: "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20",
-      info: "bg-blue-500/10 text-blue-400 border border-blue-500/20",
+      default: "bg-surface/10 text-muted border-border/20",
+      success: "bg-success/10 text-success border-success/30",
+      warning: "bg-warning/10 text-warning border-warning/30",
+      info: "bg-info/10 text-info border-info/30",
     };
 
     return (

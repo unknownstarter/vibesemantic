@@ -5,6 +5,7 @@ import { Section } from "@/shared/ui/Section";
 import { Container } from "@/shared/ui/Container";
 import { Card } from "@/shared/ui/Card";
 import { Badge } from "@/shared/ui/Badge";
+import { SparklineArea } from "@/shared/ui/SparklineArea";
 import { cn } from "@/shared/lib/utils";
 import { useI18n } from "@/shared/lib/i18n/context";
 import { useSectionView } from "@/shared/lib/useSectionView";
@@ -53,78 +54,50 @@ const chartDataMap: Record<string, Array<{ day: number; value: number }>> = {
 };
 
 function CaseCard({ caseStudy, isActive, onClick }: { caseStudy: CaseStudy; isActive: boolean; onClick: () => void }) {
-  const maxValue = Math.max(...caseStudy.chartData.map((d) => d.value));
-  const minValue = Math.min(...caseStudy.chartData.map((d) => d.value));
-  const range = maxValue - minValue;
-
   return (
     <Card
       variant="bento"
       className={cn(
-        "p-6 cursor-pointer transition-all hover:border-white/20",
-        isActive && "border-white/30 bg-white/5"
+        "p-6 cursor-pointer transition-all hover:border-border/30 h-full flex flex-col",
+        isActive && "border-border/40 bg-surface/10"
       )}
       onClick={onClick}
     >
-      <div className="flex items-start justify-between mb-4">
-        <div>
-          <Badge variant="info" className="mb-2 bg-blue-500/10 text-blue-400 border-blue-500/20">
+      <div className="flex items-start justify-between gap-4 min-h-[116px]">
+        <div className="min-w-0">
+          <Badge variant="info" className="mb-3">
             {caseStudy.industry}
           </Badge>
-          <h3 className="text-xl font-semibold text-white mb-1">{caseStudy.metric}</h3>
-          <p className="text-sm text-gray-400">{caseStudy.action}</p>
+          <h3 className="text-lg sm:text-xl font-semibold text-foreground mb-2">
+            {caseStudy.metric}
+          </h3>
+          <p className="text-sm text-muted leading-relaxed">{caseStudy.action}</p>
         </div>
-        <div className="text-right">
-          <p className="text-2xl font-bold text-white mb-1">{caseStudy.value}</p>
-          <p className="text-sm text-[#22c55e] font-medium">{caseStudy.change}</p>
+        <div className="text-right shrink-0">
+          <p className="text-2xl font-bold text-foreground mb-1">{caseStudy.value}</p>
+          <p className="text-sm text-success font-medium">{caseStudy.change}</p>
+          <p className="text-xs text-subtle mt-1">{caseStudy.period}</p>
         </div>
       </div>
 
-      {/* 미니 차트 */}
-      <div className="h-24 bg-black/40 rounded-lg p-3 relative overflow-hidden border border-white/5">
-        <svg
-          className="w-full h-full"
-          viewBox="0 0 200 80"
-          preserveAspectRatio="none"
-        >
-          <defs>
-            <linearGradient id={`chart-${caseStudy.id}`} x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#22c55e" stopOpacity="0.3" />
-              <stop offset="100%" stopColor="#22c55e" stopOpacity="0.05" />
-            </linearGradient>
-          </defs>
-          <polygon
-            points={`${caseStudy.chartData
-              .map((d, i) => {
-                const x = 10 + (i * 180) / (caseStudy.chartData.length - 1);
-                const y = 70 - ((d.value - minValue) / range) * 60;
-                return `${x},${y}`;
-              })
-              .join(" ")} 190,80 10,80`}
-            fill={`url(#chart-${caseStudy.id})`}
-          />
-          <polyline
-            points={caseStudy.chartData
-              .map((d, i) => {
-                const x = 10 + (i * 180) / (caseStudy.chartData.length - 1);
-                const y = 70 - ((d.value - minValue) / range) * 60;
-                return `${x},${y}`;
-              })
-              .join(" ")}
-            fill="none"
-            stroke="#22c55e"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </div>
+      <SparklineArea
+        values={caseStudy.chartData.map((point) => point.value)}
+        height={112}
+        className="mt-5"
+        strokeClassName="stroke-primary"
+        fillClassName="fill-primary/15"
+      />
 
-      {isActive && (
-        <div className="mt-4 p-4 bg-white/5 rounded-lg border border-white/10">
-          <p className="text-sm text-gray-300 leading-relaxed">{caseStudy.result}</p>
-        </div>
-      )}
+      <div
+        className={cn(
+          "mt-5 rounded-lg border p-4 text-sm leading-relaxed min-h-[96px]",
+          isActive
+            ? "bg-surface/10 border-border/30 text-foreground/90"
+            : "bg-surface/5 border-border/20 text-muted"
+        )}
+      >
+        {caseStudy.result}
+      </div>
     </Card>
   );
 }
@@ -151,7 +124,7 @@ export function SuccessCase() {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 auto-rows-fr">
           {caseStudies.map((caseStudy) => (
             <CaseCard
               key={caseStudy.id}
@@ -164,11 +137,6 @@ export function SuccessCase() {
           ))}
         </div>
 
-        <div className="mt-12 text-center">
-          <p className="text-sm text-gray-500">
-            {t.successCase.clickHint}
-          </p>
-        </div>
       </Container>
     </Section>
   );

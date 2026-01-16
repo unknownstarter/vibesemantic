@@ -122,7 +122,7 @@ export default function DemoPage() {
                         <X className="w-3 h-3 text-red-400 flex-shrink-0" />
                         <span className="text-red-400 text-xs sm:text-sm font-semibold uppercase tracking-wide">{t.demo.step0.beforeTitle.replace("❌ ", "")}</span>
                       </div>
-                      <p className="text-gray-200 text-sm sm:text-base md:text-lg leading-relaxed whitespace-pre-line font-medium">{item.text}</p>
+                      <p className="text-gray-200 text-sm sm:text-base md:text-lg leading-relaxed font-medium">{item.text}</p>
                     </Card>
                   ))}
                 </div>
@@ -380,9 +380,11 @@ export default function DemoPage() {
                       <div className="flex items-start gap-3">
                         <TrendingDown className="text-red-400 flex-shrink-0 mt-1" size={20} />
                         <div>
-                          <div className="font-semibold text-red-400 mb-1">D7 리텐션 14% 하락</div>
+                          <div className="font-semibold text-red-400 mb-1">
+                            {t.demo.step3.keyIssue1Title}
+                          </div>
                           <p className="text-sm text-gray-400">
-                            지난주 대비 24% → 21%. 온보딩 완료 후 7일 내 이탈이 증가했습니다.
+                            {t.demo.step3.keyIssue1Description}
                           </p>
                         </div>
                       </div>
@@ -392,9 +394,11 @@ export default function DemoPage() {
                       <div className="flex items-start gap-3">
                         <AlertCircle className="text-yellow-400 flex-shrink-0 mt-1" size={20} />
                         <div>
-                          <div className="font-semibold text-yellow-400 mb-1">온보딩 → 첫 액션 전환율 75%</div>
+                          <div className="font-semibold text-yellow-400 mb-1">
+                            {t.demo.step3.keyIssue2Title}
+                          </div>
                           <p className="text-sm text-gray-400">
-                            업계 평균(85%)보다 낮습니다. 온보딩 단계에서 이탈이 발생하고 있습니다.
+                            {t.demo.step3.keyIssue2Description}
                           </p>
                         </div>
                       </div>
@@ -419,13 +423,19 @@ export default function DemoPage() {
                             color: "#f3f4f6",
                           }}
                         />
-                        <Line type="monotone" dataKey="rate" stroke="#22c55e" strokeWidth={2} name="현재" />
+                        <Line
+                          type="monotone"
+                          dataKey="rate"
+                          stroke="#22c55e"
+                          strokeWidth={2}
+                          name={t.demo.step3.chartLegendCurrent}
+                        />
                         <Line
                           type="monotone"
                           dataKey="prev"
                           stroke="#6b7280"
                           strokeWidth={2}
-                          name="이전"
+                          name={t.demo.step3.chartLegendPrevious}
                           strokeDasharray="5 5"
                         />
                       </LineChart>
@@ -483,11 +493,29 @@ export default function DemoPage() {
                     {t.demo.step3.actionItems}
                   </h3>
                   <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
-                    {[
-                      { action: t.demo.step3.action1, metric: "CVR", value: "+8%p", color: "red", id: 1 },
-                      { action: t.demo.step3.action2, metric: "D7 리텐션", value: "+3%p", color: "orange", id: 2 },
-                      { action: t.demo.step3.action3, metric: "활성화율", value: "+5%p", color: "yellow", id: 3 },
-                    ].map(({ action, metric, value, color, id }) => {
+                      {[
+                        {
+                          action: t.demo.step3.action1,
+                          metric: t.demo.step3.metrics.conversion,
+                          value: "+8%p",
+                          color: "red",
+                          id: 1,
+                        },
+                        {
+                          action: t.demo.step3.action2,
+                          metric: t.demo.step3.metrics.retention,
+                          value: "+3%p",
+                          color: "orange",
+                          id: 2,
+                        },
+                        {
+                          action: t.demo.step3.action3,
+                          metric: t.demo.step3.metrics.activation,
+                          value: "+5%p",
+                          color: "yellow",
+                          id: 3,
+                        },
+                      ].map(({ action, metric, value, color, id }) => {
                       const isExpanded = expandedAction === id;
                       const colorClasses = {
                         red: "bg-red-500/10 text-red-400 border-red-500/20",

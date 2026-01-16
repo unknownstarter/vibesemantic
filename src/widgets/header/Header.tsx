@@ -45,8 +45,8 @@ export function Header() {
 
   const navItems = [
     { label: t.nav.product, href: "#product" },
-    { label: t.nav.howItWorks, href: "#how" },
-    { label: t.nav.security, href: "#security" },
+    { label: t.nav.features, href: "#features" },
+    { label: t.nav.price, href: "#pricing" },
     { label: t.nav.faq, href: "#faq" },
   ];
 
@@ -155,7 +155,7 @@ export function Header() {
             <Button
               variant="secondary"
               size="sm"
-              className="bg-[#22c55e] text-white hover:bg-[#16a34a] border-[#22c55e]/20 text-xs sm:text-sm px-3 sm:px-4"
+              className="bg-[#22c55e] text-black hover:bg-[#16a34a] hover:text-black border-[#22c55e]/20 text-xs sm:text-sm px-3 sm:px-4"
               onClick={() => {
                 router.push("/demo");
                 clickButton("demo_try", "header");

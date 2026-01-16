@@ -5,7 +5,7 @@ import { Problem } from "@/widgets/problem/Problem";
 import { Bento } from "@/widgets/bento/Bento";
 import { Pricing } from "@/widgets/pricing/Pricing";
 import { SuccessCase } from "@/widgets/success-case/SuccessCase";
-import { HowItWorks } from "@/widgets/how-it-works/HowItWorks";
+import { Product } from "@/widgets/product/Product";
 import { Security } from "@/widgets/security/Security";
 import { FAQ } from "@/widgets/faq/FAQ";
 import { LeadCaptureForm } from "@/features/lead-capture/ui/LeadCaptureForm";
@@ -76,7 +76,7 @@ export default function LandingPage() {
         <main>
           <Hero />
           <Problem />
-          <HowItWorks />
+          <Product />
           <SuccessCase />
           <Bento />
           <Pricing />

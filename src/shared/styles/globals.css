@@ -3,8 +3,23 @@
 @tailwind utilities;
 
 :root {
-  --background: #0a0a0a;
-  --foreground: #ededed;
+  --color-background: 10 10 10;
+  --color-foreground: 237 237 237;
+  --color-primary: 34 197 94;
+  --color-accent: 96 165 250;
+  --color-muted: 156 163 175;
+  --color-subtle: 107 114 128;
+  --color-surface: 24 24 24;
+  --color-surface-strong: 24 24 24;
+  --color-surface-inset: 49 49 49;
+  --color-border: 255 255 255;
+  --color-border-strong: 255 255 255;
+  --color-success: 34 197 94;
+  --color-warning: 251 191 36;
+  --color-danger: 248 113 113;
+  --color-info: 96 165 250;
+  --background: var(--color-background);
+  --foreground: var(--color-foreground);
 }
 
 * {
@@ -18,8 +33,8 @@ html {
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
+  color: rgb(var(--foreground));
+  background: rgb(var(--background));
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -41,7 +56,11 @@ body::before {
 
 /* Subtle gradient text utility */
 .gradient-text {
-  background: linear-gradient(135deg, #ffffff 0%, #a1a1aa 100%);
+  background: linear-gradient(
+    135deg,
+    rgb(var(--color-foreground)) 0%,
+    rgb(var(--color-muted)) 100%
+  );
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

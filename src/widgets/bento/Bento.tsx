@@ -59,7 +59,7 @@ export function Bento() {
   const sectionRef = useSectionView("bento");
 
   return (
-    <Section id="product" ref={sectionRef}>
+    <Section id="features" ref={sectionRef}>
       <Container size="xl">
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-bold mb-4 text-white">
