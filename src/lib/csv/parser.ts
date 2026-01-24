@@ -1,0 +1,315 @@
+/**
+ * CSV Parser utilities
+ * Parses CSV content and extracts headers, sample rows, and metadata
+ */
+
+export interface CsvParseResult {
+  headers: string[]
+  rows: string[][]
+  totalRows: number
+  columnCount: number
+}
+
+export interface CsvMetadata {
+  headers: string[]
+  sampleRows: string[][]
+  totalRows: number
+  columnCount: number
+}
+
+/**
+ * Parse CSV content and extract all data
+ * Use for ingestion where all rows are needed
+ */
+export function parseCsvFull(content: string): CsvParseResult {
+  const lines = content.split(/\r?\n/).filter(line => line.trim())
+  
+  if (lines.length === 0) {
+    return { headers: [], rows: [], totalRows: 0, columnCount: 0 }
+  }
+
+  const headers = parseCsvLine(lines[0])
+  const rows: string[][] = []
+  
+  for (let i = 1; i < lines.length; i++) {
+    const row = parseCsvLine(lines[i])
+    if (row.length > 0) {
+      rows.push(row)
+    }
+  }
+
+  return {
+    headers,
+    rows,
+    totalRows: rows.length,
+    columnCount: headers.length,
+  }
+}
+
+/**
+ * Parse CSV content and extract metadata + sample rows only
+ * Use for upload/probe where only sample is needed (memory efficient)
+ */
+export function parseCsvMetadata(content: string, sampleSize = 20): CsvMetadata {
+  const lines = content.split(/\r?\n/).filter(line => line.trim())
+  
+  if (lines.length === 0) {
+    return { headers: [], sampleRows: [], totalRows: 0, columnCount: 0 }
+  }
+
+  const headers = parseCsvLine(lines[0])
+  const sampleRows: string[][] = []
+  
+  // Only parse sample rows for metadata
+  const dataLineCount = lines.length - 1
+  for (let i = 1; i <= Math.min(sampleSize, dataLineCount); i++) {
+    const row = parseCsvLine(lines[i])
+    if (row.length > 0) {
+      sampleRows.push(row)
+    }
+  }
+
+  return {
+    headers,
+    sampleRows,
+    totalRows: dataLineCount,
+    columnCount: headers.length,
+  }
+}
+
+/**
+ * @deprecated Use parseCsvMetadata or parseCsvFull instead
+ * Kept for backward compatibility
+ */
+export function parseCsvContent(content: string, sampleSize = 20): CsvMetadata {
+  return parseCsvMetadata(content, sampleSize)
+}
+
+/**
+ * Parse a single CSV line, handling quoted fields
+ */
+export function parseCsvLine(line: string): string[] {
+  const result: string[] = []
+  let current = ''
+  let inQuotes = false
+  
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i]
+    const nextChar = line[i + 1]
+    
+    if (char === '"') {
+      if (inQuotes && nextChar === '"') {
+        current += '"'
+        i++
+      } else {
+        inQuotes = !inQuotes
+      }
+    } else if (char === ',' && !inQuotes) {
+      result.push(current.trim())
+      current = ''
+    } else {
+      current += char
+    }
+  }
+  
+  result.push(current.trim())
+  return result
+}
+
+/**
+ * Mask sensitive data in sample rows for LLM processing
+ * Replaces potential PII with placeholders
+ */
+export function maskSensitiveData(rows: string[][]): string[][] {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  const phoneRegex = /^[\d\-\+\(\)\s]{7,}$/
+  const creditCardRegex = /^\d{4}[\s\-]?\d{4}[\s\-]?\d{4}[\s\-]?\d{4}$/
+
+  return rows.map(row => 
+    row.map(cell => {
+      if (emailRegex.test(cell)) return '[EMAIL]'
+      if (phoneRegex.test(cell)) return '[PHONE]'
+      if (creditCardRegex.test(cell)) return '[CARD]'
+      if (/^\d{10,}$/.test(cell)) return '[ID]'
+      return cell
+    })
+  )
+}
+
+export type ColumnType = 'date' | 'number' | 'currency' | 'percentage' | 'string' | 'id' | 'unknown'
+
+export interface ColumnAnalysis {
+  type: ColumnType
+  confidence: number // 0-1
+  sampleValues: string[]
+  stats?: {
+    min?: number
+    max?: number
+    avg?: number
+    hasDecimals?: boolean
+    uniqueRatio?: number // unique values / total values
+  }
+}
+
+/**
+ * Deep analyze a single column to determine its type
+ * More sophisticated than simple pattern matching
+ */
+function analyzeColumn(values: string[]): ColumnAnalysis {
+  const nonEmptyValues = values.filter(v => v && v.trim() !== '')
+  
+  if (nonEmptyValues.length === 0) {
+    return { type: 'unknown', confidence: 0, sampleValues: [] }
+  }
+
+  const sampleValues = nonEmptyValues.slice(0, 5)
+  
+  // === DATE DETECTION ===
+  const datePatterns = [
+    { regex: /^\d{4}-\d{2}-\d{2}(T.*)?$/, weight: 1.0 },  // ISO: 2024-01-15
+    { regex: /^\d{4}\/\d{2}\/\d{2}$/, weight: 1.0 },     // 2024/01/15
+    { regex: /^\d{2}\/\d{2}\/\d{4}$/, weight: 0.9 },     // 01/15/2024
+    { regex: /^\d{4}\.\d{2}\.\d{2}$/, weight: 1.0 },     // 2024.01.15 (Korean)
+    { regex: /^\d{8}$/, weight: 0.7 },                   // 20240115
+    { regex: /^\d{4}-\d{2}$/, weight: 0.8 },             // 2024-01 (Year-Month)
+    { regex: /^\d{4}년\s*\d{1,2}월/, weight: 1.0 },      // 2024년 1월
+    { regex: /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i, weight: 0.8 },
+    { regex: /^\d{1,2}월\s*\d{1,2}일/, weight: 0.9 },    // 1월 15일
+  ]
+  
+  let dateMatchCount = 0
+  let dateWeight = 0
+  for (const v of nonEmptyValues) {
+    for (const { regex, weight } of datePatterns) {
+      if (regex.test(v)) {
+        dateMatchCount++
+        dateWeight += weight
+        break
+      }
+    }
+  }
+  
+  if (dateMatchCount / nonEmptyValues.length >= 0.5) { // 50% threshold for dates
+    return {
+      type: 'date',
+      confidence: dateWeight / nonEmptyValues.length,
+      sampleValues,
+    }
+  }
+
+  // === ID DETECTION (before number to avoid false positives) ===
+  // IDs are often all numbers but with high uniqueness and no statistical meaning
+  const uniqueValues = new Set(nonEmptyValues)
+  const uniqueRatio = uniqueValues.size / nonEmptyValues.length
+  
+  // If all values are unique and look like sequential/random numbers
+  const looksLikeId = nonEmptyValues.every(v => /^\d+$/.test(v))
+  if (looksLikeId && uniqueRatio > 0.9 && nonEmptyValues.length > 3) {
+    return {
+      type: 'id',
+      confidence: 0.8,
+      sampleValues,
+      stats: { uniqueRatio },
+    }
+  }
+
+  // === NUMERIC DETECTION (More lenient) ===
+  const cleanNumber = (v: string): number | null => {
+    // Remove currency symbols, commas, spaces, percentage signs
+    const cleaned = v.replace(/[$€¥₩£,\s]/g, '').replace(/%$/, '')
+    if (cleaned === '' || cleaned === '-' || cleaned === 'N/A' || cleaned === 'NA') return null
+    const num = parseFloat(cleaned)
+    return isNaN(num) ? null : num
+  }
+
+  const numericResults = nonEmptyValues.map(v => ({ original: v, num: cleanNumber(v) }))
+  const validNumbers = numericResults.filter(r => r.num !== null)
+  const numericRatio = validNumbers.length / nonEmptyValues.length
+
+  // 50% threshold for numbers (much more lenient)
+  if (numericRatio >= 0.5) {
+    const nums = validNumbers.map(r => r.num!)
+    const hasDecimals = nums.some(n => n !== Math.floor(n))
+    const min = Math.min(...nums)
+    const max = Math.max(...nums)
+    const avg = nums.reduce((a, b) => a + b, 0) / nums.length
+
+    // Check for currency indicators
+    const hasCurrencySymbol = nonEmptyValues.some(v => /[$€¥₩£]/.test(v))
+    if (hasCurrencySymbol) {
+      return {
+        type: 'currency',
+        confidence: numericRatio,
+        sampleValues,
+        stats: { min, max, avg, hasDecimals, uniqueRatio },
+      }
+    }
+
+    // Check for percentage
+    const hasPercentSign = nonEmptyValues.some(v => /%/.test(v))
+    // Or if all values are 0-1 range with decimals (ratio/rate)
+    const isRatioLike = nums.every(n => n >= 0 && n <= 1) && hasDecimals
+    
+    if (hasPercentSign || isRatioLike) {
+      return {
+        type: 'percentage',
+        confidence: numericRatio,
+        sampleValues,
+        stats: { min, max, avg, hasDecimals, uniqueRatio },
+      }
+    }
+
+    return {
+      type: 'number',
+      confidence: numericRatio,
+      sampleValues,
+      stats: { min, max, avg, hasDecimals, uniqueRatio },
+    }
+  }
+
+  // === STRING/CATEGORICAL ===
+  const avgLength = nonEmptyValues.reduce((sum, v) => sum + v.length, 0) / nonEmptyValues.length
+  
+  return {
+    type: 'string',
+    confidence: 1 - numericRatio, // Higher confidence if less numeric
+    sampleValues,
+    stats: { uniqueRatio },
+  }
+}
+
+/**
+ * Infer column types from sample data with deep analysis
+ * Returns detailed analysis for each column
+ */
+export function inferColumnTypes(
+  headers: string[],
+  sampleRows: string[][]
+): Record<string, ColumnType> {
+  const result: Record<string, ColumnType> = {}
+  
+  headers.forEach((header, colIndex) => {
+    const values = sampleRows.map(row => row[colIndex] || '')
+    const analysis = analyzeColumn(values)
+    result[header] = analysis.type
+  })
+
+  return result
+}
+
+/**
+ * Get detailed column analysis (for debugging and LLM context)
+ */
+export function getDetailedColumnAnalysis(
+  headers: string[],
+  sampleRows: string[][]
+): Record<string, ColumnAnalysis> {
+  const result: Record<string, ColumnAnalysis> = {}
+  
+  headers.forEach((header, colIndex) => {
+    const values = sampleRows.map(row => row[colIndex] || '')
+    result[header] = analyzeColumn(values)
+  })
+
+  return result
+}
