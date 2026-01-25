@@ -35,10 +35,22 @@ export async function resolveProject(
     .single()
 
   if (projectError || !project) {
+    console.error('[resolveProject] Failed to resolve project:', {
+      slugOrId,
+      isId,
+      userId,
+      error: projectError,
+      hasProject: !!project,
+    })
     return { project: null, role: null, error: 'Project not found or access denied' }
   }
 
   const member = (project.project_members as unknown as { role: MemberRole; status: string }[])[0]
+  if (!member) {
+    console.error('[resolveProject] No member found:', { slugOrId, userId })
+    return { project: null, role: null, error: 'Project member not found' }
+  }
+
   const projectData = {
     ...project,
     project_members: undefined

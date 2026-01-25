@@ -33,6 +33,7 @@ export default function GA4PropertyPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     fetch(`/api/ga4/properties?projectId=${projectSlug}`, {
@@ -51,8 +52,11 @@ export default function GA4PropertyPage() {
   const handleSelect = async () => {
     if (!selectedId) return
     setSaving(true)
+    setError(null)
 
     try {
+      console.log('[GA4 Property Select] Sending request:', { projectId: projectSlug, propertyId: selectedId })
+      
       const res = await fetch('/api/ga4/properties/select', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -60,14 +64,17 @@ export default function GA4PropertyPage() {
         body: JSON.stringify({ projectId: projectSlug, propertyId: selectedId }),
       })
 
+      const data = await res.json().catch(() => ({ error: 'Unknown error' }))
+
       if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ error: 'Unknown error' }))
-        throw new Error(errorData.error || 'Failed to select property')
+        console.error('[GA4 Property Select] API error:', { status: res.status, data })
+        throw new Error(data.error || `Failed to select property (${res.status})`)
       }
 
       router.push(`/projects/${projectSlug}/setup/refresh`)
     } catch (err) {
-      console.error(err)
+      console.error('[GA4 Property Select] Error:', err)
+      setError(err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다')
       setSaving(false)
     }
   }
@@ -137,6 +144,11 @@ export default function GA4PropertyPage() {
               ))}
             </div>
 
+            {error && (
+              <div className="mb-4 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+                <p className="text-sm text-red-400">{error}</p>
+              </div>
+            )}
             <div className="flex flex-col-reverse sm:flex-row gap-3">
               <Button variant="secondary" onClick={() => router.back()}>
                 이전

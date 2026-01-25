@@ -11,13 +11,30 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Project ID and Property ID required' }, { status: 400 })
   }
 
+  // Debug logging
+  console.log('[GA4 Property Select] Received:', { projectId, propertyId })
+
   const { context, error } = await getAuthContext(projectId)
   if (error || !context) {
+    console.error('[GA4 Property Select] Auth failed:', { 
+      projectId, 
+      error, 
+      hasContext: !!context,
+      userId: context?.userId 
+    })
     return NextResponse.json({ error: error || 'Unauthorized' }, { status: 401 })
   }
 
   if (!canEdit(context.role)) {
-    return NextResponse.json({ error: 'Permission denied' }, { status: 403 })
+    console.error('[GA4 Property Select] Permission denied:', { 
+      role: context.role,
+      userId: context.userId,
+      projectId: context.projectId 
+    })
+    return NextResponse.json({ 
+      error: 'Permission denied. Only project owners can select properties.',
+      role: context.role 
+    }, { status: 403 })
   }
 
   if (!context.projectId) {
