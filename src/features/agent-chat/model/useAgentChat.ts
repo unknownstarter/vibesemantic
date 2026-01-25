@@ -78,7 +78,10 @@ export function useAgentChat({ workspaceId, range: externalRange = '7d', enabled
       fetch(`/api/workspaces/${workspaceId}`)
         .then(async (res) => {
           if (!res.ok) {
-            throw new Error(`워크스페이스를 불러올 수 없습니다: ${res.statusText}`)
+            const errorData = await res.json().catch(() => ({}))
+            const errorMessage = errorData.error || res.statusText
+            const errorDetails = errorData.details ? `: ${errorData.details}` : ''
+            throw new Error(`워크스페이스를 불러올 수 없습니다${errorDetails}`)
           }
           const data = await res.json()
           return data.workspace

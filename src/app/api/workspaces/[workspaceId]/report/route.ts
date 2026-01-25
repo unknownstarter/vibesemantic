@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { getAuthContext } from '@/lib/supabase/auth-helpers'
+import { getAuthContext, isUUID } from '@/lib/supabase/auth-helpers'
 import type { ReportRange } from '@/types/database'
 
 type RouteParams = { params: Promise<{ workspaceId: string }> }
@@ -14,11 +14,18 @@ export async function GET(
   const supabase = await createClient()
 
   // Workspace에서 project_id 조회 (slug 또는 id로 조회)
-  const { data: workspace, error: wsError } = await supabase
+  const isId = isUUID(workspaceSlugOrId)
+  let workspaceQuery = supabase
     .from('workspaces')
     .select('id, project_id')
-    .or(`id.eq.${workspaceSlugOrId},slug.eq.${workspaceSlugOrId}`)
-    .single()
+  
+  if (isId) {
+    workspaceQuery = workspaceQuery.eq('id', workspaceSlugOrId)
+  } else {
+    workspaceQuery = workspaceQuery.eq('slug', workspaceSlugOrId)
+  }
+  
+  const { data: workspace, error: wsError } = await workspaceQuery.single()
 
   if (wsError || !workspace) {
     return NextResponse.json({ error: 'Workspace not found' }, { status: 404 })
@@ -45,7 +52,7 @@ export async function GET(
   const latestDataUpdate = project?.data_refreshed_at || null
 
   // 2. 캐시된 리포트 조회
-  let query = supabase
+  let reportsQuery = supabase
     .from('reports')
     .select('*')
     .eq('workspace_id', workspaceId)
@@ -53,10 +60,10 @@ export async function GET(
     .limit(1)
 
   if (range) {
-    query = query.eq('range', range)
+    reportsQuery = reportsQuery.eq('range', range)
   }
 
-  const { data: reports, error: fetchError } = await query
+  const { data: reports, error: fetchError } = await reportsQuery
 
   if (fetchError) {
     return NextResponse.json({ error: fetchError.message }, { status: 500 })

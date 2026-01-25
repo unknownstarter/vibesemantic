@@ -80,7 +80,10 @@ export function useWorkspaceQuery(workspaceId: string, enabled = true) {
     queryFn: async () => {
       const res = await fetch(`/api/workspaces/${workspaceId}`)
       if (!res.ok) {
-        throw new Error(`워크스페이스를 불러올 수 없습니다: ${res.statusText}`)
+        const errorData = await res.json().catch(() => ({}))
+        const errorMessage = errorData.error || res.statusText
+        const errorDetails = errorData.details ? `: ${errorData.details}` : ''
+        throw new Error(`워크스페이스를 불러올 수 없습니다${errorDetails}`)
       }
       const data = await res.json()
       return data.workspace as Workspace

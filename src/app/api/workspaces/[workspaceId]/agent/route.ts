@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { getAuthContext } from '@/lib/supabase/auth-helpers'
+import { getAuthContext, isUUID } from '@/lib/supabase/auth-helpers'
 import { callBrainAnalyze } from '@/lib/api/brain-api'
 import type {
   ProjectProfile,
@@ -20,11 +20,18 @@ export async function POST(
   const supabase = await createClient()
 
   // Workspace에서 project_id 조회 (slug 또는 id로 조회)
-  const { data: workspaceData, error: wsError } = await supabase
+  const isId = isUUID(workspaceSlugOrId)
+  let query = supabase
     .from('workspaces')
     .select('id, project_id')
-    .or(`id.eq.${workspaceSlugOrId},slug.eq.${workspaceSlugOrId}`)
-    .single()
+  
+  if (isId) {
+    query = query.eq('id', workspaceSlugOrId)
+  } else {
+    query = query.eq('slug', workspaceSlugOrId)
+  }
+  
+  const { data: workspaceData, error: wsError } = await query.single()
 
   if (wsError || !workspaceData) {
     return NextResponse.json({ error: 'Workspace not found' }, { status: 404 })
