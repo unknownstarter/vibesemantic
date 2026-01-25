@@ -6,7 +6,7 @@ import { cn } from '@/shared/lib/utils'
 interface SlideOverProps {
   isOpen: boolean
   onClose: () => void
-  title?: string
+  title?: string | ReactNode
   children: ReactNode
   width?: 'sm' | 'md' | 'lg' | 'xl'
   showCloseButton?: boolean
@@ -86,7 +86,11 @@ export function SlideOver({
             {(title || showCloseButton) && (
               <div className="flex items-center justify-between px-6 py-4 border-b border-border/10">
                 {title && (
-                  <h2 className="text-lg font-semibold text-foreground">{title}</h2>
+                  typeof title === 'string' ? (
+                    <h2 className="text-lg font-semibold text-foreground">{title}</h2>
+                  ) : (
+                    <div className="text-lg font-semibold text-foreground">{title}</div>
+                  )
                 )}
                 {showCloseButton && (
                   <button
