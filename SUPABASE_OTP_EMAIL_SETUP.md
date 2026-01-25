@@ -30,7 +30,7 @@
 <h2>로그인 코드</h2>
 <p>아래 6자리 코드를 입력하세요:</p>
 <p style="font-size: 24px; font-weight: bold; letter-spacing: 4px; color: #000;">{{ substr .Token 0 6 }}</p>
-<p style="color: #666; font-size: 12px;">이 코드는 1시간 동안 유효합니다.</p>
+<p style="color: #666; font-size: 12px;">이 코드는 3분 동안 유효합니다.</p>
 ```
 
 **중요**: Supabase 템플릿에서 `{{ substr .Token 0 6 }}`를 사용하면 토큰의 앞 6자리만 표시됩니다. 
@@ -75,7 +75,7 @@
     </p>
     
     <p style="color: #999; font-size: 12px; margin-top: 20px;">
-      이 코드는 1시간 동안 유효하며, 한 번만 사용할 수 있습니다.<br>
+      이 코드는 3분 동안 유효하며, 한 번만 사용할 수 있습니다.<br>
       이 요청을 하지 않았다면 이 이메일을 무시하세요.
     </p>
   </div>

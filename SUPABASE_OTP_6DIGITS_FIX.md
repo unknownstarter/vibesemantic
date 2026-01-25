@@ -64,23 +64,23 @@ Supabase 대시보드에서 이메일 템플릿을 수정하여 **앞 6자리만
   <div style="background-color: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto;">
     
     <!-- Header -->
-    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; text-align: center;">
+    <div style="background: linear-gradient(135deg, #0a0a0a 0%, #22c55e 100%); padding: 40px 30px; text-align: center;">
       <h1 style="color: white; margin: 0; font-size: 28px; font-weight: 600;">Vibe Semantic</h1>
     </div>
     
     <!-- Content -->
     <div style="padding: 40px 30px;">
-      <h2 style="color: #333; margin-top: 0; font-size: 24px; font-weight: 600;">인증 코드</h2>
-      <p style="color: #666; font-size: 16px; margin-bottom: 30px;">아래 코드를 입력하세요:</p>
+      <h2 style="color: #333; margin-top: 0; font-size: 24px; font-weight: 600;">로그인 코드</h2>
+      <p style="color: #666; font-size: 16px; margin-bottom: 30px;">아래 6자리 코드를 로그인 페이지에 입력하세요:</p>
       
       <!-- OTP Code Box -->
-      <div style="background: #f9f9f9; border: 2px dashed #667eea; border-radius: 12px; padding: 30px; text-align: center; margin: 30px 0;">
+      <div style="background: #f9f9f9; border: 2px dashed #22c55e; border-radius: 12px; padding: 30px; text-align: center; margin: 30px 0;">
         {{- if ge (len .Token) 6 -}}
-          <p style="font-size: 36px; font-weight: bold; letter-spacing: 12px; color: #667eea; margin: 0; font-family: 'Courier New', 'Monaco', monospace; line-height: 1.2;">
+          <p style="font-size: 36px; font-weight: bold; letter-spacing: 12px; color: #22c55e; margin: 0; font-family: 'Courier New', 'Monaco', monospace; line-height: 1.2;">
             {{- substr .Token 0 6 -}}
           </p>
         {{- else -}}
-          <p style="font-size: 36px; font-weight: bold; letter-spacing: 12px; color: #667eea; margin: 0; font-family: 'Courier New', 'Monaco', monospace; line-height: 1.2;">
+          <p style="font-size: 36px; font-weight: bold; letter-spacing: 12px; color: #22c55e; margin: 0; font-family: 'Courier New', 'Monaco', monospace; line-height: 1.2;">
             {{- .Token -}}
           </p>
         {{- end -}}
@@ -88,7 +88,7 @@ Supabase 대시보드에서 이메일 템플릿을 수정하여 **앞 6자리만
       
       <!-- Instructions -->
       <p style="color: #666; font-size: 14px; margin: 20px 0; line-height: 1.6;">
-        이 코드는 1시간 동안 유효합니다.
+        이 코드는 3분 동안 유효하며, 한 번만 사용할 수 있습니다.
       </p>
       
       <p style="color: #999; font-size: 13px; margin-top: 30px; line-height: 1.6;">
@@ -98,8 +98,11 @@ Supabase 대시보드에서 이메일 템플릿을 수정하여 **앞 6자리만
     
     <!-- Footer -->
     <div style="background: #f9f9f9; padding: 30px; text-align: center; border-top: 1px solid #eee;">
+      <p style="color: #999; font-size: 12px; margin: 0 0 8px 0; line-height: 1.6;">
+        You're receiving this email because you signed up for an application powered by Supabase ⚡
+      </p>
       <p style="color: #999; font-size: 12px; margin: 0;">
-        © 2026 Dropdown. All rights reserved.
+        <a href="#" style="color: #22c55e; text-decoration: none;">Opt out of these emails</a>
       </p>
     </div>
     

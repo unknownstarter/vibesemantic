@@ -103,13 +103,13 @@ function LoginForm() {
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([])
   const isVerifyingRef = useRef(false) // 중복 검증 방지
 
-  // 세션 만료 메시지 표시
+  // 세션 만료 메시지 표시 (한 번만 표시)
   useEffect(() => {
-    if (sessionExpired) {
+    if (sessionExpired && status === 'idle' && !message) {
       setMessage('세션이 만료되었습니다. 다시 로그인해주세요.')
       setStatus('error')
     }
-  }, [sessionExpired])
+  }, [sessionExpired, status, message])
 
   // OTP 입력 핸들러
   const handleOtpChange = (index: number, value: string) => {
@@ -159,6 +159,7 @@ function LoginForm() {
     setStatus('idle')
     setMessage('')
     setValidationError('')
+    setOtpError('') // OTP 에러도 초기화
 
     const supabase = createClient()
     // emailRedirectTo를 명시적으로 제거하여 OTP 코드만 전송되도록 함
@@ -191,6 +192,7 @@ function LoginForm() {
     } else {
       setStatus('otp_sent')
       setMessage('이메일로 전송된 6자리 코드를 입력해주세요.')
+      setOtpError('') // OTP 에러 초기화
       // 성공 시 60초 쿨다운 (중복 전송 방지)
       setTimeout(() => setCooldown(false), 60000)
     }
@@ -243,11 +245,17 @@ function LoginForm() {
 
       if (error) {
         console.error('[OTP] Verification error:', error.message)
-        if (error.message.includes('expired')) {
+        // 에러 메시지를 정확히 파싱
+        const errorMsg = error.message.toLowerCase()
+        if (errorMsg.includes('expired') || errorMsg.includes('token has expired')) {
           setOtpError('코드가 만료되었습니다. 새로운 코드를 요청해주세요.')
-        } else if (error.message.includes('invalid')) {
+        } else if (errorMsg.includes('invalid') || errorMsg.includes('invalid token') || errorMsg.includes('invalid otp')) {
           setOtpError('잘못된 코드입니다. 다시 확인해주세요.')
+        } else if (errorMsg.includes('session') && errorMsg.includes('expired')) {
+          // 세션 만료는 OTP 코드 문제가 아님
+          setOtpError('세션이 만료되었습니다. 다시 로그인해주세요.')
         } else {
+          // 기타 에러는 원본 메시지 표시 (하지만 "expired" 키워드가 없으면 만료가 아님)
           setOtpError(error.message)
         }
         setOtp(['', '', '', '', '', ''])
@@ -459,8 +467,8 @@ function LoginForm() {
                 </div>
               )}
               
-              {/* 세션 만료 메시지 */}
-              {sessionExpired && message && (
+              {/* 세션 만료 메시지 (OTP 화면에서는 표시하지 않음) */}
+              {sessionExpired && message && status !== 'otp_sent' && (
                 <div className="mt-4 flex items-start gap-3 p-3 bg-warning/5 border border-warning/20 rounded-lg">
                   <div className="h-5 w-5 rounded-full bg-warning/10 flex items-center justify-center flex-shrink-0 mt-0.5">
                     <svg className="h-3 w-3 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -621,21 +629,23 @@ function LoginForm() {
         </Card>
 
         {/* 하단 링크 */}
-        <p className="mt-6 text-center text-sm text-subtle">
-          아직 계정이 없으신가요?{' '}
-          <span className="text-muted">이메일 입력 후 인증 코드를 받으세요</span>
-        </p>
+        <div className="mt-6 mb-24 space-y-4">
+          <p className="text-center text-sm text-subtle">
+            아직 계정이 없으신가요?{' '}
+            <span className="text-muted">이메일 입력 후 인증 코드를 받으세요</span>
+          </p>
 
-        {/* 홈으로 돌아가기 */}
-        <div className="mt-6 text-center">
-          <Link href="/" className="text-sm text-subtle hover:text-muted transition-colors">
-            홈으로 돌아가기
-          </Link>
+          {/* 홈으로 돌아가기 */}
+          <div className="text-center">
+            <Link href="/" className="text-sm text-subtle hover:text-muted transition-colors">
+              홈으로 돌아가기
+            </Link>
+          </div>
         </div>
       </div>
 
       {/* 하단 푸터 */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 text-center">
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 text-center w-full max-w-md px-4">
         <p className="text-xs text-subtle">© 2026 Dropdown</p>
         <div className="mt-1 flex items-center justify-center gap-2 text-xs text-subtle">
           <Link href="/privacy" className="hover:text-muted transition-colors">개인정보처리방침</Link>
