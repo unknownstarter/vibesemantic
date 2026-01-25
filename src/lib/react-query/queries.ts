@@ -199,19 +199,34 @@ export function useSendChatMessageMutation() {
 
       if (!res.ok) {
         let errorMessage = '메시지 전송에 실패했습니다'
+        let errorDetails: unknown = null
+        
         try {
-          const data = await res.json()
-          errorMessage = data.error || errorMessage
-        } catch {
-          // JSON 파싱 실패 시 statusText 사용
+          const text = await res.text()
+          try {
+            const data = JSON.parse(text)
+            errorMessage = data.error || errorMessage
+            errorDetails = data.details || data
+          } catch {
+            // JSON이 아닌 경우 텍스트 그대로 사용
+            errorMessage = text || res.statusText || errorMessage
+            errorDetails = text
+          }
+        } catch (parseError) {
+          // 응답 읽기 실패
           errorMessage = res.statusText || errorMessage
+          console.error('[Chat Mutation] Failed to read error response:', parseError)
         }
+        
         console.error('[Chat Mutation] Request failed:', {
           status: res.status,
           statusText: res.statusText,
           error: errorMessage,
+          details: errorDetails,
           workspaceId,
+          url: `/api/workspaces/${workspaceId}/agent`,
         })
+        
         throw new Error(errorMessage)
       }
 

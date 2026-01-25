@@ -18,29 +18,39 @@ export async function POST(
 ) {
   try {
     const { workspaceId: workspaceSlugOrId } = await params
-    console.log('[Agent API] Request received:', { workspaceSlugOrId })
+    // URL 디코딩 (한글 slug 처리)
+    const decodedWorkspaceId = decodeURIComponent(workspaceSlugOrId)
+    console.log('[Agent API] Request received:', { 
+      original: workspaceSlugOrId,
+      decoded: decodedWorkspaceId,
+    })
     
     const supabase = await createClient()
 
     // Workspace에서 project_id 조회 (slug 또는 id로 조회)
-    const isId = isUUID(workspaceSlugOrId)
+    // decodedWorkspaceId 사용 (한글 slug 처리)
+    const isId = isUUID(decodedWorkspaceId)
     let query = supabase
       .from('workspaces')
       .select('id, project_id')
     
     if (isId) {
-      query = query.eq('id', workspaceSlugOrId)
+      query = query.eq('id', decodedWorkspaceId)
     } else {
-      query = query.eq('slug', workspaceSlugOrId)
+      query = query.eq('slug', decodedWorkspaceId)
     }
     
     const { data: workspaceData, error: wsError } = await query.single()
 
     if (wsError || !workspaceData) {
       console.error('[Agent API] Workspace lookup failed:', {
-        workspaceSlugOrId,
+        original: workspaceSlugOrId,
+        decoded: decodedWorkspaceId,
         isId,
         error: wsError,
+        errorCode: wsError?.code,
+        errorMessage: wsError?.message,
+        errorDetails: wsError?.details,
       })
       return NextResponse.json({ 
         error: 'Workspace not found',

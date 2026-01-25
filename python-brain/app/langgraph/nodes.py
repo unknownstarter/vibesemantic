@@ -25,7 +25,9 @@ def guard_and_route(state: AnalysisState) -> Dict[str, Any]:
     if not allowed:
         return {"error": error}
     
-    return {}
+    # LangGraph는 노드가 최소 하나의 필드를 업데이트해야 함
+    # 에러가 없으면 빈 업데이트 반환 (state 유지)
+    return {"dataAccessed": state.get("dataAccessed", [])}
 
 # Load Context and Mart Summary
 def load_context_and_mart_summary(state: AnalysisState) -> Dict[str, Any]:
@@ -537,14 +539,14 @@ def remove_analyst_questions_section(markdown: str) -> str:
     return re.sub(pattern, '', markdown, flags=re.IGNORECASE).strip()
 
 # Persist Results
-def persist_results(
-    state: AnalysisState,
-    analysis_markdown: str,
-    analyst_questions: List[AnalystQuestion],
-    mart_summary: Optional[MartSummary] = None
-) -> None:
+def persist_results(state: AnalysisState) -> Dict[str, Any]:
     """결과 저장"""
     supabase = get_supabase_client()
+    
+    # State에서 필요한 데이터 가져오기
+    analysis_markdown = state.get("analysisMarkdown", "")
+    analyst_questions = state.get("analystQuestions", [])
+    mart_summary = state.get("martSummary")
     
     # Chat message 저장 (user message가 있으면)
     if state.get("userMessage"):
@@ -556,16 +558,17 @@ def persist_results(
         }).execute()
     
     # Assistant message 저장
-    supabase.table("chat_messages").insert({
-        "workspace_id": state["workspaceId"],
-        "thread_id": state["threadId"],
-        "role": "assistant",
-        "content": analysis_markdown,
-        "metadata": {"questions": analyst_questions}
-    }).execute()
+    if analysis_markdown:
+        supabase.table("chat_messages").insert({
+            "workspace_id": state["workspaceId"],
+            "thread_id": state["threadId"],
+            "role": "assistant",
+            "content": analysis_markdown,
+            "metadata": {"questions": analyst_questions}
+        }).execute()
     
     # Report 모드면 reports 테이블에도 저장
-    if state["mode"] == "report":
+    if state["mode"] == "report" and analysis_markdown:
         metadata = {
             "questions": analyst_questions
         }
@@ -601,3 +604,6 @@ def persist_results(
             "responseLength": len(analysis_markdown)
         }
     }).execute()
+    
+    # LangGraph는 노드가 최소 하나의 필드를 업데이트해야 함
+    return {"dataAccessed": state.get("dataAccessed", [])}
