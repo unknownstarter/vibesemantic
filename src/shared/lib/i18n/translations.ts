@@ -15,7 +15,7 @@ export const translations = {
     hero: {
       badge: "Private Preview · Jan 2026",
       title: "Vibe Semantic",
-      subtitle: "Your Product's Data Analyst Agent",
+      subtitle: "나만의 데이터 분석 AI 에이전트",
       description:
         "SQL 없이도, 지금 봐야 할 지표와 다음 액션을 제안합니다. PO, 창업가, 마케터를 위한 AI 기반 데이터 분석 도구로 DAU, 리텐션, 전환율 등 핵심 지표를 자연어로 질문하고 인사이트를 얻으세요.",
       earlyAccessButton: "Early Access 신청하기",
@@ -421,8 +421,8 @@ export const translations = {
     demo: {
       step0: {
         badge: "Private Preview",
-        title: "Your Product's",
-        titleHighlight: "Personal Data Analyst",
+        title: "나만의",
+        titleHighlight: "데이터 분석 AI 에이전트",
         description: "지표는 보이는데 '왜 변했는지', '다음엔 뭘 해야 하는지' 모를 때,\n전담 분석가처럼 데이터를 해석하고 액션을 제안합니다.",
         beforeTitle: "❌ Before",
         beforeItems: [
@@ -449,7 +449,7 @@ export const translations = {
         title: "데이터 분석 요청하기",
         description: "분석가에게 질문하듯 편하게 물어보세요",
         agentTitle: "Vibe Semantic Agent",
-        agentSubtitle: "Your Personal Data Analyst",
+        agentSubtitle: "나만의 데이터 분석 AI 에이전트",
         suggestionTitle: "💡 이런 질문을 해보세요:",
         questions: [
           "최근 리텐션이 떨어진 이유를 분석해줘",
@@ -533,7 +533,7 @@ export const translations = {
     hero: {
       badge: "Private Preview · Jan 2026",
       title: "Vibe Semantic",
-      subtitle: "Your Product's Data Analyst Agent",
+      subtitle: "Your Personal Data Analysis AI Agent",
       description:
         "Get insights and action recommendations without SQL. An AI-powered data analytics tool for Product managers, founders, and marketers. Ask questions in natural language about key metrics like DAU, retention, and conversion rates to gain actionable insights.",
       earlyAccessButton: "Apply for Early Access",
@@ -938,8 +938,8 @@ export const translations = {
     demo: {
       step0: {
         badge: "Private Preview",
-        title: "Your Product's",
-        titleHighlight: "Personal Data Analyst",
+        title: "Your Personal",
+        titleHighlight: "Data Analysis AI Agent",
         description: "When you see metrics but don't know 'why they changed' or 'what to do next',\nit interprets data and suggests actions like a dedicated analyst.",
         beforeTitle: "❌ Before",
         beforeItems: [
@@ -966,7 +966,7 @@ export const translations = {
         title: "Request Data Analysis",
         description: "Ask questions naturally, as if talking to an analyst",
         agentTitle: "Vibe Semantic Agent",
-        agentSubtitle: "Your Personal Data Analyst",
+        agentSubtitle: "Your Personal Data Analysis AI Agent",
         suggestionTitle: "💡 Try asking:",
         questions: [
           "Analyze why retention has dropped recently",

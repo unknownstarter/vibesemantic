@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Vibe Semantic is a Next.js 14 full-stack application for GA4 AI-powered data analysis. The codebase includes a marketing landing page and an authenticated application workspace.
+Vibe Semantic is a Next.js 14 full-stack application for personal data analysis AI agent. The codebase includes a marketing landing page and an authenticated application workspace.
 
 ## Commands
 
