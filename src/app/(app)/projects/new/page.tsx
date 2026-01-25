@@ -34,14 +34,34 @@ export default function NewProjectPage() {
         body: JSON.stringify({ name: name.trim() }),
       })
 
-      const data = await res.json()
+      // 응답 본문이 비어있는지 확인
+      const contentType = res.headers.get('content-type')
+      const text = await res.text()
+      
+      if (!text) {
+        throw new Error('Empty response from server')
+      }
+
+      // JSON 파싱 시도
+      let data
+      try {
+        data = JSON.parse(text)
+      } catch (parseError) {
+        console.error('[Project Create] Failed to parse response:', { text, status: res.status, statusText: res.statusText })
+        throw new Error(`Invalid response from server: ${res.status} ${res.statusText}`)
+      }
 
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to create project')
+        throw new Error(data.error || `Failed to create project: ${res.status} ${res.statusText}`)
+      }
+
+      if (!data.project || !data.project.id) {
+        throw new Error('Invalid response: project data missing')
       }
 
       router.push(`/projects/${data.project.id}/setup/profile`)
     } catch (err) {
+      console.error('[Project Create] Error:', err)
       setError(err instanceof Error ? err.message : 'An error occurred')
       setLoading(false)
     }

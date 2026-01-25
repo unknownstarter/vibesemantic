@@ -2,7 +2,9 @@
 
 ## 발견된 문제
 
-Vercel에서 `vibesemantic.xyz`가 `www.vibesemantic.xyz`로 자동 리다이렉트되는데, Supabase와 Google Cloud Console 설정에 `www` 버전이 누락되어 있습니다.
+Vercel에 `vibesemantic.xyz`와 `www.vibesemantic.xyz` 두 도메인이 모두 등록되어 있지만, `vibesemantic.xyz`는 `www.vibesemantic.xyz`로 자동 리다이렉트됩니다. 
+
+**실제 사용자가 접속하는 최종 도메인은 `www.vibesemantic.xyz`인데, Supabase와 Google Cloud Console 설정에 `www` 버전이 누락되어 있어서 OAuth 리다이렉트가 실패합니다.**
 
 ## 즉시 수정해야 할 설정
 

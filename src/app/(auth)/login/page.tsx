@@ -151,11 +151,12 @@ function LoginForm() {
       // 프로덕션 환경에서 올바른 리다이렉트 URL 생성
       let origin = typeof window !== 'undefined' ? window.location.origin : ''
       
-      // Vercel에서 vibesemantic.xyz가 www.vibesemantic.xyz로 리다이렉트되므로
-      // origin을 www 버전으로 강제 변환하여 일관성 유지
+      // Vercel에 두 도메인이 모두 등록되어 있지만, 
+      // vibesemantic.xyz는 www.vibesemantic.xyz로 리다이렉트됨
+      // 실제 최종 도메인은 www.vibesemantic.xyz이므로 일관성 유지
       if (origin === 'https://vibesemantic.xyz') {
         origin = 'https://www.vibesemantic.xyz'
-        console.log('[Google Login] Redirected to www version:', origin)
+        console.log('[Google Login] Using www version for consistency:', origin)
       }
       
       const callbackUrl = `${origin}/callback?redirect=${encodeURIComponent(redirect)}`
