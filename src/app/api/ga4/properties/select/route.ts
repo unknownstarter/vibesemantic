@@ -25,19 +25,18 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = await createClient()
-  const projectId = context.projectId
 
   // 모든 property를 is_selected=false로
   await supabase
     .from('ga4_properties')
     .update({ is_selected: false })
-    .eq('project_id', projectId)
+    .eq('project_id', context.projectId)
 
   // 선택한 property만 is_selected=true로
   const { error: selectError } = await supabase
     .from('ga4_properties')
     .update({ is_selected: true })
-    .eq('project_id', projectId)
+    .eq('project_id', context.projectId)
     .eq('property_id', propertyId)
 
   if (selectError) {
@@ -48,7 +47,7 @@ export async function POST(request: NextRequest) {
   const { data: project } = await supabase
     .from('projects')
     .select('setup_status')
-    .eq('id', projectId)
+    .eq('id', context.projectId)
     .single()
 
   const wasProfileReady = project?.setup_status === 'profile_ready'
@@ -56,13 +55,13 @@ export async function POST(request: NextRequest) {
     await supabase
       .from('projects')
       .update({ setup_status: 'ga4_ready' })
-      .eq('id', projectId)
+      .eq('id', context.projectId)
   }
 
   // Audit log
   await createAuditLog({
     userId: context.userId,
-    projectId,
+    projectId: context.projectId,
     action: AuditActions.GA4_PROPERTY_SELECT,
     dataAccessed: ['ga4_properties'],
     llmPayloadSummary: { propertyId },
@@ -72,11 +71,11 @@ export async function POST(request: NextRequest) {
   if (wasProfileReady) {
     // 백그라운드에서 실행 (응답을 블로킹하지 않음)
     Promise.all([
-      import('@/lib/ga4/api').then(({ refreshMartData }) => refreshMartData(projectId, '7d')),
+      import('@/lib/ga4/api').then(({ refreshMartData }) => refreshMartData(context.projectId!, '7d')),
       supabase
         .from('workspaces')
         .select('id')
-        .eq('project_id', projectId)
+        .eq('project_id', context.projectId)
         .eq('status', 'ready')
         .order('created_at', { ascending: true })
         .limit(1)
@@ -87,7 +86,7 @@ export async function POST(request: NextRequest) {
           // 데이터 새로고침 성공 + 워크스페이스 존재 시 리포트 생성
           const { generateInitialReport } = await import('@/lib/api/workspaces')
           generateInitialReport({
-            projectId,
+            projectId: context.projectId!,
             workspaceId: workspaceResult.data.id,
             userId: context.userId,
             range: '7d',

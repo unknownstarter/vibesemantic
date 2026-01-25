@@ -19,12 +19,11 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = await createClient()
-  const projectId = context.projectId
   
   const { data: properties, error: fetchError } = await supabase
     .from('ga4_properties')
     .select('*')
-    .eq('project_id', projectId)
+    .eq('project_id', context.projectId)
     .order('property_name')
 
   if (fetchError) {

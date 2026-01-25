@@ -21,19 +21,18 @@ export async function GET(
   }
 
   const supabase = await createClient()
-  const projectId = context.projectId
 
   // GA4 연결 상태도 함께 조회
   const { data: ga4Connection } = await supabase
     .from('ga4_connections')
     .select('google_user_email')
-    .eq('project_id', projectId)
+    .eq('project_id', context.projectId)
     .single()
 
   const { data: selectedProperty } = await supabase
     .from('ga4_properties')
     .select('property_id, property_name')
-    .eq('project_id', projectId)
+    .eq('project_id', context.projectId)
     .eq('is_selected', true)
     .single()
 
@@ -41,7 +40,7 @@ export async function GET(
   const { data: csvDatasets } = await supabase
     .from('csv_datasets')
     .select('id, name, status')
-    .eq('project_id', projectId)
+    .eq('project_id', context.projectId)
 
   const csvReady = csvDatasets?.some(d => 
     d.status === 'confirmed' || d.status === 'ingested'
@@ -102,12 +101,11 @@ export async function PATCH(
   }
 
   const supabase = await createClient()
-  const projectId = context.projectId
   
   const { data: project, error: updateError } = await supabase
     .from('projects')
     .update(updateData)
-    .eq('id', projectId)
+    .eq('id', context.projectId)
     .select()
     .single()
 
@@ -118,7 +116,7 @@ export async function PATCH(
   // Audit log
   await createAuditLog({
     userId: context.userId,
-    projectId,
+    projectId: context.projectId,
     action: profile ? AuditActions.PROJECT_PROFILE_UPDATE : AuditActions.PROJECT_UPDATE,
     llmPayloadSummary: { updatedFields: Object.keys(updateData) },
   })
@@ -126,10 +124,10 @@ export async function PATCH(
   // Sync metric definitions if profile was updated
   if (profile) {
     try {
-      const semanticLayerEnabled = await isSemanticLayerEnabled(projectId)
+      const semanticLayerEnabled = await isSemanticLayerEnabled(context.projectId)
       if (semanticLayerEnabled) {
         // Sync metric definitions asynchronously (don't block response)
-        syncMetricDefinitionsWithProfile(projectId, profile).catch(error => {
+        syncMetricDefinitionsWithProfile(context.projectId, profile).catch(error => {
           console.error('[Projects] Failed to sync metric definitions:', error)
           // Non-blocking: log error but don't fail the request
         })
@@ -164,12 +162,11 @@ export async function DELETE(
   }
 
   const supabase = await createClient()
-  const projectId = context.projectId
   
   const { error: deleteError } = await supabase
     .from('projects')
     .delete()
-    .eq('id', projectId)
+    .eq('id', context.projectId)
 
   if (deleteError) {
     return NextResponse.json({ error: deleteError.message }, { status: 500 })
@@ -178,7 +175,7 @@ export async function DELETE(
   // Audit log
   await createAuditLog({
     userId: context.userId,
-    projectId,
+    projectId: context.projectId,
     action: AuditActions.PROJECT_DELETE,
   })
 

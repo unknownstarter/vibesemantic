@@ -38,8 +38,7 @@ export async function POST(
     return NextResponse.json({ error: 'Project ID required' }, { status: 400 })
   }
 
-  const projectId = context.projectId
-  const result = await refreshMartData(projectId, range)
+  const result = await refreshMartData(context.projectId, range)
 
   if (!result.success) {
     return NextResponse.json({ error: result.error }, { status: 500 })
@@ -48,7 +47,7 @@ export async function POST(
   // Audit log
   await createAuditLog({
     userId: context.userId,
-    projectId,
+    projectId: context.projectId,
     action: AuditActions.GA4_REFRESH,
     dataAccessed: ['mart_ga4_daily_kpis', 'mart_ga4_channel_daily', 'mart_ga4_top_pages_daily'],
     llmPayloadSummary: { range },
@@ -59,7 +58,7 @@ export async function POST(
   const { data: firstWorkspace } = await supabase
     .from('workspaces')
     .select('id')
-    .eq('project_id', projectId)
+    .eq('project_id', context.projectId)
     .eq('status', 'ready')
     .order('created_at', { ascending: true })
     .limit(1)
@@ -69,7 +68,7 @@ export async function POST(
     // 백그라운드에서 리포트 생성 (비동기, 에러 무시)
     import('@/lib/api/workspaces').then(({ generateInitialReport }) => {
       generateInitialReport({
-        projectId,
+        projectId: context.projectId,
         workspaceId: firstWorkspace.id,
         userId: context.userId,
         range,

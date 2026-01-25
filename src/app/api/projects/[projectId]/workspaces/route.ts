@@ -23,12 +23,11 @@ export async function GET(
   }
 
   const supabase = await createClient()
-  const projectId = context.projectId
   
   const { data: workspaces, error: fetchError } = await supabase
     .from('workspaces')
     .select('*')
-    .eq('project_id', projectId)
+    .eq('project_id', context.projectId)
     .order('created_at', { ascending: false })
 
   if (fetchError) {
@@ -58,8 +57,6 @@ export async function POST(
     return NextResponse.json({ error: 'Project ID required' }, { status: 400 })
   }
 
-  const projectId = context.projectId
-
   // Project가 ready 상태이거나 CSV 데이터가 있으면 허용
   const setupStatus = context.project?.setup_status
   if (setupStatus !== 'ga4_ready' && setupStatus !== 'ready') {
@@ -68,7 +65,7 @@ export async function POST(
     const { data: csvDatasets } = await supabase
       .from('csv_datasets')
       .select('id')
-      .eq('project_id', projectId)
+      .eq('project_id', context.projectId)
       .in('status', ['confirmed', 'ingested'])
       .limit(1)
     
@@ -93,7 +90,7 @@ export async function POST(
   const { data: workspace, error: createError } = await supabase
     .from('workspaces')
     .insert({
-      project_id: projectId,
+      project_id: context.projectId,
       name: name.trim(),
       purpose: purpose || 'product',
       agent_config: (agent_config || {}) as Json,
@@ -109,7 +106,7 @@ export async function POST(
   // Audit log
   await createAuditLog({
     userId: context.userId,
-    projectId,
+    projectId: context.projectId,
     workspaceId: workspace.id,
     action: AuditActions.WORKSPACE_CREATE,
   })
