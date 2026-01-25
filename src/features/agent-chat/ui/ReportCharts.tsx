@@ -3,6 +3,7 @@
 import { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { LineChart, BarChart, RadarChart } from '@/shared/ui/charts'
+import type { LineChartDataPoint } from '@/shared/ui/charts/LineChart'
 import type { MartSummary } from '@/lib/langgraph/types'
 
 interface ReportChartsProps {
@@ -48,10 +49,10 @@ export function ReportCharts({ martSummary }: ReportChartsProps) {
   }, [martSummary.topPages])
 
   // CSV 메트릭 트렌드 (통합 분석)
-  const csvTrendData = useMemo(() => {
+  const csvTrendData = useMemo((): LineChartDataPoint[] => {
     if (!martSummary.integratedTrend?.length) return []
     return martSummary.integratedTrend.map(d => {
-      const point: Record<string, string | number> = { date: d.date }
+      const point: LineChartDataPoint = { date: d.date }
       if (d.ga4Sessions !== undefined) point.ga4Sessions = d.ga4Sessions
       if (d.csvMetrics) {
         Object.entries(d.csvMetrics).forEach(([key, value]) => {
