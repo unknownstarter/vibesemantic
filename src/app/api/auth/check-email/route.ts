@@ -36,36 +36,44 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Admin API를 사용하여 이메일로 사용자 조회
+    // Admin API를 사용하여 사용자 목록 조회 (이메일로 필터링)
+    // 참고: Supabase Admin API에는 getUserByEmail이 없으므로 listUsers로 조회
     const normalizedEmail = email.toLowerCase().trim()
+    let user: any = null
     
-    const { data: userData, error } = await supabase.auth.admin.getUserByEmail(normalizedEmail)
+    // 첫 페이지만 조회 (일반적으로 사용자가 많지 않으므로)
+    const { data: usersData, error } = await supabase.auth.admin.listUsers({
+      page: 1,
+      perPage: 1000,
+    })
 
     if (error) {
-      // 사용자를 찾을 수 없으면 에러가 발생할 수 있음 (정상적인 경우)
-      if (error.message?.includes('not found') || error.message?.includes('User not found')) {
-        return NextResponse.json({
-          exists: false,
-          hasOAuth: false,
-        })
-      }
-      
-      console.error('[Check Email] Error getting user by email:', error)
-      // 다른 에러는 false 반환 (보안상 사용자 존재 여부를 노출하지 않음)
+      console.error('[Check Email] Error listing users:', error)
+      // 에러가 발생하면 false 반환 (보안상 사용자 존재 여부를 노출하지 않음)
       return NextResponse.json({
         exists: false,
         hasOAuth: false,
       })
     }
 
-    if (!userData || !userData.user) {
+    if (!usersData || !usersData.users) {
       return NextResponse.json({
         exists: false,
         hasOAuth: false,
       })
     }
 
-    const user = userData.user
+    // 해당 이메일로 가입된 사용자 찾기 (대소문자 무시)
+    user = usersData.users.find(
+      (u: any) => u.email?.toLowerCase() === normalizedEmail
+    )
+
+    if (!user) {
+      return NextResponse.json({
+        exists: false,
+        hasOAuth: false,
+      })
+    }
 
     // OAuth identity 확인 (Google 등)
     // identities 배열에서 email이 아닌 provider 찾기
