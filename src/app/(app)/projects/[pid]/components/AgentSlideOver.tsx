@@ -15,7 +15,7 @@ import type { ReportRange } from '@/types/database'
 interface AgentSlideOverProps {
   isOpen: boolean
   onClose: () => void
-  workspaceId: string
+  workspaceSlug: string
   projectId: string
   ga4Connected?: boolean
   csvConnected?: boolean
@@ -35,7 +35,7 @@ function SparkleIcon({ className = '' }: { className?: string }) {
 export function AgentSlideOver({
   isOpen,
   onClose,
-  workspaceId,
+  workspaceSlug,
   projectId,
   ga4Connected = false,
   csvConnected = false,
@@ -61,7 +61,7 @@ export function AgentSlideOver({
     chatError,
     sendMessage,
     chatEndRef,
-  } = useAgentChat({ workspaceId, range, enabled: isOpen })
+  } = useAgentChat({ workspaceId: workspaceSlug, range, enabled: isOpen })
 
   // range 변경 후 pending 메시지 전송
   useEffect(() => {

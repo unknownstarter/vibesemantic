@@ -25,8 +25,8 @@ const PURPOSE_LABELS: Record<WorkspacePurpose, string> = {
 export default function WorkspaceSetupPage() {
   const params = useParams()
   const router = useRouter()
-  const projectId = params.pid as string
-  const workspaceId = params.wid as string
+  const projectSlug = params.pid as string // Can be slug or UUID for backward compatibility
+  const workspaceSlug = params.wid as string // Can be slug or UUID for backward compatibility
 
   const [workspace, setWorkspace] = useState<Workspace | null>(null)
   const [config, setConfig] = useState<AgentConfig>({
@@ -39,7 +39,7 @@ export default function WorkspaceSetupPage() {
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    fetch(`/api/workspaces/${workspaceId}`)
+    fetch(`/api/workspaces/${workspaceSlug}`)
       .then(res => res.json())
       .then(data => {
         setWorkspace(data.workspace)
@@ -53,7 +53,7 @@ export default function WorkspaceSetupPage() {
         setLoading(false)
       })
       .catch(() => setLoading(false))
-  }, [workspaceId])
+  }, [workspaceSlug])
 
   const handleAddFocus = () => {
     if (focusInput.trim() && !config.focusAreas?.includes(focusInput.trim())) {
@@ -69,7 +69,7 @@ export default function WorkspaceSetupPage() {
     setSaving(true)
 
     try {
-      const res = await fetch(`/api/workspaces/${workspaceId}`, {
+      const res = await fetch(`/api/workspaces/${workspaceSlug}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -80,7 +80,9 @@ export default function WorkspaceSetupPage() {
 
       if (!res.ok) throw new Error('Failed to save')
 
-      router.push(`/projects/${projectId}/workspaces/${workspaceId}/agent`)
+      // Use the workspace slug for navigation
+      const workspaceSlugForNav = workspace?.slug || workspaceSlug
+      router.push(`/projects/${projectSlug}/workspaces/${workspaceSlugForNav}/agent`)
     } catch (err) {
       console.error(err)
       setSaving(false)

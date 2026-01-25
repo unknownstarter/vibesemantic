@@ -23,7 +23,7 @@ interface GA4Status {
 export default function SourcesPage() {
   const params = useParams()
   const router = useRouter()
-  const projectId = params.pid as string
+  const projectSlug = params.pid as string // Can be slug or UUID for backward compatibility
 
   const [datasets, setDatasets] = useState<DatasetWithFiles[]>([])
   const [ga4Status, setGa4Status] = useState<GA4Status>({ connected: false })
@@ -35,8 +35,8 @@ export default function SourcesPage() {
   // Fetch data sources
   useEffect(() => {
     Promise.all([
-      fetch(`/api/projects/${projectId}/csv/datasets`).then(r => r.json()),
-      fetch(`/api/projects/${projectId}`).then(r => r.json()),
+      fetch(`/api/projects/${projectSlug}/csv/datasets`).then(r => r.json()),
+      fetch(`/api/projects/${projectSlug}`).then(r => r.json()),
     ])
       .then(([datasetsRes, projectRes]) => {
         setDatasets(datasetsRes.datasets || [])
@@ -44,7 +44,7 @@ export default function SourcesPage() {
         setLoading(false)
       })
       .catch(() => setLoading(false))
-  }, [projectId])
+  }, [projectSlug])
 
   // Create new dataset
   const handleCreateDataset = async () => {
@@ -52,7 +52,7 @@ export default function SourcesPage() {
 
     setCreating(true)
     try {
-      const res = await fetch(`/api/projects/${projectId}/csv/datasets`, {
+      const res = await fetch(`/api/projects/${projectSlug}/csv/datasets`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newDatasetName.trim() }),
@@ -60,7 +60,7 @@ export default function SourcesPage() {
 
       if (res.ok) {
         const { dataset } = await res.json()
-        router.push(`/projects/${projectId}/setup/csv/datasets/${dataset.id}`)
+        router.push(`/projects/${projectSlug}/setup/csv/datasets/${dataset.id}`)
       }
     } catch (error) {
       console.error('Failed to create dataset:', error)
@@ -85,7 +85,7 @@ export default function SourcesPage() {
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-2 text-sm text-muted mb-2">
-          <Link href={`/projects/${projectId}`} className="hover:text-foreground transition">프로젝트</Link>
+          <Link href={`/projects/${projectSlug}`} className="hover:text-foreground transition">프로젝트</Link>
           <span>/</span>
           <span className="text-foreground">데이터 소스 설정</span>
         </div>
@@ -139,13 +139,13 @@ export default function SourcesPage() {
                   </div>
                 )}
                 <div className="mt-4 pt-4 border-t border-border/10">
-                  <Link href={`/projects/${projectId}/setup/ga4/connect`}>
+                  <Link href={`/projects/${projectSlug}/setup/ga4/connect`}>
                     <Button variant="secondary" size="sm">연결 관리</Button>
                   </Link>
                 </div>
               </div>
             ) : (
-              <Link href={`/projects/${projectId}/setup/ga4/connect`}>
+              <Link href={`/projects/${projectSlug}/setup/ga4/connect`}>
                 <Button>GA4 연결하기</Button>
               </Link>
             )}
@@ -182,7 +182,7 @@ export default function SourcesPage() {
                   return (
                     <Link
                       key={dataset.id}
-                      href={`/projects/${projectId}/setup/csv/datasets/${dataset.id}`}
+                      href={`/projects/${projectSlug}/setup/csv/datasets/${dataset.id}`}
                     >
                       <div className="p-4 bg-surface-inset rounded-xl border border-border/10 hover:border-border/30 transition-all">
                         <div className="flex justify-between items-start">
@@ -250,7 +250,7 @@ export default function SourcesPage() {
                 </Button>
                 <Button
                   variant="ghost"
-                  onClick={() => router.push(`/projects/${projectId}`)}
+                  onClick={() => router.push(`/projects/${projectSlug}`)}
                   className="w-full"
                 >
                   다음에 하기
@@ -264,7 +264,7 @@ export default function SourcesPage() {
       {/* Continue Button */}
       {(hasGA4 || hasCSV) && (
         <div className="mt-8 text-center">
-          <Link href={`/projects/${projectId}`}>
+          <Link href={`/projects/${projectSlug}`}>
             <Button>프로젝트로 돌아가기</Button>
           </Link>
         </div>

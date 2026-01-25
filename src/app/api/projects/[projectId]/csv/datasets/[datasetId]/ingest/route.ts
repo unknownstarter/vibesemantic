@@ -8,17 +8,19 @@ type RouteParams = { params: Promise<{ projectId: string; datasetId: string }> }
 
 // POST: Ingest dataset files into mart table
 export async function POST(request: NextRequest, { params }: RouteParams) {
-  const { projectId, datasetId } = await params
+  const { projectId: projectSlugOrId, datasetId } = await params
 
   const auth = await requireAuth()
   if (auth.error) {
     return NextResponse.json({ error: auth.error }, { status: 401 })
   }
 
-  const membership = await requireProjectMember(projectId)
-  if (membership.error) {
+  const membership = await requireProjectMember(projectSlugOrId)
+  if (membership.error || !membership.projectId) {
     return NextResponse.json({ error: membership.error }, { status: 403 })
   }
+
+  const projectId = membership.projectId
 
   if (!canEdit(membership.role)) {
     return NextResponse.json({ error: 'Permission denied' }, { status: 403 })

@@ -39,7 +39,7 @@ function GA4ConnectContent() {
   const params = useParams()
   const searchParams = useSearchParams()
   const router = useRouter()
-  const projectId = params.pid as string
+  const projectSlug = params.pid as string // Can be slug or UUID for backward compatibility
   const error = searchParams.get('error')
 
   const [loading, setLoading] = useState(false)
@@ -47,7 +47,7 @@ function GA4ConnectContent() {
   const [connectionEmail, setConnectionEmail] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch(`/api/projects/${projectId}`)
+    fetch(`/api/projects/${projectSlug}`)
       .then(res => res.json())
       .then(data => {
         if (data.ga4?.connected) {
@@ -55,12 +55,12 @@ function GA4ConnectContent() {
           setConnectionEmail(data.ga4.email)
         }
       })
-  }, [projectId])
+  }, [projectSlug])
 
   const handleConnect = async () => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/ga4/oauth/start?projectId=${projectId}`)
+      const res = await fetch(`/api/ga4/oauth/start?projectId=${projectSlug}`)
       const data = await res.json()
       
       if (!res.ok) {
@@ -82,7 +82,7 @@ function GA4ConnectContent() {
   }
 
   const handleContinue = () => {
-    router.push(`/projects/${projectId}/setup/ga4/property`)
+    router.push(`/projects/${projectSlug}/setup/ga4/property`)
   }
 
   const getErrorMessage = (errorCode: string) => {
@@ -165,7 +165,7 @@ function GA4ConnectContent() {
               </Button>
               <Button
                 variant="secondary"
-                onClick={() => router.push(`/projects/${projectId}`)}
+                onClick={() => router.push(`/projects/${projectSlug}`)}
                 className="w-full"
               >
                 다음에 하기

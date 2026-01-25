@@ -10,19 +10,22 @@ export async function GET(
   request: NextRequest,
   { params }: RouteParams
 ) {
-  const { workspaceId } = await params
+  const { workspaceId: workspaceSlugOrId } = await params
   const supabase = await createClient()
 
-  // Workspace에서 project_id 조회
-  const { data: workspace } = await supabase
+  // Workspace에서 project_id 조회 (slug 또는 id로 조회)
+  const { data: workspace, error: wsError } = await supabase
     .from('workspaces')
-    .select('project_id')
-    .eq('id', workspaceId)
+    .select('id, project_id')
+    .or(`id.eq.${workspaceSlugOrId},slug.eq.${workspaceSlugOrId}`)
     .single()
 
-  if (!workspace) {
+  if (wsError || !workspace) {
     return NextResponse.json({ error: 'Workspace not found' }, { status: 404 })
   }
+
+  // Use the actual workspace ID for subsequent operations
+  const workspaceId = workspace.id
 
   const { context, error } = await getAuthContext(workspace.project_id, workspaceId)
   if (error || !context) {

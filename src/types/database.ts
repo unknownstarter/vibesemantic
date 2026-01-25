@@ -736,6 +736,7 @@ export type Database = {
           feature_flags: Json | null
           id: string
           name: string
+          slug: string
           profile: Json | null
           setup_status:
             | Database["public"]["Enums"]["project_setup_status"]
@@ -749,6 +750,7 @@ export type Database = {
           feature_flags?: Json | null
           id?: string
           name: string
+          slug?: string
           profile?: Json | null
           setup_status?:
             | Database["public"]["Enums"]["project_setup_status"]
@@ -762,6 +764,7 @@ export type Database = {
           feature_flags?: Json | null
           id?: string
           name?: string
+          slug?: string
           profile?: Json | null
           setup_status?:
             | Database["public"]["Enums"]["project_setup_status"]
@@ -941,6 +944,7 @@ export type Database = {
           created_at: string | null
           id: string
           name: string
+          slug: string
           project_id: string
           purpose: Database["public"]["Enums"]["workspace_purpose"]
           status: Database["public"]["Enums"]["workspace_status"]
@@ -951,6 +955,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           name: string
+          slug?: string
           project_id: string
           purpose?: Database["public"]["Enums"]["workspace_purpose"]
           status?: Database["public"]["Enums"]["workspace_status"]
@@ -961,6 +966,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           name?: string
+          slug?: string
           project_id?: string
           purpose?: Database["public"]["Enums"]["workspace_purpose"]
           status?: Database["public"]["Enums"]["workspace_status"]

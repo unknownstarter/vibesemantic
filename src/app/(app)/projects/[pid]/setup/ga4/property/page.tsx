@@ -27,7 +27,7 @@ function SadFaceIcon({ className = '' }: { className?: string }) {
 export default function GA4PropertyPage() {
   const params = useParams()
   const router = useRouter()
-  const projectId = params.pid as string
+  const projectSlug = params.pid as string // Can be slug or UUID for backward compatibility
 
   const [properties, setProperties] = useState<GA4Property[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -35,7 +35,7 @@ export default function GA4PropertyPage() {
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    fetch(`/api/ga4/properties?projectId=${projectId}`)
+    fetch(`/api/ga4/properties?projectId=${projectSlug}`)
       .then(res => res.json())
       .then(data => {
         setProperties(data.properties || [])
@@ -44,7 +44,7 @@ export default function GA4PropertyPage() {
         setLoading(false)
       })
       .catch(() => setLoading(false))
-  }, [projectId])
+  }, [projectSlug])
 
   const handleSelect = async () => {
     if (!selectedId) return
@@ -54,12 +54,12 @@ export default function GA4PropertyPage() {
       const res = await fetch('/api/ga4/properties/select', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId, propertyId: selectedId }),
+        body: JSON.stringify({ projectId: projectSlug, propertyId: selectedId }),
       })
 
       if (!res.ok) throw new Error('Failed to select property')
 
-      router.push(`/projects/${projectId}/setup/refresh`)
+      router.push(`/projects/${projectSlug}/setup/refresh`)
     } catch (err) {
       console.error(err)
       setSaving(false)
@@ -98,7 +98,7 @@ export default function GA4PropertyPage() {
             </p>
             <Button
               variant="secondary"
-              onClick={() => router.push(`/projects/${projectId}/setup/ga4/connect`)}
+              onClick={() => router.push(`/projects/${projectSlug}/setup/ga4/connect`)}
             >
               다른 계정으로 연결
             </Button>

@@ -50,6 +50,7 @@ class AnalyzeResponse(BaseModel):
     analyst_questions: list
     mart_summary: Optional[dict] = None
     thread_id: str
+    data_accessed: Optional[list] = None
 
 class GA4CollectRequest(BaseModel):
     project_id: str
@@ -102,7 +103,8 @@ async def analyze(
             analysis_markdown=result.get("analysisMarkdown", ""),
             analyst_questions=result.get("analystQuestions", []),
             mart_summary=result.get("martSummary"),
-            thread_id=result.get("threadId", request.thread_id)
+            thread_id=result.get("threadId", request.thread_id),
+            data_accessed=result.get("dataAccessed", [])
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

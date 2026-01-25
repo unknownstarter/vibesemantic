@@ -19,8 +19,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Permission denied' }, { status: 403 })
   }
 
+  if (!context.projectId) {
+    return NextResponse.json({ error: 'Project ID required' }, { status: 400 })
+  }
+
   try {
-    const authUrl = getAuthUrl(projectId)
+    // Use actual project ID (not slug) for OAuth state
+    const authUrl = getAuthUrl(context.projectId)
     
     // 디버깅: 생성된 auth URL에서 리다이렉트 URI 추출
     const urlObj = new URL(authUrl)

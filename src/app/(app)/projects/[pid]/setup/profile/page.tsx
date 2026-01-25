@@ -30,7 +30,7 @@ function Spinner({ className = '' }: { className?: string }) {
 export default function ProfileSetupPage() {
   const params = useParams()
   const router = useRouter()
-  const projectId = params.pid as string
+  const projectSlug = params.pid as string // Can be slug or UUID for backward compatibility
 
   const [profile, setProfile] = useState<ProjectProfile>({
     serviceName: '',
@@ -46,7 +46,7 @@ export default function ProfileSetupPage() {
   const [initialLoading, setInitialLoading] = useState(true)
 
   useEffect(() => {
-    fetch(`/api/projects/${projectId}`)
+    fetch(`/api/projects/${projectSlug}`)
       .then(res => res.json())
       .then(data => {
         if (data.project?.profile) {
@@ -62,7 +62,7 @@ export default function ProfileSetupPage() {
         setInitialLoading(false)
       })
       .catch(() => setInitialLoading(false))
-  }, [projectId])
+  }, [projectSlug])
 
   const handleAddGoal = () => {
     if (goalInput.trim() && !profile.goals?.includes(goalInput.trim())) {
@@ -89,7 +89,7 @@ export default function ProfileSetupPage() {
     setLoading(true)
 
     try {
-      const res = await fetch(`/api/projects/${projectId}`, {
+      const res = await fetch(`/api/projects/${projectSlug}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -101,7 +101,7 @@ export default function ProfileSetupPage() {
       if (!res.ok) throw new Error('Failed to save')
 
       // 데이터 소스 선택 페이지로 이동 (GA4 또는 CSV 선택 가능)
-      router.push(`/projects/${projectId}/setup/sources`)
+      router.push(`/projects/${projectSlug}/setup/sources`)
     } catch (err) {
       console.error(err)
       setLoading(false)

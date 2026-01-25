@@ -36,7 +36,7 @@ function ErrorIcon({ className = '' }: { className?: string }) {
 export default function RefreshPage() {
   const params = useParams()
   const router = useRouter()
-  const projectId = params.pid as string
+  const projectSlug = params.pid as string // Can be slug or UUID for backward compatibility
 
   const [range, setRange] = useState<ReportRange>('7d')
   const [loading, setLoading] = useState(false)
@@ -45,12 +45,12 @@ export default function RefreshPage() {
   const [projectStatus, setProjectStatus] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch(`/api/projects/${projectId}`)
+    fetch(`/api/projects/${projectSlug}`)
       .then(res => res.json())
       .then(data => {
         setProjectStatus(data.project?.setup_status)
       })
-  }, [projectId])
+  }, [projectSlug])
 
   const handleRefresh = async () => {
     setLoading(true)
@@ -58,7 +58,7 @@ export default function RefreshPage() {
     setErrorMessage('')
 
     try {
-      const res = await fetch(`/api/projects/${projectId}/refresh`, {
+      const res = await fetch(`/api/projects/${projectSlug}/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ range }),
@@ -74,9 +74,9 @@ export default function RefreshPage() {
       
       setTimeout(() => {
         if (projectStatus === 'ga4_ready') {
-          router.push(`/projects/${projectId}`)
+          router.push(`/projects/${projectSlug}`)
         } else {
-          router.push(`/projects/${projectId}/workspaces`)
+          router.push(`/projects/${projectSlug}/workspaces`)
         }
       }, 2000)
     } catch (err) {

@@ -8,7 +8,7 @@ import type { Workspace, WorkspacePurpose, WorkspaceStatus } from '@/types/datab
 
 interface WorkspaceCardProps {
   workspace: Workspace
-  projectId: string
+  projectSlug: string
   ga4Connected?: boolean
   csvConnected?: boolean
   csvDatasetCount?: number
@@ -31,7 +31,7 @@ const STATUS_LABELS: Record<WorkspaceStatus, { label: string; color: string }> =
 
 export function WorkspaceCard({
   workspace,
-  projectId,
+  projectSlug,
   ga4Connected = false,
   csvConnected = false,
   csvDatasetCount = 0,
@@ -110,9 +110,11 @@ export function WorkspaceCard({
     return content
   }
 
+  // Use slug if available, otherwise fallback to ID for backward compatibility
+  const wsSlugOrId = workspace.slug || workspace.id
   const href = workspace.status === 'ready'
-    ? `/projects/${projectId}/workspaces/${workspace.id}`
-    : `/projects/${projectId}/workspaces/${workspace.id}`
+    ? `/projects/${projectSlug}/workspaces/${wsSlugOrId}`
+    : `/projects/${projectSlug}/workspaces/${wsSlugOrId}`
 
   return (
     <Link href={href} className="block h-full">

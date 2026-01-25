@@ -14,7 +14,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: error || 'Unauthorized' }, { status: 401 })
   }
 
+  if (!context.projectId) {
+    return NextResponse.json({ error: 'Project ID required' }, { status: 400 })
+  }
+
   const supabase = await createClient()
+  const projectId = context.projectId
   
   const { data: properties, error: fetchError } = await supabase
     .from('ga4_properties')

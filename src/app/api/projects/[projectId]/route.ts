@@ -16,11 +16,12 @@ export async function GET(
   const { projectId } = await params
   const { context, error } = await getAuthContext(projectId)
 
-  if (error || !context) {
+  if (error || !context || !context.projectId) {
     return NextResponse.json({ error: error || 'Unauthorized' }, { status: 401 })
   }
 
   const supabase = await createClient()
+  const projectId = context.projectId
 
   // GA4 연결 상태도 함께 조회
   const { data: ga4Connection } = await supabase
@@ -96,7 +97,13 @@ export async function PATCH(
     return NextResponse.json({ error: 'No update data provided' }, { status: 400 })
   }
 
+  if (!context.projectId) {
+    return NextResponse.json({ error: 'Project ID required' }, { status: 400 })
+  }
+
   const supabase = await createClient()
+  const projectId = context.projectId
+  
   const { data: project, error: updateError } = await supabase
     .from('projects')
     .update(updateData)
@@ -152,7 +159,13 @@ export async function DELETE(
     return NextResponse.json({ error: 'Only owner can delete project' }, { status: 403 })
   }
 
+  if (!context.projectId) {
+    return NextResponse.json({ error: 'Project ID required' }, { status: 400 })
+  }
+
   const supabase = await createClient()
+  const projectId = context.projectId
+  
   const { error: deleteError } = await supabase
     .from('projects')
     .delete()

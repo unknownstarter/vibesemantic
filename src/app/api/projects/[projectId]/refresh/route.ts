@@ -34,6 +34,11 @@ export async function POST(
     return NextResponse.json({ error: 'Invalid range. Use 7d or 30d' }, { status: 400 })
   }
 
+  if (!context.projectId) {
+    return NextResponse.json({ error: 'Project ID required' }, { status: 400 })
+  }
+
+  const projectId = context.projectId
   const result = await refreshMartData(projectId, range)
 
   if (!result.success) {

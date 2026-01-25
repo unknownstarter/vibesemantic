@@ -24,6 +24,7 @@ export async function GET() {
       projects (
         id,
         name,
+        slug,
         profile,
         setup_status,
         created_at,

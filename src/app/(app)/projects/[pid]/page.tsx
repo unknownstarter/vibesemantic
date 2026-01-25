@@ -47,29 +47,33 @@ function ProjectOverviewContent() {
   const params = useParams()
   const searchParams = useSearchParams()
   const router = useRouter()
-  const projectId = params.pid as string
-  
+  const projectSlug = params.pid as string // This can be slug or UUID (for backward compatibility)
+
   // React Query hooks
-  const projectQuery = useProjectQuery(projectId)
-  const workspacesQuery = useWorkspacesQuery(projectId)
-  
+  const projectQuery = useProjectQuery(projectSlug)
+  const workspacesQuery = useWorkspacesQuery(projectSlug)
+
   const data = projectQuery.data || null
   const workspaces = workspacesQuery.data || []
   const loading = projectQuery.isLoading || workspacesQuery.isLoading
   const error = projectQuery.error?.message || workspacesQuery.error?.message || null
-  
+
+  // Use the actual slug from project data for navigation (not the URL param which could be UUID)
+  const projectId = data?.project?.id
+  const slug = data?.project?.slug || projectSlug
+
   const refetch = async () => {
     await Promise.all([projectQuery.refetch(), workspacesQuery.refetch()])
   }
-  
+
   const [showOnboarding, setShowOnboarding] = useState(false)
 
-  // Get workspace ID from URL query
+  // Get workspace slug from URL query
   const workspaceId = searchParams.get('workspace')
 
   // Show onboarding on first visit
   useEffect(() => {
-    if (data && !loading) {
+    if (data && !loading && projectId) {
       const onboardingCompleted = localStorage.getItem(`onboarding_${projectId}`)
       if (!onboardingCompleted && data.project.setup_status === 'ready') {
         setShowOnboarding(true)
@@ -81,7 +85,7 @@ function ProjectOverviewContent() {
   const handleCloseSidebar = () => {
     const params = new URLSearchParams(searchParams.toString())
     params.delete('workspace')
-    router.push(`/projects/${projectId}${params.toString() ? `?${params.toString()}` : ''}`)
+    router.push(`/projects/${slug}${params.toString() ? `?${params.toString()}` : ''}`)
   }
 
   if (loading) {
@@ -138,7 +142,7 @@ function ProjectOverviewContent() {
               </p>
             </div>
             {role === 'owner' && (
-              <Link href={`/projects/${projectId}/settings`}>
+              <Link href={`/projects/${slug}/settings`}>
                 <Button variant="secondary" size="sm">설정</Button>
               </Link>
             )}
@@ -178,7 +182,7 @@ function ProjectOverviewContent() {
                       <p className="text-sm text-muted">{step.description}</p>
                     </div>
                     {isCurrent && !isLocked && role === 'owner' && (
-                      <Link href={step.href(projectId)}>
+                      <Link href={step.href(slug)}>
                         <Button size="sm">{step.action}</Button>
                       </Link>
                     )}
@@ -200,7 +204,7 @@ function ProjectOverviewContent() {
                 connected: csv?.ready || false,
                 datasetCount: csv?.datasets.length || 0,
               }}
-              projectId={projectId}
+              projectSlug={slug}
             />
 
             {/* Workspaces Section */}
@@ -212,7 +216,7 @@ function ProjectOverviewContent() {
                     목적별 분석 워크스페이스를 선택하여 AI 분석을 시작하세요
                   </p>
                 </div>
-                <Link href={`/projects/${projectId}/workspaces/new`}>
+                <Link href={`/projects/${slug}/workspaces/new`}>
                   <Button size="sm">+ 새로 만들기</Button>
                 </Link>
               </div>
@@ -226,33 +230,37 @@ function ProjectOverviewContent() {
                   </div>
                   <h3 className="text-base font-medium text-foreground mb-2">워크스페이스가 없습니다</h3>
                   <p className="text-sm text-muted mb-4">첫 번째 워크스페이스를 만들어 분석을 시작하세요</p>
-                  <Link href={`/projects/${projectId}/workspaces/new`}>
+                  <Link href={`/projects/${slug}/workspaces/new`}>
                     <Button size="sm">워크스페이스 만들기</Button>
                   </Link>
                 </div>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {workspaces.map((workspace) => (
-                    <WorkspaceCard
-                      key={workspace.id}
-                      workspace={workspace}
-                      projectId={projectId}
-                      ga4Connected={ga4.connected}
-                      csvConnected={csv?.ready || false}
-                      csvDatasetCount={csv?.datasets.length || 0}
-                      onClick={() => {
-                        if (workspace.status === 'ready') {
-                          const params = new URLSearchParams(searchParams.toString())
-                          params.set('workspace', workspace.id)
-                          router.push(`/projects/${projectId}?${params.toString()}`)
-                        } else {
-                          router.push(`/projects/${projectId}/workspaces/${workspace.id}`)
-                        }
-                      }}
-                    />
-                  ))}
+                  {workspaces.map((workspace) => {
+                    // Use slug if available, otherwise fallback to ID for backward compatibility
+                    const wsSlugOrId = workspace.slug || workspace.id
+                    return (
+                      <WorkspaceCard
+                        key={workspace.id}
+                        workspace={workspace}
+                        projectSlug={slug}
+                        ga4Connected={ga4.connected}
+                        csvConnected={csv?.ready || false}
+                        csvDatasetCount={csv?.datasets.length || 0}
+                        onClick={() => {
+                          if (workspace.status === 'ready') {
+                            const params = new URLSearchParams(searchParams.toString())
+                            params.set('workspace', wsSlugOrId)
+                            router.push(`/projects/${slug}?${params.toString()}`)
+                          } else {
+                            router.push(`/projects/${slug}/workspaces/${wsSlugOrId}`)
+                          }
+                        }}
+                      />
+                    )
+                  })}
                   {/* New Workspace Card */}
-                  <Link href={`/projects/${projectId}/workspaces/new`}>
+                  <Link href={`/projects/${slug}/workspaces/new`}>
                     <div className="p-6 h-full rounded-2xl border-2 border-dashed border-border/20 bg-surface-inset/30 hover:border-primary/30 hover:bg-surface-inset transition-all duration-300 flex flex-col items-center justify-center min-h-[180px]">
                       <div className="text-3xl mb-2">+</div>
                       <p className="text-sm font-medium text-foreground">새 워크스페이스</p>
@@ -264,13 +272,13 @@ function ProjectOverviewContent() {
 
             {/* Quick Actions */}
             <div className="grid md:grid-cols-2 gap-4">
-              <Link href={`/projects/${projectId}/setup/sources`}>
+              <Link href={`/projects/${slug}/setup/sources`}>
                 <div className="p-6 bg-surface-inset rounded-2xl border border-border/10 hover:border-border/30 transition-all duration-300">
                   <h3 className="font-semibold text-foreground mb-2">데이터 소스 관리</h3>
                   <p className="text-sm text-muted">GA4/CSV 데이터 소스를 추가하거나 수정하세요</p>
                 </div>
               </Link>
-              <Link href={`/projects/${projectId}/setup/refresh`}>
+              <Link href={`/projects/${slug}/setup/refresh`}>
                 <div className="p-6 bg-surface-inset rounded-2xl border border-border/10 hover:border-border/30 transition-all duration-300">
                   <h3 className="font-semibold text-foreground mb-2">데이터 새로고침</h3>
                   <p className="text-sm text-muted">데이터를 최신 상태로 업데이트하세요</p>
@@ -282,11 +290,11 @@ function ProjectOverviewContent() {
       </div>
 
       {/* Agent SlideOver */}
-      {workspaceId && (
+      {workspaceId && projectId && (
         <AgentSlideOver
           isOpen={!!workspaceId}
           onClose={handleCloseSidebar}
-          workspaceId={workspaceId}
+          workspaceSlug={workspaceId}
           projectId={projectId}
           ga4Connected={ga4.connected}
           csvConnected={csv?.ready || false}

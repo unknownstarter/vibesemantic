@@ -7,17 +7,19 @@ type RouteParams = { params: Promise<{ projectId: string; datasetId: string }> }
 
 // POST: Upload CSV file(s) to dataset
 export async function POST(request: NextRequest, { params }: RouteParams) {
-  const { projectId, datasetId } = await params
+  const { projectId: projectSlugOrId, datasetId } = await params
 
   const auth = await requireAuth()
   if (auth.error) {
     return NextResponse.json({ error: auth.error }, { status: 401 })
   }
 
-  const membership = await requireProjectMember(projectId)
-  if (membership.error) {
+  const membership = await requireProjectMember(projectSlugOrId)
+  if (membership.error || !membership.projectId) {
     return NextResponse.json({ error: membership.error }, { status: 403 })
   }
+
+  const projectId = membership.projectId
 
   const supabase = createServiceClient()
 
@@ -126,17 +128,19 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
 // GET: List files in dataset
 export async function GET(request: NextRequest, { params }: RouteParams) {
-  const { projectId, datasetId } = await params
+  const { projectId: projectSlugOrId, datasetId } = await params
 
   const auth = await requireAuth()
   if (auth.error) {
     return NextResponse.json({ error: auth.error }, { status: 401 })
   }
 
-  const membership = await requireProjectMember(projectId)
-  if (membership.error) {
+  const membership = await requireProjectMember(projectSlugOrId)
+  if (membership.error || !membership.projectId) {
     return NextResponse.json({ error: membership.error }, { status: 403 })
   }
+
+  const projectId = membership.projectId
 
   const supabase = createServiceClient()
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { getAuthContext, canEdit } from '@/lib/supabase/auth-helpers'
+import { getAuthContext, canEdit, resolveWorkspace } from '@/lib/supabase/auth-helpers'
 import { createAuditLog, AuditActions } from '@/lib/audit'
 import type { WorkspacePurpose, WorkspaceStatus, AgentConfig } from '@/types/database'
 
@@ -11,27 +11,35 @@ export async function GET(
   request: NextRequest,
   { params }: RouteParams
 ) {
-  const { workspaceId } = await params
-  const supabase = await createClient()
+  const { workspaceId: workspaceSlugOrId } = await params
 
-  // 먼저 workspace를 조회해서 project_id 확인
+  // First, we need to resolve workspace to get project_id for auth check
+  // Since getAuthContext requires projectId for workspace resolution, we need a two-step approach
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // Try to find workspace by slug or ID (without project_id filter first)
   const { data: workspace, error: wsError } = await supabase
     .from('workspaces')
-    .select('*')
-    .eq('id', workspaceId)
+    .select('id, project_id, name, purpose, status, agent_config, created_at, updated_at, slug')
+    .or(`id.eq.${workspaceSlugOrId},slug.eq.${workspaceSlugOrId}`)
     .single()
 
   if (wsError || !workspace) {
     return NextResponse.json({ error: 'Workspace not found' }, { status: 404 })
   }
 
-  // 권한 확인
-  const { context, error } = await getAuthContext(workspace.project_id, workspaceId)
+  // 권한 확인 (이제 project_id를 알았으므로 getAuthContext 사용)
+  const { context, error } = await getAuthContext(workspace.project_id, workspace.id)
   if (error || !context) {
     return NextResponse.json({ error: error || 'Unauthorized' }, { status: 401 })
   }
 
-  return NextResponse.json({ 
+  return NextResponse.json({
     workspace,
     project: context.project,
     role: context.role,
@@ -43,21 +51,23 @@ export async function PATCH(
   request: NextRequest,
   { params }: RouteParams
 ) {
-  const { workspaceId } = await params
-  const supabase = await createClient()
+  const { workspaceId: workspaceSlugOrId } = await params
 
-  // 먼저 workspace를 조회해서 project_id 확인
-  const { data: workspace, error: wsError } = await supabase
+  const supabase = await createClient()
+  
+  // Resolve workspace by slug or ID
+  const { data: existingWorkspace, error: wsError } = await supabase
     .from('workspaces')
-    .select('project_id')
-    .eq('id', workspaceId)
+    .select('id, project_id')
+    .or(`id.eq.${workspaceSlugOrId},slug.eq.${workspaceSlugOrId}`)
     .single()
 
-  if (wsError || !workspace) {
+  if (wsError || !existingWorkspace) {
     return NextResponse.json({ error: 'Workspace not found' }, { status: 404 })
   }
 
-  const { context, error } = await getAuthContext(workspace.project_id, workspaceId)
+  const workspaceId = existingWorkspace.id
+  const { context, error } = await getAuthContext(existingWorkspace.project_id, workspaceId)
   if (error || !context) {
     return NextResponse.json({ error: error || 'Unauthorized' }, { status: 401 })
   }
@@ -84,6 +94,7 @@ export async function PATCH(
     return NextResponse.json({ error: 'No update data provided' }, { status: 400 })
   }
 
+  const supabase = await createClient()
   const { data: updatedWorkspace, error: updateError } = await supabase
     .from('workspaces')
     .update(updateData)
@@ -98,7 +109,7 @@ export async function PATCH(
   // Audit log
   await createAuditLog({
     userId: context.userId,
-    projectId: workspace.project_id,
+    projectId: existingWorkspace.project_id,
     workspaceId,
     action: AuditActions.WORKSPACE_UPDATE,
     llmPayloadSummary: { updatedFields: Object.keys(updateData) },
@@ -112,20 +123,23 @@ export async function DELETE(
   request: NextRequest,
   { params }: RouteParams
 ) {
-  const { workspaceId } = await params
-  const supabase = await createClient()
+  const { workspaceId: workspaceSlugOrId } = await params
 
-  const { data: workspace, error: wsError } = await supabase
+  const supabase = await createClient()
+  
+  // Resolve workspace by slug or ID
+  const { data: existingWorkspace, error: wsError } = await supabase
     .from('workspaces')
-    .select('project_id')
-    .eq('id', workspaceId)
+    .select('id, project_id')
+    .or(`id.eq.${workspaceSlugOrId},slug.eq.${workspaceSlugOrId}`)
     .single()
 
-  if (wsError || !workspace) {
+  if (wsError || !existingWorkspace) {
     return NextResponse.json({ error: 'Workspace not found' }, { status: 404 })
   }
 
-  const { context, error } = await getAuthContext(workspace.project_id, workspaceId)
+  const workspaceId = existingWorkspace.id
+  const { context, error } = await getAuthContext(existingWorkspace.project_id, workspaceId)
   if (error || !context) {
     return NextResponse.json({ error: error || 'Unauthorized' }, { status: 401 })
   }
@@ -134,6 +148,7 @@ export async function DELETE(
     return NextResponse.json({ error: 'Permission denied' }, { status: 403 })
   }
 
+  const supabase = await createClient()
   const { error: deleteError } = await supabase
     .from('workspaces')
     .delete()

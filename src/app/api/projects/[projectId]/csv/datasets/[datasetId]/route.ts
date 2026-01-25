@@ -6,17 +6,19 @@ type RouteParams = { params: Promise<{ projectId: string; datasetId: string }> }
 
 // GET: Get dataset detail
 export async function GET(request: NextRequest, { params }: RouteParams) {
-  const { projectId, datasetId } = await params
+  const { projectId: projectSlugOrId, datasetId } = await params
 
   const auth = await requireAuth()
   if (auth.error) {
     return NextResponse.json({ error: auth.error }, { status: 401 })
   }
 
-  const membership = await requireProjectMember(projectId)
-  if (membership.error) {
+  const membership = await requireProjectMember(projectSlugOrId)
+  if (membership.error || !membership.projectId) {
     return NextResponse.json({ error: membership.error }, { status: 403 })
   }
+
+  const projectId = membership.projectId
 
   const supabase = await createClient()
 
@@ -59,17 +61,19 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
 // PATCH: Update dataset (name, status)
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
-  const { projectId, datasetId } = await params
+  const { projectId: projectSlugOrId, datasetId } = await params
 
   const auth = await requireAuth()
   if (auth.error) {
     return NextResponse.json({ error: auth.error }, { status: 401 })
   }
 
-  const membership = await requireProjectMember(projectId)
-  if (membership.error) {
+  const membership = await requireProjectMember(projectSlugOrId)
+  if (membership.error || !membership.projectId) {
     return NextResponse.json({ error: membership.error }, { status: 403 })
   }
+
+  const projectId = membership.projectId
 
   if (!canEdit(membership.role)) {
     return NextResponse.json({ error: 'Permission denied' }, { status: 403 })
@@ -111,17 +115,19 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
 // DELETE: Delete dataset and all its files
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
-  const { projectId, datasetId } = await params
+  const { projectId: projectSlugOrId, datasetId } = await params
 
   const auth = await requireAuth()
   if (auth.error) {
     return NextResponse.json({ error: auth.error }, { status: 401 })
   }
 
-  const membership = await requireProjectMember(projectId)
-  if (membership.error) {
+  const membership = await requireProjectMember(projectSlugOrId)
+  if (membership.error || !membership.projectId) {
     return NextResponse.json({ error: membership.error }, { status: 403 })
   }
+
+  const projectId = membership.projectId
 
   if (!canEdit(membership.role)) {
     return NextResponse.json({ error: 'Permission denied' }, { status: 403 })

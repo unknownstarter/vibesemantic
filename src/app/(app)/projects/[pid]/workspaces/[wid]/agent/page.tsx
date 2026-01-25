@@ -61,8 +61,8 @@ function getQuickReplyIcon(params: AnalystQuestion['quickReplies'][0]['nextParam
 
 export default function AgentPage() {
   const params = useParams()
-  const projectId = params.pid as string
-  const workspaceId = params.wid as string
+  const projectSlug = params.pid as string // Can be slug or UUID for backward compatibility
+  const workspaceSlug = params.wid as string // Can be slug or UUID for backward compatibility
 
   const [tab, setTab] = useState<TabType>('report')
   const [range, setRange] = useState<ReportRange>('7d')
@@ -84,17 +84,17 @@ export default function AgentPage() {
 
   // Load workspace info
   useEffect(() => {
-    fetch(`/api/workspaces/${workspaceId}`)
+    fetch(`/api/workspaces/${workspaceSlug}`)
       .then(res => res.json())
       .then(data => setWorkspace(data.workspace))
-  }, [workspaceId])
+  }, [workspaceSlug])
 
   // Load cached report first
   const loadCachedReport = useCallback(async () => {
     try {
-      const res = await fetch(`/api/workspaces/${workspaceId}/report?range=${range}`)
+      const res = await fetch(`/api/workspaces/${workspaceSlug}/report?range=${range}`)
       const data = await res.json()
-      
+
       if (data.report) {
         setReportMarkdown(data.report.report_markdown)
         // metadata에 questions 키로 저장됨
@@ -109,7 +109,7 @@ export default function AgentPage() {
     } catch {
       return false
     }
-  }, [workspaceId, range])
+  }, [workspaceSlug, range])
 
   // Generate new report (only when cache miss or manual refresh)
   const generateReport = useCallback(async (forceRefresh = false) => {
@@ -122,11 +122,11 @@ export default function AgentPage() {
         return
       }
     }
-    
+
     setReportLoading(true)
     try {
       const config = workspace?.agent_config as AgentConfig | undefined
-      const res = await fetch(`/api/workspaces/${workspaceId}/agent`, {
+      const res = await fetch(`/api/workspaces/${workspaceSlug}/agent`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -149,7 +149,7 @@ export default function AgentPage() {
     } finally {
       setReportLoading(false)
     }
-  }, [workspace?.agent_config, workspaceId, range, loadCachedReport])
+  }, [workspace?.agent_config, workspaceSlug, range, loadCachedReport])
 
   // Load report on mount or range change (cache first)
   useEffect(() => {
@@ -176,7 +176,7 @@ export default function AgentPage() {
     // Add user message optimistically
     const userMsg: ChatMessage = {
       id: `temp_${Date.now()}`,
-      workspace_id: workspaceId,
+      workspace_id: workspaceSlug,
       thread_id: threadId,
       role: 'user',
       content: message,
@@ -188,7 +188,7 @@ export default function AgentPage() {
 
     try {
       const config = workspace?.agent_config as AgentConfig | undefined
-      const res = await fetch(`/api/workspaces/${workspaceId}/agent`, {
+      const res = await fetch(`/api/workspaces/${workspaceSlug}/agent`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -207,7 +207,7 @@ export default function AgentPage() {
       // Add assistant message
       const assistantMsg: ChatMessage = {
         id: `temp_${Date.now()}_assistant`,
-        workspace_id: workspaceId,
+        workspace_id: workspaceSlug,
         thread_id: threadId,
         role: 'assistant',
         content: data.analysisMarkdown,
@@ -216,11 +216,22 @@ export default function AgentPage() {
       }
       setMessages(prev => [...prev, assistantMsg])
     } catch (err) {
-      console.error(err)
+      console.error('[Agent Chat] Failed to send message:', err)
+      // 에러 발생 시 사용자에게 피드백 제공
+      const errorMsg: ChatMessage = {
+        id: `error_${Date.now()}`,
+        workspace_id: workspaceSlug,
+        thread_id: threadId,
+        role: 'assistant',
+        content: err instanceof Error ? err.message : '메시지를 전송하는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
+        created_at: new Date().toISOString(),
+        metadata: { error: true },
+      }
+      setMessages(prev => [...prev, errorMsg])
     } finally {
       setChatLoading(false)
     }
-  }, [workspace?.agent_config, workspaceId, threadId, range])
+  }, [workspace?.agent_config, workspaceSlug, threadId, range])
 
   const handleQuickReply = useCallback((question: AnalystQuestion, reply: AnalystQuestion['quickReplies'][0]) => {
     // Update range if specified
@@ -246,7 +257,7 @@ export default function AgentPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
         <div>
           <div className="flex items-center gap-2 text-sm text-muted mb-1">
-            <Link href={`/projects/${projectId}/workspaces`} className="hover:text-foreground transition">
+            <Link href={`/projects/${projectSlug}/workspaces`} className="hover:text-foreground transition">
               워크스페이스
             </Link>
             <span>/</span>

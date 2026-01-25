@@ -31,19 +31,19 @@ const STATUS_LABELS: Record<WorkspaceStatus, { label: string; color: string }> =
 
 export default function WorkspacesPage() {
   const params = useParams()
-  const projectId = params.pid as string
+  const projectSlug = params.pid as string // Can be slug or UUID for backward compatibility
   const [workspaces, setWorkspaces] = useState<Workspace[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch(`/api/projects/${projectId}/workspaces`)
+    fetch(`/api/projects/${projectSlug}/workspaces`)
       .then(res => res.json())
       .then(data => {
         setWorkspaces(data.workspaces || [])
         setLoading(false)
       })
       .catch(() => setLoading(false))
-  }, [projectId])
+  }, [projectSlug])
 
   if (loading) {
     return (
@@ -60,14 +60,14 @@ export default function WorkspacesPage() {
           <div className="flex items-center gap-2 text-sm text-muted mb-2">
             <Link href="/dashboard" className="hover:text-foreground transition">프로젝트</Link>
             <span>/</span>
-            <Link href={`/projects/${projectId}`} className="hover:text-foreground transition">Overview</Link>
+            <Link href={`/projects/${projectSlug}`} className="hover:text-foreground transition">Overview</Link>
             <span>/</span>
             <span className="text-foreground">워크스페이스</span>
           </div>
           <h1 className="text-2xl font-bold text-foreground">워크스페이스</h1>
           <p className="text-muted mt-1">목적별 분석 워크스페이스를 관리하세요</p>
         </div>
-        <Link href={`/projects/${projectId}/workspaces/new`}>
+        <Link href={`/projects/${projectSlug}/workspaces/new`}>
           <Button>+ 새 워크스페이스</Button>
         </Link>
       </div>
@@ -81,7 +81,7 @@ export default function WorkspacesPage() {
           </div>
           <h3 className="text-lg font-medium text-foreground mb-2">워크스페이스가 없습니다</h3>
           <p className="text-muted mb-6">첫 번째 워크스페이스를 만들어 분석을 시작하세요</p>
-          <Link href={`/projects/${projectId}/workspaces/new`}>
+          <Link href={`/projects/${projectSlug}/workspaces/new`}>
             <Button>워크스페이스 만들기</Button>
           </Link>
         </div>
@@ -91,8 +91,8 @@ export default function WorkspacesPage() {
             const purpose = PURPOSE_LABELS[workspace.purpose]
             const status = STATUS_LABELS[workspace.status]
             const href = workspace.status === 'ready'
-              ? `/projects/${projectId}/workspaces/${workspace.id}/agent`
-              : `/projects/${projectId}/workspaces/${workspace.id}`
+              ? `/projects/${projectSlug}/workspaces/${workspace.id}/agent`
+              : `/projects/${projectSlug}/workspaces/${workspace.id}`
 
             return (
               <Link key={workspace.id} href={href}>

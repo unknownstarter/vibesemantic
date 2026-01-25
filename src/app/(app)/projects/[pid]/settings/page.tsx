@@ -19,7 +19,7 @@ function Spinner({ className = '' }: { className?: string }) {
 export default function ProjectSettingsPage() {
   const params = useParams()
   const router = useRouter()
-  const projectId = params.pid as string
+  const projectSlug = params.pid as string // Can be slug or UUID for backward compatibility
 
   const [project, setProject] = useState<Project | null>(null)
   const [role, setRole] = useState<MemberRole | null>(null)
@@ -29,8 +29,11 @@ export default function ProjectSettingsPage() {
   const [deleting, setDeleting] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
+  // Use the actual slug from project data for navigation
+  const slug = project?.slug || projectSlug
+
   useEffect(() => {
-    fetch(`/api/projects/${projectId}`)
+    fetch(`/api/projects/${projectSlug}`)
       .then(res => res.json())
       .then(data => {
         setProject(data.project)
@@ -39,14 +42,14 @@ export default function ProjectSettingsPage() {
         setLoading(false)
       })
       .catch(() => setLoading(false))
-  }, [projectId])
+  }, [projectSlug])
 
   const handleSave = async () => {
     if (!name.trim()) return
     setSaving(true)
 
     try {
-      const res = await fetch(`/api/projects/${projectId}`, {
+      const res = await fetch(`/api/projects/${projectSlug}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: name.trim() }),
@@ -54,7 +57,7 @@ export default function ProjectSettingsPage() {
 
       if (!res.ok) throw new Error('Failed to save')
 
-      router.push(`/projects/${projectId}`)
+      router.push(`/projects/${slug}`)
     } catch (err) {
       console.error(err)
       setSaving(false)
@@ -65,7 +68,7 @@ export default function ProjectSettingsPage() {
     setDeleting(true)
 
     try {
-      const res = await fetch(`/api/projects/${projectId}`, {
+      const res = await fetch(`/api/projects/${projectSlug}`, {
         method: 'DELETE',
       })
 
@@ -97,7 +100,7 @@ export default function ProjectSettingsPage() {
     <div className="max-w-2xl mx-auto px-4 sm:px-0">
       <div className="mb-8">
         <div className="flex items-center gap-2 text-sm text-muted mb-2">
-          <Link href={`/projects/${projectId}`} className="hover:text-foreground transition">
+          <Link href={`/projects/${slug}`} className="hover:text-foreground transition">
             {project.name}
           </Link>
           <span>/</span>
@@ -145,21 +148,21 @@ export default function ProjectSettingsPage() {
         <h2 className="text-lg font-semibold text-foreground mb-4">설정 바로가기</h2>
         <div className="space-y-2">
           <Link
-            href={`/projects/${projectId}/setup/profile`}
+            href={`/projects/${slug}/setup/profile`}
             className="block p-4 rounded-xl bg-surface-inset border border-border/10 hover:border-border/30 transition"
           >
             <div className="font-medium text-foreground">서비스 프로필</div>
             <div className="text-sm text-muted">서비스 정보 및 분석 설정</div>
           </Link>
           <Link
-            href={`/projects/${projectId}/setup/ga4/connect`}
+            href={`/projects/${slug}/setup/ga4/connect`}
             className="block p-4 rounded-xl bg-surface-inset border border-border/10 hover:border-border/30 transition"
           >
             <div className="font-medium text-foreground">GA4 연동</div>
             <div className="text-sm text-muted">Google Analytics 연결 관리</div>
           </Link>
           <Link
-            href={`/projects/${projectId}/setup/refresh`}
+            href={`/projects/${slug}/setup/refresh`}
             className="block p-4 rounded-xl bg-surface-inset border border-border/10 hover:border-border/30 transition"
           >
             <div className="font-medium text-foreground">데이터 동기화</div>

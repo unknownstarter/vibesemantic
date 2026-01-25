@@ -13,10 +13,10 @@ interface DataSourceStatusProps {
     connected: boolean
     datasetCount?: number
   }
-  projectId: string
+  projectSlug: string
 }
 
-export function DataSourceStatus({ ga4, csv, projectId }: DataSourceStatusProps) {
+export function DataSourceStatus({ ga4, csv, projectSlug }: DataSourceStatusProps) {
   const hasAnyConnection = ga4?.connected || csv?.connected
 
   return (
@@ -26,9 +26,9 @@ export function DataSourceStatus({ ga4, csv, projectId }: DataSourceStatusProps)
         title="Google Analytics 4"
         description="웹사이트 방문자 데이터 분석"
         ga4={ga4}
-        href={ga4?.connected 
-          ? `/projects/${projectId}/setup/ga4/property`
-          : `/projects/${projectId}/setup/ga4/connect`}
+        href={ga4?.connected
+          ? `/projects/${projectSlug}/setup/ga4/property`
+          : `/projects/${projectSlug}/setup/ga4/connect`}
         actionLabel={ga4?.connected ? '관리' : '연결하기'}
       />
 
@@ -37,7 +37,7 @@ export function DataSourceStatus({ ga4, csv, projectId }: DataSourceStatusProps)
         title="CSV 데이터"
         description="커스텀 데이터 업로드 및 분석"
         csv={csv}
-        href={`/projects/${projectId}/setup/sources`}
+        href={`/projects/${projectSlug}/setup/sources`}
         actionLabel={csv?.connected ? '관리' : '업로드하기'}
       />
     </div>

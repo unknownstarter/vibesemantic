@@ -378,7 +378,31 @@ def load_context_and_mart_summary(state: AnalysisState) -> Dict[str, Any]:
         "metricDefinitions": metric_definitions
     }
     
-    return {"martSummary": mart_summary, "dataAccessed": data_accessed}
+    # 채팅 모드일 때 이전 대화 메시지 로드
+    conversation_history = []
+    if state["mode"] == "chat" and state.get("threadId"):
+        try:
+            # 최근 10개 메시지 로드 (최신순, 현재 메시지 제외)
+            messages_result = supabase.table("chat_messages") \
+                .select("role, content, created_at") \
+                .eq("workspace_id", state["workspaceId"]) \
+                .eq("thread_id", state["threadId"]) \
+                .order("created_at", desc=False) \
+                .limit(10) \
+                .execute()
+            
+            conversation_history = messages_result.data or []
+            data_accessed.append("chat_messages")
+        except Exception as e:
+            # 대화 히스토리 로드 실패는 치명적이지 않음 (로그만)
+            print(f"[Warning] Failed to load conversation history: {e}")
+            conversation_history = []
+    
+    return {
+        "martSummary": mart_summary,
+        "conversationHistory": conversation_history,
+        "dataAccessed": data_accessed
+    }
 
 # Parse Analyst Questions
 def parse_analyst_questions(markdown: str) -> List[AnalystQuestion]:

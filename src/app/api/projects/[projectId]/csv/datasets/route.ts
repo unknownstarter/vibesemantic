@@ -7,18 +7,19 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ projectId: string }> }
 ) {
-  const { projectId } = await params
+  const { projectId: projectSlugOrId } = await params
 
   const auth = await requireAuth()
   if (auth.error) {
     return NextResponse.json({ error: auth.error }, { status: 401 })
   }
 
-  const membership = await requireProjectMember(projectId)
-  if (membership.error) {
+  const membership = await requireProjectMember(projectSlugOrId)
+  if (membership.error || !membership.projectId) {
     return NextResponse.json({ error: membership.error }, { status: 403 })
   }
 
+  const projectId = membership.projectId
   const supabase = await createClient()
 
   const { data: datasets, error } = await supabase
@@ -43,17 +44,19 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ projectId: string }> }
 ) {
-  const { projectId } = await params
+  const { projectId: projectSlugOrId } = await params
 
   const auth = await requireAuth()
   if (auth.error) {
     return NextResponse.json({ error: auth.error }, { status: 401 })
   }
 
-  const membership = await requireProjectMember(projectId)
-  if (membership.error) {
+  const membership = await requireProjectMember(projectSlugOrId)
+  if (membership.error || !membership.projectId) {
     return NextResponse.json({ error: membership.error }, { status: 403 })
   }
+
+  const projectId = membership.projectId
 
   const body = await request.json()
   const { name } = body

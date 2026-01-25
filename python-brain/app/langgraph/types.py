@@ -63,6 +63,7 @@ class AnalysisState(TypedDict, total=False):
     userMessage: Optional[str]
     threadId: str
     martSummary: Optional[MartSummary]
+    conversationHistory: Optional[list[dict]]  # 추가: 채팅 히스토리
     analysisMarkdown: Optional[str]
     analystQuestions: Optional[list[AnalystQuestion]]
     dataAccessed: list[str]

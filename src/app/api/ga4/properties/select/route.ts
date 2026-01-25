@@ -20,7 +20,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Permission denied' }, { status: 403 })
   }
 
+  if (!context.projectId) {
+    return NextResponse.json({ error: 'Project ID required' }, { status: 400 })
+  }
+
   const supabase = await createClient()
+  const projectId = context.projectId
 
   // 모든 property를 is_selected=false로
   await supabase

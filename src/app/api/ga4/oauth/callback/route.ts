@@ -10,18 +10,30 @@ export async function GET(request: NextRequest) {
   const state = request.nextUrl.searchParams.get('state') // projectId
   const error = request.nextUrl.searchParams.get('error')
 
+  // Get project slug for error redirects (before we have projectId)
+  let projectSlugForError = state
+  if (state) {
+    const { data: projectForError } = await supabase
+      .from('projects')
+      .select('slug')
+      .eq('id', state)
+      .single()
+    projectSlugForError = projectForError?.slug || state
+  }
+
   if (error) {
     return NextResponse.redirect(
-      new URL(`/projects/${state}/setup/ga4/connect?error=${error}`, request.url)
+      new URL(`/projects/${projectSlugForError}/setup/ga4/connect?error=${error}`, request.url)
     )
   }
 
   if (!code || !state) {
     return NextResponse.redirect(
-      new URL(`/projects/${state}/setup/ga4/connect?error=missing_params`, request.url)
+      new URL(`/projects/${projectSlugForError}/setup/ga4/connect?error=missing_params`, request.url)
     )
   }
 
+  // state contains actual project ID (UUID) from OAuth start
   const projectId = state
   const supabase = await createClient()
 
@@ -30,6 +42,15 @@ export async function GET(request: NextRequest) {
   if (!user) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
+
+  // Get project slug for redirect URLs
+  const { data: project } = await supabase
+    .from('projects')
+    .select('slug')
+    .eq('id', projectId)
+    .single()
+  
+  const projectSlug = project?.slug || projectId // Fallback to ID if slug not found
 
   try {
     // 토큰 교환
@@ -87,14 +108,14 @@ export async function GET(request: NextRequest) {
       dataAccessed: ['ga4_connections', 'ga4_properties'],
     })
 
-    // Property 선택 페이지로 리다이렉트
+    // Property 선택 페이지로 리다이렉트 (slug 사용)
     return NextResponse.redirect(
-      new URL(`/projects/${projectId}/setup/ga4/property`, request.url)
+      new URL(`/projects/${projectSlug}/setup/ga4/property`, request.url)
     )
   } catch (err) {
     console.error('GA4 OAuth callback error:', err)
     return NextResponse.redirect(
-      new URL(`/projects/${projectId}/setup/ga4/connect?error=token_exchange_failed`, request.url)
+      new URL(`/projects/${projectSlug}/setup/ga4/connect?error=token_exchange_failed`, request.url)
     )
   }
 }

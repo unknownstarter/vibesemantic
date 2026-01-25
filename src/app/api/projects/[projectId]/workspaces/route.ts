@@ -18,7 +18,13 @@ export async function GET(
     return NextResponse.json({ error: error || 'Unauthorized' }, { status: 401 })
   }
 
+  if (!context.projectId) {
+    return NextResponse.json({ error: 'Project ID required' }, { status: 400 })
+  }
+
   const supabase = await createClient()
+  const projectId = context.projectId
+  
   const { data: workspaces, error: fetchError } = await supabase
     .from('workspaces')
     .select('*')
@@ -47,6 +53,12 @@ export async function POST(
   if (!canEdit(context.role)) {
     return NextResponse.json({ error: 'Permission denied' }, { status: 403 })
   }
+
+  if (!context.projectId) {
+    return NextResponse.json({ error: 'Project ID required' }, { status: 400 })
+  }
+
+  const projectId = context.projectId
 
   // Project가 ready 상태이거나 CSV 데이터가 있으면 허용
   const setupStatus = context.project?.setup_status

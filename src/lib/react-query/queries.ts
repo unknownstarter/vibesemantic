@@ -10,6 +10,7 @@ export interface ProjectData {
   project: {
     id: string
     name: string
+    slug: string
     setup_status: string
     profile?: Json | null
   }

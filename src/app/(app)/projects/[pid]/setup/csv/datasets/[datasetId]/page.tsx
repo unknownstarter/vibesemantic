@@ -34,7 +34,7 @@ interface DatasetDetail extends CsvDataset {
 export default function DatasetDetailPage() {
   const params = useParams()
   const router = useRouter()
-  const projectId = params.pid as string
+  const projectSlug = params.pid as string // Can be slug or UUID for backward compatibility
   const datasetId = params.datasetId as string
 
   const [dataset, setDataset] = useState<DatasetDetail | null>(null)
@@ -57,7 +57,7 @@ export default function DatasetDetailPage() {
   // Fetch dataset
   const fetchDataset = useCallback(async () => {
     try {
-      const res = await fetch(`/api/projects/${projectId}/csv/datasets/${datasetId}`)
+      const res = await fetch(`/api/projects/${projectSlug}/csv/datasets/${datasetId}`)
       const data = await res.json()
       setDataset(data.dataset)
       
@@ -77,7 +77,7 @@ export default function DatasetDetailPage() {
     } finally {
       setLoading(false)
     }
-  }, [projectId, datasetId])
+  }, [projectSlug, datasetId])
 
   useEffect(() => {
     fetchDataset()
@@ -96,7 +96,7 @@ export default function DatasetDetailPage() {
     })
 
     try {
-      const res = await fetch(`/api/projects/${projectId}/csv/datasets/${datasetId}/upload`, {
+      const res = await fetch(`/api/projects/${projectSlug}/csv/datasets/${datasetId}/upload`, {
         method: 'POST',
         body: formData,
       })
@@ -120,7 +120,7 @@ export default function DatasetDetailPage() {
     setError(null)
 
     try {
-      const res = await fetch(`/api/projects/${projectId}/csv/datasets/${datasetId}/probe`, {
+      const res = await fetch(`/api/projects/${projectSlug}/csv/datasets/${datasetId}/probe`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ language: 'ko' }),
@@ -190,7 +190,7 @@ export default function DatasetDetailPage() {
     if (!dataset?.source_mappings?.id) return
     
     try {
-      const res = await fetch(`/api/projects/${projectId}/csv/datasets/${datasetId}/confirm`, {
+      const res = await fetch(`/api/projects/${projectSlug}/csv/datasets/${datasetId}/confirm`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -215,7 +215,7 @@ export default function DatasetDetailPage() {
     setError(null)
 
     try {
-      const res = await fetch(`/api/projects/${projectId}/csv/datasets/${datasetId}/confirm`, {
+      const res = await fetch(`/api/projects/${projectSlug}/csv/datasets/${datasetId}/confirm`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -245,7 +245,7 @@ export default function DatasetDetailPage() {
     setError(null)
 
     try {
-      const res = await fetch(`/api/projects/${projectId}/csv/datasets/${datasetId}/ingest`, {
+      const res = await fetch(`/api/projects/${projectSlug}/csv/datasets/${datasetId}/ingest`, {
         method: 'POST',
       })
 
@@ -267,10 +267,10 @@ export default function DatasetDetailPage() {
     if (!confirm('이 데이터셋을 삭제하시겠습니까? 모든 파일과 데이터가 영구 삭제됩니다.')) return
 
     try {
-      await fetch(`/api/projects/${projectId}/csv/datasets/${datasetId}`, {
+      await fetch(`/api/projects/${projectSlug}/csv/datasets/${datasetId}`, {
         method: 'DELETE',
       })
-      router.push(`/projects/${projectId}/setup/sources`)
+      router.push(`/projects/${projectSlug}/setup/sources`)
     } catch {
       setError('삭제 실패')
     }
@@ -337,7 +337,7 @@ export default function DatasetDetailPage() {
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-2 text-sm text-muted mb-2">
-          <Link href={`/projects/${projectId}/setup/sources`} className="hover:text-foreground transition">
+          <Link href={`/projects/${projectSlug}/setup/sources`} className="hover:text-foreground transition">
             데이터 소스
           </Link>
           <span>/</span>
@@ -671,7 +671,7 @@ export default function DatasetDetailPage() {
                   {ingesting ? <Spinner size="sm" className="mr-2" /> : null}
                   데이터 새로고침
                 </Button>
-                <Link href={`/projects/${projectId}`}>
+                <Link href={`/projects/${projectSlug}`}>
                   <Button>프로젝트로 이동</Button>
                 </Link>
               </div>

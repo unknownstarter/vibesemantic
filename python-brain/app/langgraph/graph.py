@@ -6,7 +6,7 @@ TypeScript에서 Python으로 포팅
 from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph, END, START
 from langgraph.graph.message import add_messages
-from langchain_core.messages import SystemMessage, HumanMessage, BaseMessage
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, BaseMessage
 from typing import Dict, Any, Optional, AsyncIterator, Annotated
 from app.langgraph.types import AnalysisState
 from app.langgraph.nodes import (
@@ -37,6 +37,7 @@ class GraphState(TypedDict):
     userMessage: Optional[str]
     threadId: str
     martSummary: Optional[dict]
+    conversationHistory: Optional[list]  # 추가
     analysisMarkdown: Optional[str]
     analystQuestions: Optional[list]
     dataAccessed: Annotated[list, add_messages]
@@ -82,6 +83,7 @@ def generate_analysis(state: Dict[str, Any]) -> Dict[str, Any]:
         return {"error": "No mart summary available"}
     
     mart_summary = state["martSummary"]
+    conversation_history = state.get("conversationHistory", [])
     
     system_prompt = build_system_prompt(
         language=state["language"],
@@ -103,10 +105,19 @@ def generate_analysis(state: Dict[str, Any]) -> Dict[str, Any]:
         temperature=0.3
     )
     
-    messages = [
-        SystemMessage(content=system_prompt),
-        HumanMessage(content=user_prompt)
-    ]
+    # 메시지 구성
+    messages = [SystemMessage(content=system_prompt)]
+    
+    # 채팅 모드일 때 이전 대화 히스토리 추가
+    if state["mode"] == "chat" and conversation_history:
+        for msg in conversation_history:
+            if msg.get("role") == "user":
+                messages.append(HumanMessage(content=msg.get("content", "")))
+            elif msg.get("role") == "assistant":
+                messages.append(AIMessage(content=msg.get("content", "")))
+    
+    # 현재 사용자 메시지 추가
+    messages.append(HumanMessage(content=user_prompt))
     
     response = model.invoke(messages)
     

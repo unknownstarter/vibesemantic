@@ -50,7 +50,7 @@ const PURPOSES: Array<{
 export default function NewWorkspacePage() {
   const params = useParams()
   const router = useRouter()
-  const projectId = params.pid as string
+  const projectSlug = params.pid as string // Can be slug or UUID for backward compatibility
 
   const [name, setName] = useState('')
   const [purpose, setPurpose] = useState<WorkspacePurpose>('product')
@@ -65,7 +65,7 @@ export default function NewWorkspacePage() {
     setError('')
 
     try {
-      const res = await fetch(`/api/projects/${projectId}/workspaces`, {
+      const res = await fetch(`/api/projects/${projectSlug}/workspaces`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: name.trim(), purpose }),
@@ -77,7 +77,8 @@ export default function NewWorkspacePage() {
         throw new Error(data.error || 'Failed to create workspace')
       }
 
-      router.push(`/projects/${projectId}/workspaces/${data.workspace.id}`)
+      // Use the returned workspace slug for navigation
+      router.push(`/projects/${projectSlug}/workspaces/${data.workspace.slug}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
       setLoading(false)
