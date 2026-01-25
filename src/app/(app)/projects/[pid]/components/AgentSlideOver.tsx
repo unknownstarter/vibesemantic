@@ -121,7 +121,7 @@ export function AgentSlideOver({
             {(['7d', '30d'] as ReportRange[]).map((r) => (
               <button
                 key={r}
-                onClick={() => { setRange(r); setReportMarkdown(null) }}
+                onClick={() => setRange(r)}
                 className={`px-3 py-1 text-xs rounded-md transition-colors ${
                   range === r 
                     ? 'bg-primary text-background font-medium' 
@@ -226,8 +226,10 @@ export function AgentSlideOver({
                               <div className="flex flex-wrap gap-2">
                                 {q.quickReplies && Array.isArray(q.quickReplies) && q.quickReplies.length > 0 ? (
                                   q.quickReplies.map((reply, idx) => {
-                                    const label = reply?.label || (typeof reply === 'string' ? reply : `옵션 ${idx + 1}`)
-                                    const nextParams = reply?.nextParams || (typeof reply === 'object' && !reply.label ? reply : {})
+                                    // 타입 안전성: reply가 QuickReply 타입인지 확인
+                                    const replyObj = reply && typeof reply === 'object' && 'label' in reply ? reply : null
+                                    const label = replyObj?.label || `옵션 ${idx + 1}`
+                                    const nextParams = replyObj?.nextParams || {}
                                     
                                     return (
                                       <QuickReplyChip
@@ -317,7 +319,12 @@ export function AgentSlideOver({
                       </div>
                     )}
                     {messages.map((msg) => (
-                      <MessageBubble key={msg.id} message={msg} />
+                      <MessageBubble 
+                        key={msg.id} 
+                        role={msg.role} 
+                        content={msg.content} 
+                        timestamp={msg.created_at || undefined}
+                      />
                     ))}
                     {chatLoading && <TypingIndicator />}
                     <div ref={chatEndRef} />

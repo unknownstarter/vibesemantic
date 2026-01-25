@@ -17,8 +17,8 @@ COPY app/ ./app/
 # 환경 변수
 ENV PYTHONUNBUFFERED=1
 
-# 포트 (Railway는 $PORT 환경 변수 사용)
+# 포트 (Render는 $PORT 환경 변수 사용)
 EXPOSE 8080
 
-# 실행 (Railway의 $PORT 환경 변수 사용)
+# 실행 (Render의 $PORT 환경 변수 사용)
 CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080}

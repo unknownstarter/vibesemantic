@@ -156,7 +156,7 @@ export function useAgentChatReactQuery({ workspaceId, range: externalRange = '7d
         role: 'assistant',
         content: result.analysisMarkdown,
         created_at: new Date().toISOString(),
-        metadata: { questions: result.analystQuestions },
+        metadata: { questions: result.analystQuestions } as Json,
       }
       setMessages((prev) => [...prev, assistantMsg])
     } catch (err) {
