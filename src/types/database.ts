@@ -692,6 +692,42 @@ export type Database = {
           },
         ]
       }
+      user_profiles: {
+        Row: {
+          id: string
+          user_id: string
+          access_level: "pending" | "approved" | "rejected"
+          requested_at: string | null
+          approved_at: string | null
+          approved_by: string | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          access_level?: "pending" | "approved" | "rejected"
+          requested_at?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          access_level?: "pending" | "approved" | "rejected"
+          requested_at?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       projects: {
         Row: {
           created_at: string | null

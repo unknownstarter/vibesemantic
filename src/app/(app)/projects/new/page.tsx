@@ -1,8 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/shared/ui/Button'
+import { AccessRequestDialog } from '@/shared/ui/AccessRequestDialog'
+import { createClient } from '@/lib/supabase/client'
 
 // 스피너
 function Spinner({ className = '' }: { className?: string }) {
@@ -19,10 +21,55 @@ export default function NewProjectPage() {
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [accessLevel, setAccessLevel] = useState<string | null>(null)
+  const [showAccessDialog, setShowAccessDialog] = useState(false)
+  const [checkingAccess, setCheckingAccess] = useState(true)
+
+  // Check user access level
+  useEffect(() => {
+    const checkAccess = async () => {
+      try {
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        
+        if (user) {
+          setUserEmail(user.email || null)
+          
+          // Check access level
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('access_level')
+            .eq('user_id', user.id)
+            .single()
+          
+          const level = (profile as { access_level?: string } | null)?.access_level || 'pending'
+          setAccessLevel(level)
+          
+          // If not approved, show dialog
+          if (level !== 'approved') {
+            setShowAccessDialog(true)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to check access:', error)
+      } finally {
+        setCheckingAccess(false)
+      }
+    }
+    
+    checkAccess()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) return
+
+    // Check access before submitting
+    if (accessLevel !== 'approved') {
+      setShowAccessDialog(true)
+      return
+    }
 
     setLoading(true)
     setError('')
@@ -52,6 +99,12 @@ export default function NewProjectPage() {
       }
 
       if (!res.ok) {
+        // Access required error
+        if (data.error === 'ACCESS_REQUIRED') {
+          setShowAccessDialog(true)
+          setLoading(false)
+          return
+        }
         throw new Error(data.error || `Failed to create project: ${res.status} ${res.statusText}`)
       }
 
@@ -128,6 +181,17 @@ export default function NewProjectPage() {
           </div>
         </form>
       </div>
+
+      <AccessRequestDialog
+        isOpen={showAccessDialog}
+        onClose={() => {
+          setShowAccessDialog(false)
+          if (accessLevel !== 'approved') {
+            router.back()
+          }
+        }}
+        userEmail={userEmail || undefined}
+      />
     </div>
   )
 }

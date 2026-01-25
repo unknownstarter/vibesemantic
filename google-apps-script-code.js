@@ -6,6 +6,38 @@ function doPost(e) {
     // 요청 데이터 파싱
     const data = JSON.parse(e.postData.contents);
     
+    // Access Request인지 확인
+    const isAccessRequest = data.type === 'access_request';
+    
+    if (isAccessRequest) {
+      // 권한 요청 데이터 처리
+      const accessSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Access Requests') || 
+                          SpreadsheetApp.getActiveSpreadsheet().insertSheet('Access Requests');
+      
+      // 헤더가 없으면 추가
+      if (accessSheet.getLastRow() === 0) {
+        accessSheet.appendRow([
+          '요청 시간',
+          '사용자 이메일',
+          '사용자 ID',
+          '메시지'
+        ]);
+      }
+      
+      // 데이터 추가
+      accessSheet.appendRow([
+        data.requestedAt || new Date().toISOString(),
+        data.userEmail || '',
+        data.userId || '',
+        data.message || ''
+      ]);
+      
+      // 성공 응답
+      return ContentService.createTextOutput(
+        JSON.stringify({ success: true, message: '권한 요청이 저장되었습니다.' })
+      ).setMimeType(ContentService.MimeType.JSON);
+    }
+    
     // Early Access 폼인지 Pricing 폼인지 확인
     const isPricingForm = data.planType !== undefined;
     

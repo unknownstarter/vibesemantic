@@ -63,6 +63,26 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
+  // Check access level for protected routes (dashboard, projects)
+  if (pathname.startsWith('/dashboard') || pathname === '/projects/new') {
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('access_level')
+      .eq('user_id', user.id)
+      .single()
+
+    const accessLevel = (profile as { access_level?: string } | null)?.access_level || 'pending'
+    if (accessLevel !== 'approved') {
+      // Block project creation, redirect to dashboard
+      if (pathname === '/projects/new') {
+        const url = request.nextUrl.clone()
+        url.pathname = '/dashboard'
+        url.searchParams.set('access_required', 'true')
+        return NextResponse.redirect(url)
+      }
+    }
+  }
+
   // /projects/[pid]/* 경로에서 RBAC + 상태 가드 체크
   const projectMatch = pathname.match(/^\/projects\/([^/]+)/)
   if (projectMatch) {

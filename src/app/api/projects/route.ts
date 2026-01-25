@@ -56,6 +56,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Check user access level
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('access_level')
+      .eq('user_id', user.id)
+      .single()
+
+    const accessLevel = (profile as { access_level?: string } | null)?.access_level || 'pending'
+    if (accessLevel !== 'approved') {
+      return NextResponse.json(
+        { error: 'ACCESS_REQUIRED', message: '프로젝트 생성 권한이 필요합니다. 관리자에게 권한을 요청해주세요.' },
+        { status: 403 }
+      )
+    }
+
     let body
     try {
       body = await request.json()

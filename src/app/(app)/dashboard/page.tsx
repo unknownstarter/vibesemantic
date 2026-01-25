@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/shared/ui/Button'
+import { AccessRequestDialog } from '@/shared/ui/AccessRequestDialog'
+import { createClient } from '@/lib/supabase/client'
 import type { ProjectWithRole, ProjectSetupStatus } from '@/types/database'
 
 const STATUS_LABELS: Record<ProjectSetupStatus, { label: string; color: string }> = {
@@ -25,6 +27,45 @@ function Spinner() {
 export default function DashboardPage() {
   const [projects, setProjects] = useState<ProjectWithRole[]>([])
   const [loading, setLoading] = useState(true)
+  const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [accessLevel, setAccessLevel] = useState<string | null>(null)
+  const [showAccessDialog, setShowAccessDialog] = useState(false)
+  const [checkingAccess, setCheckingAccess] = useState(true)
+
+  // Check user access level
+  useEffect(() => {
+    const checkAccess = async () => {
+      try {
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        
+        if (user) {
+          setUserEmail(user.email || null)
+          
+          // Check access level
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('access_level')
+            .eq('user_id', user.id)
+            .single()
+          
+          const level = (profile as { access_level?: string } | null)?.access_level || 'pending'
+          setAccessLevel(level)
+          
+          // If not approved, show dialog when trying to create project
+          if (level !== 'approved') {
+            // Don't auto-show, wait for user action
+          }
+        }
+      } catch (error) {
+        console.error('Failed to check access:', error)
+      } finally {
+        setCheckingAccess(false)
+      }
+    }
+    
+    checkAccess()
+  }, [])
 
   useEffect(() => {
     fetch('/api/projects')
@@ -34,6 +75,16 @@ export default function DashboardPage() {
         setLoading(false)
       })
       .catch(() => setLoading(false))
+  }, [])
+
+  // Show access dialog if redirected from projects/new
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    if (urlParams.get('access_required') === 'true') {
+      setShowAccessDialog(true)
+      // Clean URL
+      window.history.replaceState({}, '', '/dashboard')
+    }
   }, [])
 
   if (loading) {
@@ -51,9 +102,17 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold text-foreground">프로젝트</h1>
           <p className="text-muted mt-1">데이터 분석을 위한 프로젝트를 관리하세요</p>
         </div>
-        <Link href="/projects/new">
-          <Button>+ 새 프로젝트</Button>
-        </Link>
+        <Button
+          onClick={() => {
+            if (accessLevel === 'approved') {
+              window.location.href = '/projects/new'
+            } else {
+              setShowAccessDialog(true)
+            }
+          }}
+        >
+          + 새 프로젝트
+        </Button>
       </div>
 
       {projects.length === 0 ? (
@@ -65,16 +124,34 @@ export default function DashboardPage() {
           </div>
           <h3 className="text-lg font-medium text-foreground mb-2">프로젝트가 없습니다</h3>
           <p className="text-muted mb-6">첫 번째 프로젝트를 만들어 데이터 분석을 시작하세요</p>
-          <Link href="/projects/new">
-            <Button>프로젝트 만들기</Button>
-          </Link>
+          <Button
+            onClick={() => {
+              if (accessLevel === 'approved') {
+                window.location.href = '/projects/new'
+              } else {
+                setShowAccessDialog(true)
+              }
+            }}
+          >
+            프로젝트 만들기
+          </Button>
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {projects.map((project) => {
             const status = STATUS_LABELS[project.setup_status || 'draft']
             return (
-              <Link key={project.id} href={`/projects/${project.id}`}>
+              <div
+                key={project.id}
+                onClick={() => {
+                  if (accessLevel === 'approved') {
+                    window.location.href = `/projects/${project.id}`
+                  } else {
+                    setShowAccessDialog(true)
+                  }
+                }}
+                className="cursor-pointer"
+              >
                 <div className="p-6 h-full bg-surface rounded-2xl border border-border/10 hover:border-border/30 hover:bg-surface-strong transition-all duration-300">
                   <div className="flex justify-between items-start mb-3">
                     <h3 className="font-semibold text-foreground">{project.name}</h3>
@@ -90,11 +167,17 @@ export default function DashboardPage() {
                     <span>{new Date(project.created_at!).toLocaleDateString()}</span>
                   </div>
                 </div>
-              </Link>
+              </div>
             )
           })}
         </div>
       )}
+
+      <AccessRequestDialog
+        isOpen={showAccessDialog}
+        onClose={() => setShowAccessDialog(false)}
+        userEmail={userEmail || undefined}
+      />
     </div>
   )
 }
