@@ -30,7 +30,7 @@ export async function appendToSheet(data: LeadFormData | PricingFormData | Recor
         contentType,
         responseText: text.substring(0, 500), // 처음 500자만
         url: webAppUrl,
-        dataType: data.type,
+        dataType: 'type' in data ? data.type : 'unknown',
       })
       throw new Error(`Invalid response format. Expected JSON but got ${contentType}. Status: ${response.status}`)
     }
@@ -42,7 +42,7 @@ export async function appendToSheet(data: LeadFormData | PricingFormData | Recor
         statusText: response.statusText,
         errorText,
         url: webAppUrl,
-        dataType: data.type,
+        dataType: 'type' in data ? data.type : 'unknown',
       })
       throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
     }
@@ -52,14 +52,14 @@ export async function appendToSheet(data: LeadFormData | PricingFormData | Recor
     if (!result.success) {
       console.error('[Google Sheets] API returned error:', {
         result,
-        dataType: data.type,
+        dataType: 'type' in data ? data.type : 'unknown',
         url: webAppUrl,
       })
       throw new Error(result.error || "데이터 저장에 실패했습니다.");
     }
 
     console.log('[Google Sheets] Successfully appended:', {
-      dataType: data.type,
+      dataType: 'type' in data ? data.type : 'unknown',
       result: result.message,
     })
 
@@ -69,7 +69,7 @@ export async function appendToSheet(data: LeadFormData | PricingFormData | Recor
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
       webAppUrl,
-      dataType: data.type,
+      dataType: 'type' in data ? data.type : 'unknown',
     });
     throw error;
   }
