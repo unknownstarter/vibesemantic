@@ -182,26 +182,26 @@ def load_context_and_mart_summary(state: AnalysisState) -> Dict[str, Any]:
                     channel_map[channel_group]["users"] += float(m.get("metric_value", 0) or 0)
         else:
             for c in channels:
-            channel_group = c.get("channel_group")
-            if not channel_group:
-                continue
-            
-            if channel_group not in channel_map:
-                channel_map[channel_group] = {"sessions": 0, "users": 0}
-            
+                channel_group = c.get("channel_group")
+                if not channel_group:
+                    continue
+                
+                if channel_group not in channel_map:
+                    channel_map[channel_group] = {"sessions": 0, "users": 0}
+                
                 channel_map[channel_group]["sessions"] += c.get("sessions", 0) or 0
                 channel_map[channel_group]["users"] += c.get("active_users", 0) or 0
         
         top_channels = sorted(
-        [
-            {
-                "name": name,
-                "sessions": data["sessions"],
-                "users": data["users"],
-                "percentage": (data["sessions"] / total_sessions * 100) if total_sessions > 0 else 0
-            }
-            for name, data in channel_map.items()
-        ],
+            [
+                {
+                    "name": name,
+                    "sessions": data["sessions"],
+                    "users": data["users"],
+                    "percentage": (data["sessions"] / total_sessions * 100) if total_sessions > 0 else 0
+                }
+                for name, data in channel_map.items()
+            ],
             key=lambda x: x["sessions"],
             reverse=True
         )[:5]
@@ -209,41 +209,41 @@ def load_context_and_mart_summary(state: AnalysisState) -> Dict[str, Any]:
         # 페이지별 집계
         page_map = {}
         for p in pages:
-        page_path = p.get("page_path")
-        if not page_path:
-            continue
-        
-        if page_path not in page_map:
-            page_map[page_path] = {
-                "title": p.get("page_title"),
-                "views": 0,
-                "engagementRate": 0,
-                "count": 0
-            }
-        
+            page_path = p.get("page_path")
+            if not page_path:
+                continue
+            
+            if page_path not in page_map:
+                page_map[page_path] = {
+                    "title": p.get("page_title"),
+                    "views": 0,
+                    "engagementRate": 0,
+                    "count": 0
+                }
+            
             page_map[page_path]["views"] += p.get("screen_page_views", 0) or 0
             page_map[page_path]["engagementRate"] += float(p.get("engagement_rate", 0) or 0)
             page_map[page_path]["count"] += 1
         
         top_pages = sorted(
-        [
-            {
-                "path": path,
-                "title": data["title"],
-                "views": data["views"],
-                "engagementRate": data["engagementRate"] / data["count"] if data["count"] > 0 else 0
-            }
-            for path, data in page_map.items()
-        ],
+            [
+                {
+                    "path": path,
+                    "title": data["title"],
+                    "views": data["views"],
+                    "engagementRate": data["engagementRate"] / data["count"] if data["count"] > 0 else 0
+                }
+                for path, data in page_map.items()
+            ],
             key=lambda x: x["views"],
             reverse=True
         )[:10]
         
         # 일별 트렌드
         daily_trend = [
-        {
-            "date": k.get("date"),
-            "sessions": k.get("sessions", 0) or 0,
+            {
+                "date": k.get("date"),
+                "sessions": k.get("sessions", 0) or 0,
                 "users": k.get("active_users", 0) or 0
             }
             for k in kpis
@@ -252,46 +252,46 @@ def load_context_and_mart_summary(state: AnalysisState) -> Dict[str, Any]:
         # CSV Metrics 집계
         csv_metrics_summary = {}
         if csv_metrics:
-        for m in csv_metrics:
-            metric_name = m.get("metric_name")
-            if not metric_name:
-                continue
-            
-            if metric_name not in csv_metrics_summary:
-                csv_metrics_summary[metric_name] = {
-                    "total": 0,
-                    "byDimension": {},
-                    "trend": []
-                }
-            
-            metric_value = float(m.get("metric_value", 0) or 0)
-            csv_metrics_summary[metric_name]["total"] += metric_value
-            
-            # Dimension별 집계
-            dimension_key = m.get("dimension_key")
-            dimension_value = m.get("dimension_value")
-            if dimension_key and dimension_value:
-                if dimension_key not in csv_metrics_summary[metric_name]["byDimension"]:
-                    csv_metrics_summary[metric_name]["byDimension"][dimension_key] = {}
-                csv_metrics_summary[metric_name]["byDimension"][dimension_key][dimension_value] = \
-                    csv_metrics_summary[metric_name]["byDimension"][dimension_key].get(dimension_value, 0) + metric_value
-            
-            # 트렌드 (날짜별로 집계)
-            date = m.get("date")
-            if date:
-                # 같은 날짜의 기존 항목 찾기
-                existing_trend = next(
-                    (t for t in csv_metrics_summary[metric_name]["trend"] if t["date"] == date),
-                    None
-                )
-                if existing_trend:
-                    existing_trend["value"] += metric_value
-                else:
-                    csv_metrics_summary[metric_name]["trend"].append({
-                        "date": date,
-                        "value": metric_value
-                    })
-    
+            for m in csv_metrics:
+                metric_name = m.get("metric_name")
+                if not metric_name:
+                    continue
+                
+                if metric_name not in csv_metrics_summary:
+                    csv_metrics_summary[metric_name] = {
+                        "total": 0,
+                        "byDimension": {},
+                        "trend": []
+                    }
+                
+                metric_value = float(m.get("metric_value", 0) or 0)
+                csv_metrics_summary[metric_name]["total"] += metric_value
+                
+                # Dimension별 집계
+                dimension_key = m.get("dimension_key")
+                dimension_value = m.get("dimension_value")
+                if dimension_key and dimension_value:
+                    if dimension_key not in csv_metrics_summary[metric_name]["byDimension"]:
+                        csv_metrics_summary[metric_name]["byDimension"][dimension_key] = {}
+                    csv_metrics_summary[metric_name]["byDimension"][dimension_key][dimension_value] = \
+                        csv_metrics_summary[metric_name]["byDimension"][dimension_key].get(dimension_value, 0) + metric_value
+                
+                # 트렌드 (날짜별로 집계)
+                date = m.get("date")
+                if date:
+                    # 같은 날짜의 기존 항목 찾기
+                    existing_trend = next(
+                        (t for t in csv_metrics_summary[metric_name]["trend"] if t["date"] == date),
+                        None
+                    )
+                    if existing_trend:
+                        existing_trend["value"] += metric_value
+                    else:
+                        csv_metrics_summary[metric_name]["trend"].append({
+                            "date": date,
+                            "value": metric_value
+                        })
+        
         # 트렌드 정렬 (날짜순)
         for metric_name in csv_metrics_summary:
             csv_metrics_summary[metric_name]["trend"].sort(key=lambda x: x["date"])
@@ -302,85 +302,85 @@ def load_context_and_mart_summary(state: AnalysisState) -> Dict[str, Any]:
         has_csv_data = len(csv_metrics) > 0
         
         if has_ga4_data and has_csv_data:
-        all_dates = set()
-        for k in kpis:
-            all_dates.add(k.get("date"))
-        for m in csv_metrics:
-            all_dates.add(m.get("date"))
-        
-        integrated_trend = []
-        for date in sorted(all_dates):
-            ga4_day = next((k for k in kpis if k.get("date") == date), None)
-            csv_day = [m for m in csv_metrics if m.get("date") == date]
+            all_dates = set()
+            for k in kpis:
+                all_dates.add(k.get("date"))
+            for m in csv_metrics:
+                all_dates.add(m.get("date"))
             
-            csv_metrics_for_day = {}
-            for m in csv_day:
-                metric_name = m.get("metric_name")
-                if metric_name:
-                    csv_metrics_for_day[metric_name] = csv_metrics_for_day.get(metric_name, 0) + float(m.get("metric_value", 0) or 0)
-            
-            integrated_trend.append({
-                "date": date,
-                "ga4Sessions": ga4_day.get("sessions") if ga4_day else None,
-                "ga4Users": ga4_day.get("active_users") if ga4_day else None,
+            integrated_trend = []
+            for date in sorted(all_dates):
+                ga4_day = next((k for k in kpis if k.get("date") == date), None)
+                csv_day = [m for m in csv_metrics if m.get("date") == date]
+                
+                csv_metrics_for_day = {}
+                for m in csv_day:
+                    metric_name = m.get("metric_name")
+                    if metric_name:
+                        csv_metrics_for_day[metric_name] = csv_metrics_for_day.get(metric_name, 0) + float(m.get("metric_value", 0) or 0)
+                
+                integrated_trend.append({
+                    "date": date,
+                    "ga4Sessions": ga4_day.get("sessions") if ga4_day else None,
+                    "ga4Users": ga4_day.get("active_users") if ga4_day else None,
                     "csvMetrics": csv_metrics_for_day if csv_metrics_for_day else None
                 })
         
         # 데이터 소스 요약
         data_sources = {
-        "ga4": {
-            "available": has_ga4_data,
-            "dateRange": {
-                "start": kpis[0].get("date"),
-                "end": kpis[-1].get("date")
-            } if kpis else None,
-            "recordCount": len(kpis)
-        },
-        "csv": {
-            "available": has_csv_data,
-            "metrics": list(csv_metrics_summary.keys()) if csv_metrics_summary else None,
-            "recordCount": len(csv_metrics)
-        },
+            "ga4": {
+                "available": has_ga4_data,
+                "dateRange": {
+                    "start": kpis[0].get("date"),
+                    "end": kpis[-1].get("date")
+                } if kpis else None,
+                "recordCount": len(kpis)
+            },
+            "csv": {
+                "available": has_csv_data,
+                "metrics": list(csv_metrics_summary.keys()) if csv_metrics_summary else None,
+                "recordCount": len(csv_metrics)
+            },
             "integrated": has_ga4_data and has_csv_data
         }
         
         # Metric Definitions 조회 (Semantic Layer)
         metric_definitions = None
         try:
-        # Feature flag 확인 (간단히 구현)
-        # 실제로는 feature_flags 테이블에서 확인해야 함
-        metric_defs_result = supabase.table("metric_definitions") \
-            .select("*") \
-            .eq("project_id", state["projectId"]) \
-            .eq("is_active", True) \
-            .order("priority") \
-            .execute()
-        
-        if metric_defs_result.data:
+            # Feature flag 확인 (간단히 구현)
+            # 실제로는 feature_flags 테이블에서 확인해야 함
+            metric_defs_result = supabase.table("metric_definitions") \
+                .select("*") \
+                .eq("project_id", state["projectId"]) \
+                .eq("is_active", True) \
+                .order("priority") \
+                .execute()
+            
+            if metric_defs_result.data:
                 metric_definitions = metric_defs_result.data
                 data_accessed.append("metric_definitions")
         except Exception:
             pass
         
         mart_summary: MartSummary = {
-        "period": {
-            "start": start_str,
-            "end": end_str,
-            "days": days
-        },
-        "kpis": {
-            "totalSessions": total_sessions,
-            "totalActiveUsers": total_active_users,
-            "totalNewUsers": total_new_users,
-            "avgEngagementRate": round(avg_engagement_rate * 10000) / 100,
-            "avgBounceRate": round(avg_bounce_rate * 10000) / 100,
-            "avgSessionDuration": round(avg_session_duration)
-        },
-        "topChannels": top_channels,
-        "topPages": top_pages,
-        "dailyTrend": daily_trend,
-        "csvMetrics": csv_metrics_summary if csv_metrics_summary else None,
-        "integratedTrend": integrated_trend,
+            "period": {
+                "start": start_str,
+                "end": end_str,
+                "days": days
+            },
+            "kpis": {
+                "totalSessions": total_sessions,
+                "totalActiveUsers": total_active_users,
+                "totalNewUsers": total_new_users,
+                "avgEngagementRate": round(avg_engagement_rate * 10000) / 100,
+                "avgBounceRate": round(avg_bounce_rate * 10000) / 100,
+                "avgSessionDuration": round(avg_session_duration)
+            },
+            "topChannels": top_channels,
+            "topPages": top_pages,
+            "dailyTrend": daily_trend,
+            "csvMetrics": csv_metrics_summary if csv_metrics_summary else None,
+            "integratedTrend": integrated_trend,
             "dataSources": data_sources,
             "metricDefinitions": metric_definitions
         }
@@ -388,20 +388,20 @@ def load_context_and_mart_summary(state: AnalysisState) -> Dict[str, Any]:
         # 채팅 모드일 때 이전 대화 메시지 로드
         conversation_history = []
         if state["mode"] == "chat" and state.get("threadId"):
-        try:
-            # 최근 10개 메시지 로드 (최신순, 현재 메시지 제외)
-            messages_result = supabase.table("chat_messages") \
-                .select("role, content, created_at") \
-                .eq("workspace_id", state["workspaceId"]) \
-                .eq("thread_id", state["threadId"]) \
-                .order("created_at", desc=False) \
-                .limit(10) \
-                .execute()
-            
-            conversation_history = messages_result.data or []
-            data_accessed.append("chat_messages")
-        except Exception:
-            conversation_history = []
+            try:
+                # 최근 10개 메시지 로드 (최신순, 현재 메시지 제외)
+                messages_result = supabase.table("chat_messages") \
+                    .select("role, content, created_at") \
+                    .eq("workspace_id", state["workspaceId"]) \
+                    .eq("thread_id", state["threadId"]) \
+                    .order("created_at", desc=False) \
+                    .limit(10) \
+                    .execute()
+                
+                conversation_history = messages_result.data or []
+                data_accessed.append("chat_messages")
+            except Exception:
+                conversation_history = []
         
         return {
             "martSummary": mart_summary,
@@ -612,8 +612,8 @@ def persist_results(state: AnalysisState) -> Dict[str, Any]:
                     "role": "user",
                     "content": user_message
                 }).execute()
-        except Exception:
-            pass
+            except Exception:
+                pass
         
         # Assistant message 저장
         if analysis_markdown:
@@ -625,8 +625,8 @@ def persist_results(state: AnalysisState) -> Dict[str, Any]:
                     "content": analysis_markdown,
                     "metadata": {"questions": analyst_questions}
                 }).execute()
-        except Exception:
-            pass
+            except Exception:
+                pass
         
         # Report 모드면 reports 테이블에도 저장
         if mode == "report" and analysis_markdown:
@@ -643,8 +643,8 @@ def persist_results(state: AnalysisState) -> Dict[str, Any]:
                     "report_markdown": analysis_markdown,
                     "metadata": metadata
                 }).execute()
-        except Exception:
-            pass
+            except Exception:
+                pass
         
         # Analysis thread 업데이트
         try:
