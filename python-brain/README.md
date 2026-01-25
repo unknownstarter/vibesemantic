@@ -11,8 +11,8 @@ Python FastAPI 기반의 백엔드 서버로, 다음 기능을 제공합니다:
 
 ## 배포
 
-- **GCP Cloud Run** 또는 **AWS App Runner**에 배포
-- 오토스케일링 지원
+- **Render** (무료 플랜 지원) 또는 **GCP Cloud Run** / **AWS App Runner**에 배포
+- 오토스케일링 지원 (유료 플랜)
 - 최대 60분 타임아웃
 
 ## API 엔드포인트
