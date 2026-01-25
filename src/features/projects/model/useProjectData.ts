@@ -26,7 +26,7 @@ interface UseProjectDataResult {
 
 export function useProjectData(projectId: string): UseProjectDataResult {
   const [data, setData] = useState<ProjectData | null>(null)
-  const [workspaces, setWorkspaces] = useState<Array<{ id: string; name: string; purpose: string; status: string; created_at: string }>>([])
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
