@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, Suspense, useRef, useEffect } from 'react'
+import { useState, Suspense, useRef, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Button } from '@/shared/ui/Button'
@@ -101,6 +101,7 @@ function LoginForm() {
   const redirect = searchParams.get('redirect') || '/dashboard'
   const sessionExpired = searchParams.get('session_expired') === 'true'
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([])
+  const isVerifyingRef = useRef(false) // 중복 검증 방지
 
   // 세션 만료 메시지 표시
   useEffect(() => {
@@ -195,87 +196,103 @@ function LoginForm() {
     }
   }
 
-  // OTP 인증
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault()
+  // OTP 인증 (공통 함수)
+  const verifyOtpCode = useCallback(async (otpCode: string) => {
+    // 이미 검증 중이면 중복 요청 방지
+    if (isVerifyingRef.current) {
+      console.log('[OTP] Already verifying, skipping duplicate request')
+      return
+    }
 
-    const otpCode = otp.join('')
-    // 6자리 또는 8자리 모두 허용 (Supabase 설정에 따라 다를 수 있음)
+    // 6자리 또는 8자리 모두 허용
     if (otpCode.length !== 6 && otpCode.length !== 8) {
       setOtpError('6자리 또는 8자리 코드를 모두 입력해주세요.')
       return
     }
-    
-    // 8자리가 오는 경우 앞 6자리만 사용 (Supabase는 기본적으로 6자리)
-    const codeToVerify = otpCode.length === 8 ? otpCode.substring(0, 6) : otpCode
 
+    isVerifyingRef.current = true
     setVerifying(true)
     setOtpError('')
 
-    const supabase = createClient()
-    const { data, error } = await supabase.auth.verifyOtp({
-      email,
-      token: codeToVerify,
-      type: 'email',
-    })
+    try {
+      const supabase = createClient()
+      
+      // 먼저 입력된 코드 그대로 시도 (8자리면 전체, 6자리면 6자리)
+      let codeToVerify = otpCode
+      console.log('[OTP] Verifying code:', codeToVerify.length === 8 ? `${codeToVerify.substring(0, 6)}**` : codeToVerify)
+      
+      let { data, error } = await supabase.auth.verifyOtp({
+        email,
+        token: codeToVerify,
+        type: 'email',
+      })
 
-    setVerifying(false)
-
-    if (error) {
-      if (error.message.includes('expired')) {
-        setOtpError('코드가 만료되었습니다. 새로운 코드를 요청해주세요.')
-      } else if (error.message.includes('invalid')) {
-        setOtpError('잘못된 코드입니다. 다시 확인해주세요.')
-      } else {
-        setOtpError(error.message)
+      // 8자리 코드로 실패했고 "invalid" 에러면, 앞 6자리만으로 재시도
+      // 단, "expired" 에러는 재시도하지 않음 (이미 만료된 코드)
+      if (error && otpCode.length === 8 && error.message.includes('invalid') && !error.message.includes('expired')) {
+        console.log('[OTP] 8-digit code failed, retrying with first 6 digits')
+        codeToVerify = otpCode.substring(0, 6)
+        const retryResult = await supabase.auth.verifyOtp({
+          email,
+          token: codeToVerify,
+          type: 'email',
+        })
+        data = retryResult.data
+        error = retryResult.error
       }
+
+      if (error) {
+        console.error('[OTP] Verification error:', error.message)
+        if (error.message.includes('expired')) {
+          setOtpError('코드가 만료되었습니다. 새로운 코드를 요청해주세요.')
+        } else if (error.message.includes('invalid')) {
+          setOtpError('잘못된 코드입니다. 다시 확인해주세요.')
+        } else {
+          setOtpError(error.message)
+        }
+        setOtp(['', '', '', '', '', ''])
+        otpInputRefs.current[0]?.focus()
+      } else if (data?.session) {
+        console.log('[OTP] Verification successful')
+        setStatus('success')
+        router.push(redirect)
+      }
+    } catch (err) {
+      // 예외 발생 시에도 ref 리셋
+      console.error('[OTP] Unexpected error:', err)
+      setOtpError('인증 중 오류가 발생했습니다. 다시 시도해주세요.')
       setOtp(['', '', '', '', '', ''])
       otpInputRefs.current[0]?.focus()
-    } else if (data.session) {
-      setStatus('success')
-      router.push(redirect)
+    } finally {
+      // 항상 ref와 상태 리셋
+      isVerifyingRef.current = false
+      setVerifying(false)
     }
+  }, [email, redirect, router])
+
+  // OTP 인증 (수동 제출)
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const otpCode = otp.join('')
+    await verifyOtpCode(otpCode)
   }
 
   // OTP가 모두 입력되면 자동 제출 (6자리 또는 8자리)
   useEffect(() => {
     const otpCode = otp.join('')
     if ((otpCode.length === 6 || otpCode.length === 8) && status === 'otp_sent' && !verifying) {
-      // 자동 제출
-      const verifyOtp = async () => {
-        setVerifying(true)
-        setOtpError('')
-
-        // 8자리가 오는 경우 앞 6자리만 사용
-        const codeToVerify = otpCode.length === 8 ? otpCode.substring(0, 6) : otpCode
-
-        const supabase = createClient()
-        const { data, error } = await supabase.auth.verifyOtp({
-          email,
-          token: codeToVerify,
-          type: 'email',
-        })
-
-        setVerifying(false)
-
-        if (error) {
-          if (error.message.includes('expired')) {
-            setOtpError('코드가 만료되었습니다. 새로운 코드를 요청해주세요.')
-          } else if (error.message.includes('invalid')) {
-            setOtpError('잘못된 코드입니다. 다시 확인해주세요.')
-          } else {
-            setOtpError(error.message)
-          }
-          setOtp(['', '', '', '', '', ''])
-          otpInputRefs.current[0]?.focus()
-        } else if (data.session) {
-          setStatus('success')
-          router.push(redirect)
+      // 약간의 지연을 두어 사용자가 추가 입력할 시간을 줌 (자동 제출 방지)
+      // verifyOtpCode 내부에서 isVerifyingRef로 중복 방지하므로 여기서는 verifying만 체크
+      const timeoutId = setTimeout(() => {
+        // timeout 실행 시점에 다시 한 번 verifying 체크
+        if (!verifying) {
+          verifyOtpCode(otpCode)
         }
-      }
-      verifyOtp()
+      }, 300) // 300ms 지연
+
+      return () => clearTimeout(timeoutId)
     }
-  }, [otp, status, verifying, email, redirect, router])
+  }, [otp, status, verifying, verifyOtpCode])
 
   const handleGoogleLogin = async () => {
     try {
@@ -420,7 +437,7 @@ function LoginForm() {
 
                 <Button
                   type="submit"
-                  disabled={verifying || otp.join('').length !== 6}
+                  disabled={verifying || otp.join('').length < 6}
                   className="w-full"
                 >
                   {verifying ? (
