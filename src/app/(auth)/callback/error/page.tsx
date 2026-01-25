@@ -70,7 +70,10 @@ function ErrorContent() {
           </p>
           <div className="space-y-3">
             <Button
-              onClick={() => router.push('/login')}
+              onClick={() => {
+                const redirect = searchParams.get('redirect') || '/dashboard'
+                router.push(`/login?redirect=${encodeURIComponent(redirect)}&session_expired=true`)
+              }}
               className="w-full"
             >
               다시 로그인하기

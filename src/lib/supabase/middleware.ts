@@ -55,11 +55,15 @@ export async function updateSession(request: NextRequest) {
     return supabaseResponse
   }
 
-  // 인증 안 됐으면 로그인으로
+  // 인증 안 됐으면 로그인으로 (세션 만료 포함)
   if (!user) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     url.searchParams.set('redirect', pathname)
+    // 세션이 만료된 경우 표시 (이전에 인증된 사용자가 있었던 경우)
+    if (pathname.startsWith('/dashboard') || pathname.startsWith('/projects')) {
+      url.searchParams.set('session_expired', 'true')
+    }
     return NextResponse.redirect(url)
   }
 

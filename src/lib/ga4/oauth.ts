@@ -10,12 +10,36 @@ export function getOAuth2Client() {
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET
   const redirectUri = process.env.GOOGLE_REDIRECT_URI
   
-  // Debug log
-  console.log('[GA4 OAuth] Environment check:', {
-    clientId: clientId ? `${clientId.substring(0, 20)}...` : 'MISSING',
-    clientSecret: clientSecret ? 'SET' : 'MISSING',
-    redirectUri: redirectUri || 'MISSING',
-  })
+  // 환경 변수 검증
+  if (!clientId) {
+    throw new Error(
+      'GOOGLE_CLIENT_ID 환경 변수가 설정되지 않았습니다. ' +
+      'Vercel 대시보드에서 환경 변수를 설정해주세요.'
+    )
+  }
+  
+  if (!clientSecret) {
+    throw new Error(
+      'GOOGLE_CLIENT_SECRET 환경 변수가 설정되지 않았습니다. ' +
+      'Vercel 대시보드에서 환경 변수를 설정해주세요.'
+    )
+  }
+  
+  if (!redirectUri) {
+    throw new Error(
+      'GOOGLE_REDIRECT_URI 환경 변수가 설정되지 않았습니다. ' +
+      '프로덕션: https://www.vibesemantic.xyz/api/ga4/oauth/callback'
+    )
+  }
+  
+  // Debug log (프로덕션에서는 민감한 정보 로그 제한)
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[GA4 OAuth] Environment check:', {
+      clientId: clientId ? `${clientId.substring(0, 20)}...` : 'MISSING',
+      clientSecret: clientSecret ? 'SET' : 'MISSING',
+      redirectUri: redirectUri || 'MISSING',
+    })
+  }
   
   return new google.auth.OAuth2(clientId, clientSecret, redirectUri)
 }

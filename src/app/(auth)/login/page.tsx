@@ -99,7 +99,16 @@ function LoginForm() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const redirect = searchParams.get('redirect') || '/dashboard'
+  const sessionExpired = searchParams.get('session_expired') === 'true'
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([])
+
+  // 세션 만료 메시지 표시
+  useEffect(() => {
+    if (sessionExpired) {
+      setMessage('세션이 만료되었습니다. 다시 로그인해주세요.')
+      setStatus('error')
+    }
+  }, [sessionExpired])
 
   // OTP 입력 핸들러
   const handleOtpChange = (index: number, value: string) => {
@@ -424,6 +433,20 @@ function LoginForm() {
                   </div>
                 </div>
               )}
+              
+              {/* 세션 만료 메시지 */}
+              {sessionExpired && message && (
+                <div className="mt-4 flex items-start gap-3 p-3 bg-warning/5 border border-warning/20 rounded-lg">
+                  <div className="h-5 w-5 rounded-full bg-warning/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <svg className="h-3 w-3 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-warning font-medium">{message}</p>
+                  </div>
+                </div>
+              )}
 
               <div className="mt-6 text-center space-y-3">
                 <Button
@@ -512,6 +535,20 @@ function LoginForm() {
                   )}
                 </Button>
               </form>
+
+              {/* 세션 만료 메시지 (이메일 입력 폼) */}
+              {sessionExpired && message && (
+                <div className="mt-4 flex items-start gap-3 p-3 bg-warning/5 border border-warning/20 rounded-lg">
+                  <div className="h-5 w-5 rounded-full bg-warning/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <svg className="h-3 w-3 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-warning font-medium">{message}</p>
+                  </div>
+                </div>
+              )}
 
               {/* 구분선 */}
               <div className="relative my-6">

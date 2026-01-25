@@ -19,7 +19,17 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Permission denied' }, { status: 403 })
   }
 
-  const authUrl = getAuthUrl(projectId)
-  
-  return NextResponse.json({ authUrl })
+  try {
+    const authUrl = getAuthUrl(projectId)
+    return NextResponse.json({ authUrl })
+  } catch (error) {
+    console.error('[GA4 OAuth Start] Error:', error)
+    return NextResponse.json(
+      { 
+        error: error instanceof Error ? error.message : 'Failed to generate auth URL',
+        details: 'GOOGLE_CLIENT_ID 환경 변수가 설정되지 않았습니다. Vercel 대시보드에서 환경 변수를 확인해주세요.'
+      },
+      { status: 500 }
+    )
+  }
 }

@@ -63,14 +63,21 @@ function GA4ConnectContent() {
       const res = await fetch(`/api/ga4/oauth/start?projectId=${projectId}`)
       const data = await res.json()
       
+      if (!res.ok) {
+        throw new Error(data.error || data.details || 'Failed to get auth URL')
+      }
+      
       if (data.authUrl) {
         window.location.href = data.authUrl
       } else {
         throw new Error('Failed to get auth URL')
       }
     } catch (err) {
-      console.error(err)
+      console.error('[GA4 Connect] Error:', err)
       setLoading(false)
+      // 에러 메시지를 URL 파라미터로 전달하여 표시
+      const errorMessage = err instanceof Error ? err.message : '연결에 실패했습니다'
+      router.push(`?error=${encodeURIComponent(errorMessage)}`)
     }
   }
 
@@ -79,6 +86,11 @@ function GA4ConnectContent() {
   }
 
   const getErrorMessage = (errorCode: string) => {
+    // 환경 변수 관련 오류
+    if (errorCode.includes('GOOGLE_CLIENT_ID') || errorCode.includes('환경 변수')) {
+      return '서버 설정 오류: GOOGLE_CLIENT_ID 환경 변수가 설정되지 않았습니다. 관리자에게 문의해주세요.'
+    }
+    
     switch (errorCode) {
       case 'access_denied':
         return 'Google 계정 접근이 거부되었습니다.'
@@ -87,7 +99,7 @@ function GA4ConnectContent() {
       case 'missing_params':
         return '필요한 정보가 누락되었습니다.'
       default:
-        return errorCode
+        return errorCode.length > 100 ? errorCode.substring(0, 100) + '...' : errorCode
     }
   }
 

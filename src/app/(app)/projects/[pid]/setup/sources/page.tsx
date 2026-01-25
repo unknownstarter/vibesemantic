@@ -240,13 +240,22 @@ export default function SourcesPage() {
                 </div>
               </div>
             ) : (
-              <Button
-                variant="secondary"
-                onClick={() => setShowCreateForm(true)}
-              >
-                <PlusIcon className="w-4 h-4 mr-2" />
-                새 데이터셋 추가
-              </Button>
+              <div className="space-y-3">
+                <Button
+                  variant="secondary"
+                  onClick={() => setShowCreateForm(true)}
+                >
+                  <PlusIcon className="w-4 h-4 mr-2" />
+                  새 데이터셋 추가
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => router.push(`/projects/${projectId}`)}
+                  className="w-full"
+                >
+                  다음에 하기
+                </Button>
+              </div>
             )}
           </div>
         </div>
