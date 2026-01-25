@@ -162,9 +162,20 @@ export function useAgentChatReactQuery({ workspaceId, range: externalRange = '7d
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '메시지를 전송하는 중 오류가 발생했습니다'
       setChatError(errorMessage)
-      // 에러 발생 시 사용자 메시지 제거 (낙관적 업데이트 롤백)
-      setMessages((prev) => prev.filter((m) => m.id !== userMsg.id))
+      // 에러 발생 시에도 사용자 메시지는 유지 (사용자가 무엇을 입력했는지 확인 가능)
+      // 대신 에러 메시지를 표시하여 문제를 알림
       console.error('Failed to send message:', err)
+      
+      // 에러 상세 정보 로깅
+      if (err instanceof Error) {
+        console.error('Error details:', {
+          message: err.message,
+          stack: err.stack,
+          workspaceId,
+          threadId,
+          range,
+        })
+      }
     }
   }, [workspaceQuery.data, workspaceId, threadId, range, sendMessageMutation])
 

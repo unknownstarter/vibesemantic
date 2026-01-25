@@ -296,7 +296,7 @@ export function AgentSlideOver({
             <div className="flex flex-col h-full">
               {/* Chat Messages */}
               <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                {messages.length === 0 && !chatLoading ? (
+                {messages.length === 0 && !chatLoading && !chatError ? (
                   <div className="text-center py-12">
                     <p className="text-muted mb-4">질문을 입력하여 분석을 시작하세요</p>
                     <div className="space-y-2">

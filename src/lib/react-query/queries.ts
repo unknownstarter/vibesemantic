@@ -198,15 +198,35 @@ export function useSendChatMessageMutation() {
       })
 
       if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || '메시지 전송에 실패했습니다')
+        let errorMessage = '메시지 전송에 실패했습니다'
+        try {
+          const data = await res.json()
+          errorMessage = data.error || errorMessage
+        } catch {
+          // JSON 파싱 실패 시 statusText 사용
+          errorMessage = res.statusText || errorMessage
+        }
+        console.error('[Chat Mutation] Request failed:', {
+          status: res.status,
+          statusText: res.statusText,
+          error: errorMessage,
+          workspaceId,
+        })
+        throw new Error(errorMessage)
       }
 
-      return res.json() as Promise<{
-        analysisMarkdown: string
-        analystQuestions: unknown[]
-        threadId: string
-      }>
+      const data = await res.json()
+      
+      // 응답 검증
+      if (!data.analysisMarkdown && !data.analysis_markdown) {
+        console.warn('[Chat Mutation] Empty analysisMarkdown in response:', data)
+      }
+
+      return {
+        analysisMarkdown: data.analysisMarkdown || data.analysis_markdown || '',
+        analystQuestions: data.analystQuestions || data.analyst_questions || [],
+        threadId: data.threadId || data.thread_id || threadId,
+      }
     },
   })
 }
