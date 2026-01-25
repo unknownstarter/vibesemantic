@@ -249,6 +249,75 @@ src/app/api/
 - **500**: 서버 에러
 - **에러 로깅**: console.error로 서버 로그 기록
 
+### 6.4 URL 인코딩 처리 (2026-01-26 추가)
+**중요**: 한글이 포함된 project slug나 workspace slug를 API에서 받을 때는 반드시 URL 디코딩을 수행해야 합니다.
+
+#### 문제 상황
+- 클라이언트에서 한글 slug (예: `서비스-b2cd3379`)를 전달하면 URL 인코딩되어 `%EC%84%9C%EB%B9%84%EC%8A%A4-b2cd3379`로 전달됨
+- 인코딩된 값을 그대로 사용하면 프로젝트를 찾지 못해 401 Unauthorized 오류 발생
+
+#### 해결 방법
+**Request Body에서 받는 경우:**
+```typescript
+export async function POST(request: NextRequest) {
+  const body = await request.json()
+  let { projectId } = body
+
+  // URL 인코딩된 projectId 디코딩 (한글 slug 처리)
+  try {
+    projectId = decodeURIComponent(projectId)
+  } catch {
+    // 디코딩 실패 시 원본 값 사용 (이미 디코딩되었거나 UUID인 경우)
+  }
+
+  const { context, error } = await getAuthContext(projectId)
+  // ...
+}
+```
+
+**Query Parameter에서 받는 경우:**
+```typescript
+export async function GET(request: NextRequest) {
+  let projectId = request.nextUrl.searchParams.get('projectId')
+  
+  if (!projectId) {
+    return NextResponse.json({ error: 'Project ID required' }, { status: 400 })
+  }
+
+  // URL 인코딩된 projectId 디코딩
+  try {
+    projectId = decodeURIComponent(projectId)
+  } catch {
+    // 디코딩 실패 시 원본 값 사용
+  }
+
+  const { context, error } = await getAuthContext(projectId)
+  // ...
+}
+```
+
+**URL Path Parameter에서 받는 경우:**
+Next.js는 자동으로 디코딩하지만, 한글 slug의 경우 명시적으로 디코딩하는 것이 안전합니다:
+```typescript
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ projectId: string }> }
+) {
+  const { projectId: projectSlugOrId } = await params
+  const decodedProjectId = decodeURIComponent(projectSlugOrId)
+  
+  const { context, error } = await getAuthContext(decodedProjectId)
+  // ...
+}
+```
+
+#### 체크리스트
+새로운 API 라우트를 만들 때:
+- [ ] Request body에서 slug를 받는 경우 `decodeURIComponent` 적용
+- [ ] Query parameter에서 slug를 받는 경우 `decodeURIComponent` 적용
+- [ ] 디코딩 실패 시 원본 값 사용 (try-catch)
+- [ ] UUID인 경우 디코딩이 실패해도 정상 동작 확인
+
 ---
 
 ## 7. Google Sheets 연동
@@ -393,6 +462,18 @@ npm start
 - `npm run build`로 타입 체크
 - tsconfig.json 설정 확인
 
+#### API에서 401 Unauthorized 오류 (2026-01-26 추가)
+**증상**: 프로젝트 owner이고 active 멤버인데도 API 호출 시 401 오류 발생
+
+**원인**: 한글 slug가 URL 인코딩되어 전달되는데 서버에서 디코딩하지 않아 프로젝트를 찾지 못함
+
+**해결**:
+1. API 라우트에서 `projectId`를 받을 때 `decodeURIComponent()` 적용
+2. 디코딩 실패 시 원본 값 사용 (try-catch)
+3. 참고: `/api/ga4/properties/select`와 `/api/ga4/properties` 참고
+
+**예방**: 모든 API 라우트에서 slug를 받을 때 URL 디코딩 적용
+
 ---
 
 ## 14. 참고 자료
@@ -426,6 +507,6 @@ npm start
 
 ---
 
-**문서 버전**: 2.0  
+**문서 버전**: 2.1  
 **최종 수정일**: 2026-01-26
 

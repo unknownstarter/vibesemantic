@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-**Last Updated**: 2026-01-26
+**Last Updated**: 2026-01-26 (Added URL encoding handling requirement)
 
 ## Project Overview
 
@@ -79,6 +79,15 @@ src/
 - Response format: `{ success: true }` or `{ error: "message" }`
 - Auth via `getAuthContext` middleware
 - Audit logging via `createAuditLog`
+- **CRITICAL (2026-01-26)**: Always decode URL-encoded project/workspace slugs from request body or query params using `decodeURIComponent()` to handle Korean characters. Example:
+  ```typescript
+  let projectId = body.projectId
+  try {
+    projectId = decodeURIComponent(projectId)
+  } catch {
+    // Use original if already decoded or UUID
+  }
+  ```
 
 ## Environment Variables
 
