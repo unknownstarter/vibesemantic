@@ -64,7 +64,7 @@ export async function GET(
   // 3. 캐시 유효성 검사
   // - 리포트가 없으면 null 반환 (새로 생성 필요)
   // - 데이터가 리포트 생성 이후 업데이트되었으면 null 반환 (재생성 필요)
-  if (cachedReport && latestDataUpdate) {
+  if (cachedReport && latestDataUpdate && cachedReport.created_at) {
     const reportCreatedAt = new Date(cachedReport.created_at).getTime()
     const dataUpdatedAt = new Date(latestDataUpdate).getTime()
     

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthContext, canEdit } from '@/lib/supabase/auth-helpers'
+import { createClient } from '@/lib/supabase/server'
 import { refreshMartData } from '@/lib/ga4/api'
 import { createAuditLog, AuditActions } from '@/lib/audit'
 import type { ReportRange } from '@/types/database'

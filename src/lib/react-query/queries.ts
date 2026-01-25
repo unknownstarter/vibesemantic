@@ -4,6 +4,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Workspace, ReportRange, Json } from '@/types/database'
+import type { MartSummary } from '@/lib/langgraph/types'
 
 export interface ProjectData {
   project: {
@@ -149,7 +150,7 @@ export function useGenerateReportMutation() {
       return res.json() as Promise<{
         analysisMarkdown: string
         analystQuestions: unknown[]
-        martSummary: unknown
+        martSummary: MartSummary | null
         threadId: string
       }>
     },
