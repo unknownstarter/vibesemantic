@@ -160,10 +160,13 @@ function LoginForm() {
     setValidationError('')
 
     const supabase = createClient()
+    // emailRedirectTo를 명시적으로 제거하여 OTP 코드만 전송되도록 함
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
         shouldCreateUser: true,
+        // emailRedirectTo를 제거하면 OTP 코드가 전송됨 (매직링크 대신)
+        // emailRedirectTo가 있으면 매직링크가 전송됨
       },
     })
 
@@ -197,10 +200,14 @@ function LoginForm() {
     e.preventDefault()
 
     const otpCode = otp.join('')
-    if (otpCode.length !== 6) {
-      setOtpError('6자리 코드를 모두 입력해주세요.')
+    // 6자리 또는 8자리 모두 허용 (Supabase 설정에 따라 다를 수 있음)
+    if (otpCode.length !== 6 && otpCode.length !== 8) {
+      setOtpError('6자리 또는 8자리 코드를 모두 입력해주세요.')
       return
     }
+    
+    // 8자리가 오는 경우 앞 6자리만 사용 (Supabase는 기본적으로 6자리)
+    const codeToVerify = otpCode.length === 8 ? otpCode.substring(0, 6) : otpCode
 
     setVerifying(true)
     setOtpError('')
@@ -208,7 +215,7 @@ function LoginForm() {
     const supabase = createClient()
     const { data, error } = await supabase.auth.verifyOtp({
       email,
-      token: otpCode,
+      token: codeToVerify,
       type: 'email',
     })
 
@@ -230,19 +237,22 @@ function LoginForm() {
     }
   }
 
-  // OTP가 모두 입력되면 자동 제출
+  // OTP가 모두 입력되면 자동 제출 (6자리 또는 8자리)
   useEffect(() => {
     const otpCode = otp.join('')
-    if (otpCode.length === 6 && status === 'otp_sent' && !verifying) {
+    if ((otpCode.length === 6 || otpCode.length === 8) && status === 'otp_sent' && !verifying) {
       // 자동 제출
       const verifyOtp = async () => {
         setVerifying(true)
         setOtpError('')
 
+        // 8자리가 오는 경우 앞 6자리만 사용
+        const codeToVerify = otpCode.length === 8 ? otpCode.substring(0, 6) : otpCode
+
         const supabase = createClient()
         const { data, error } = await supabase.auth.verifyOtp({
           email,
-          token: otpCode,
+          token: codeToVerify,
           type: 'email',
         })
 
@@ -426,11 +436,9 @@ function LoginForm() {
 
               {/* 에러 메시지 */}
               {otpError && (
-                <div className="mt-4 flex items-start gap-3 p-3 bg-danger/5 border border-danger/20 rounded-lg">
+                <div className="mt-4 flex items-center justify-center gap-3 p-3 bg-danger/5 border border-danger/20 rounded-lg">
                   <ErrorIcon />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-danger">{otpError}</p>
-                  </div>
+                  <p className="text-sm text-danger text-center">{otpError}</p>
                 </div>
               )}
               
