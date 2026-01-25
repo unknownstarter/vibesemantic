@@ -1,3 +1,7 @@
+'use client'
+
+import { useEffect, Suspense } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { Header } from "@/widgets/header/Header";
 import { Footer } from "@/widgets/footer/Footer";
 import { Hero } from "@/widgets/hero/Hero";
@@ -12,7 +16,18 @@ import { LeadCaptureForm } from "@/features/lead-capture/ui/LeadCaptureForm";
 import { Section } from "@/shared/ui/Section";
 import { PageViewTracker } from "@/shared/lib/PageViewTracker";
 
-export default function LandingPage() {
+function LandingPageContent() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+
+  // OAuth code 파라미터가 있으면 /callback으로 리다이렉트
+  useEffect(() => {
+    const code = searchParams.get('code')
+    if (code) {
+      const redirect = searchParams.get('redirect') || '/dashboard'
+      router.replace(`/callback?code=${code}&redirect=${encodeURIComponent(redirect)}`)
+    }
+  }, [searchParams, router])
   return (
     <>
       {/* 구조화된 데이터 - Product */}
@@ -90,4 +105,12 @@ export default function LandingPage() {
       </div>
     </>
   );
+}
+
+export default function LandingPage() {
+  return (
+    <Suspense fallback={null}>
+      <LandingPageContent />
+    </Suspense>
+  )
 }
