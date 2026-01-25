@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+**Last Updated**: 2026-01-26
+
 ## Project Overview
 
 Vibe Semantic is a Next.js 14 full-stack application for personal data analysis AI agent. The codebase includes a marketing landing page and an authenticated application workspace.
@@ -82,7 +84,12 @@ src/
 
 Required in `.env.local`:
 - `GOOGLE_SHEETS_WEB_APP_URL` - Google Apps Script deployment URL
-- Supabase credentials
+- `NEXT_PUBLIC_SUPABASE_URL` - Supabase project URL
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Supabase anonymous key
+- `SUPABASE_SERVICE_ROLE_KEY` - Supabase service role key (server-side only)
+- `BRAIN_API_URL` - Python Brain API URL (e.g., https://your-api.onrender.com)
+- `BRAIN_API_KEY` - Brain API authentication key
+- `OPENAI_API_KEY` - OpenAI API key (used by Brain API)
 - GA4/BigQuery credentials (for app features)
 
 ## Git Conventions

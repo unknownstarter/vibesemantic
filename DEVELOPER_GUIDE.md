@@ -1,8 +1,8 @@
 # 개발자 가이드
 ## Vibe Semantic Landing Page
 
-**작성일**: 2026-01-05  
-**버전**: 1.0
+**작성일**: 2026-01-26  
+**버전**: 2.0
 
 ---
 
@@ -74,17 +74,34 @@ src/
 │       └── Dashboard.tsx
 │
 └── lib/                  # 외부 라이브러리 연동
-    └── google-sheets.ts  # Google Sheets API 연동
+    ├── google-sheets.ts  # Google Sheets API 연동
+    ├── supabase/         # Supabase 클라이언트 및 미들웨어
+    ├── ga4/              # Google Analytics 4 연동
+    ├── langgraph/        # LangGraph 엔진 (TypeScript 버전, 현재는 Brain API 사용)
+    ├── csv/              # CSV 파싱 및 수집
+    ├── semantic-layer/   # Semantic Layer (메트릭 정의)
+    └── react-query/       # React Query 쿼리 및 뮤테이션
 ```
 
 ### 1.2 레이어별 역할
 
 - **app/**: Next.js 라우팅 및 API 엔드포인트
+  - `(app)/`: 인증이 필요한 애플리케이션 라우트
+  - `(marketing)/`: 공개 마케팅 페이지
+  - `(auth)/`: 인증 관련 페이지
+  - `api/`: API 엔드포인트 (프로젝트, 워크스페이스, 데이터 수집 등)
 - **shared/**: 프로젝트 전역에서 사용하는 공통 컴포넌트/유틸
 - **entities/**: 도메인 엔티티 타입 정의
 - **features/**: 비즈니스 로직이 포함된 기능 모듈
+  - `model/`: 상태 관리 및 비즈니스 로직
+  - `ui/`: UI 컴포넌트
 - **widgets/**: 여러 컴포넌트를 조합한 복합 위젯
 - **lib/**: 외부 서비스 연동 로직
+  - `supabase/`: 인증 및 데이터베이스
+  - `ga4/`: Google Analytics 4 연동
+  - `csv/`: CSV 처리
+  - `semantic-layer/`: Semantic Layer 로직
+  - `react-query/`: 서버 상태 관리
 
 ---
 
@@ -194,6 +211,12 @@ src/
 - **검증 로직 분리**: `validation.ts`에 검증 함수 분리
 - **에러 처리**: 사용자 친화적 에러 메시지 표시
 
+### 5.3 서버 상태 (React Query)
+- **React Query 사용**: 서버 상태 관리 및 캐싱
+- **쿼리**: `useProjectsQuery`, `useWorkspacesQuery` 등
+- **뮤테이션**: `useSendChatMessageMutation`, `useGenerateReportMutation` 등
+- **자동 리프레시**: staleTime, cacheTime 설정
+
 ---
 
 ## 6. API 개발 가이드
@@ -241,6 +264,15 @@ src/app/api/
 
 ### 7.3 설정 방법
 자세한 내용은 `GOOGLE_SHEETS_SETUP.md` 참고
+
+### 7.4 Brain API 연동
+- **환경 변수**: `BRAIN_API_URL`, `BRAIN_API_KEY` 설정 필요
+- **엔드포인트**:
+  - `POST /api/v1/analyze`: 리포트 생성 및 채팅 분석
+  - `POST /api/v1/collect/ga4`: GA4 데이터 수집
+  - `POST /api/v1/collect/csv`: CSV 데이터 수집
+  - `POST /api/v1/profiler/csv`: CSV 스키마 프로파일링
+- **인증**: `X-API-Key` 헤더로 인증
 
 ---
 
@@ -394,6 +426,6 @@ npm start
 
 ---
 
-**문서 버전**: 1.0  
-**최종 수정일**: 2026-01-05
+**문서 버전**: 2.0  
+**최종 수정일**: 2026-01-26
 

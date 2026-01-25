@@ -1,39 +1,61 @@
-# Vibe Semantic Landing Page
+# Vibe Semantic
 
-Vibe Semantic의 Fake Door 랜딩 페이지입니다.
+Vibe Semantic은 SQL 없이도 제품의 데이터를 분석하고 인사이트를 제공하는 AI 기반 데이터 분석 플랫폼입니다.
 
-## 스택
+**Last Updated**: 2026-01-26
 
+## 기술 스택
+
+### Frontend
 - **Next.js 14** (App Router)
-- **TypeScript**
+- **TypeScript** (Strict Mode)
 - **TailwindCSS**
-- **Server Components 우선** (필요한 곳만 Client Components)
+- **React Query** (서버 상태 관리)
+- **Supabase Client** (인증)
+
+### Backend
+- **Python FastAPI** (Brain API)
+- **LangGraph + LangChain** (AI 엔진)
+- **Supabase** (PostgreSQL, Auth, RLS)
+
+### Infrastructure
+- **Vercel** (Frontend 배포)
+- **Render / Cloud Run** (Brain API 배포)
+- **Supabase Cloud** (Database, Auth)
 
 ## 프로젝트 구조
 
 ```
 src/
 ├── app/                    # Next.js App Router
-│   ├── layout.tsx          # 루트 레이아웃
-│   └── page.tsx            # 메인 랜딩 페이지 (/)
+│   ├── (app)/             # 인증이 필요한 애플리케이션 라우트
+│   ├── (marketing)/       # 공개 마케팅 페이지
+│   ├── (auth)/            # 인증 관련 페이지
+│   └── api/               # API 엔드포인트
 ├── shared/                 # 공통 모듈
 │   ├── ui/                # 재사용 UI 컴포넌트
-│   ├── lib/               # 유틸리티 함수
-│   └── styles/            # 글로벌 스타일
-├── entities/              # 도메인 엔티티
-│   └── lead/             # Lead 타입 정의
-├── features/             # 기능 모듈
-│   └── lead-capture/     # Early Access 신청 폼
-└── widgets/              # 복합 위젯
-    ├── header/
-    ├── footer/
-    ├── hero/
-    ├── problem/
-    ├── bento/
-    ├── how-it-works/
-    ├── security/
-    └── faq/
+│   └── lib/               # 유틸리티 함수
+├── entities/              # 도메인 엔티티 타입 정의
+├── features/              # 기능 모듈 (model/ + ui/)
+├── widgets/               # 복합 위젯
+├── lib/                   # 외부 서비스 연동
+│   ├── supabase/          # Supabase 클라이언트
+│   ├── ga4/               # Google Analytics 4
+│   ├── csv/               # CSV 처리
+│   ├── semantic-layer/    # Semantic Layer
+│   └── react-query/       # React Query
+└── types/                 # 데이터베이스 타입
+
+python-brain/              # Python FastAPI 서버
+├── app/
+│   ├── main.py            # FastAPI 앱
+│   ├── langgraph/         # LangGraph 엔진
+│   ├── collectors/        # 데이터 수집기
+│   └── profilers/         # CSV 프로파일러
+└── requirements.txt
 ```
+
+자세한 아키텍처는 `ARCHITECTURE.md`를 참고하세요.
 
 ## 설치 및 실행
 
@@ -65,6 +87,7 @@ npm start
 
 ## 주요 기능
 
+### 마케팅 페이지
 - **Hero 섹션**: 제품 소개 및 인터랙티브 대시보드
 - **Problem 섹션**: 사용자 고민 공감
 - **Feature 섹션**: Bento Grid 스타일의 기능 소개
@@ -74,6 +97,14 @@ npm start
 - **FAQ**: 아코디언 형태의 자주 묻는 질문
 - **Early Access 폼**: Google Sheets 연동 신청 폼
 
+### 애플리케이션
+- **인증 시스템**: Email OTP, Google OAuth
+- **프로젝트 관리**: 프로젝트 생성 및 프로필 설정
+- **데이터 소스 연결**: GA4, CSV 파일
+- **AI 분석**: 리포트 생성 및 채팅 분석
+- **Semantic Layer**: 메트릭 정의 자동 생성
+- **워크스페이스**: 목적별 데이터 분석 공간
+
 ## 디자인 특징
 
 - 다크 테마 (차콜/블랙 배경)
@@ -82,10 +113,13 @@ npm start
 - 넓은 여백과 큰 타이포그래피
 - 반응형 디자인
 
-## 라우팅
+## 주요 문서
 
-- `/` - 메인 랜딩 페이지
-- `/about` - 현재 미구현 (추후 구현 예정)
+- **PRD.md**: 제품 요구사항 문서
+- **DEVELOPER_GUIDE.md**: 개발자 가이드
+- **ARCHITECTURE.md**: 아키텍처 및 주요 로직 설계
+- **CLAUDE.md**: Claude AI 코딩 가이드
+- **SETUP_GUIDE.md**: 설정 가이드 (환경 변수, Supabase, Google Sheets, 도메인, 배포 등)
 
 ## Google Sheets 연동
 
@@ -101,6 +135,29 @@ Early Access 신청 폼은 Google Sheets에 자동으로 저장됩니다.
    ```
 
 자세한 설정은 `GOOGLE_SHEETS_SETUP.md`를 참고하세요.
+
+## 환경 변수
+
+`.env.local` 파일에 다음 환경 변수를 설정하세요:
+
+```env
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+
+# Brain API
+BRAIN_API_URL=https://your-api.onrender.com
+BRAIN_API_KEY=your_api_key
+
+# Google Sheets
+GOOGLE_SHEETS_WEB_APP_URL=your_web_app_url
+
+# OpenAI (Brain API에서 사용)
+OPENAI_API_KEY=your_openai_key
+```
+
+자세한 설정은 `SETUP_GUIDE.md`를 참고하세요.
 
 ## 참고사항
 

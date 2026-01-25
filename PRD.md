@@ -1,9 +1,9 @@
 # Product Requirements Document (PRD)
 ## Vibe Semantic Landing Page
 
-**작성일**: 2026-01-05  
-**버전**: 1.0  
-**상태**: Private Preview
+**작성일**: 2026-01-26  
+**버전**: 2.0  
+**상태**: Private Preview (인증 시스템 및 AI 분석 기능 완료)
 
 ---
 
@@ -180,14 +180,23 @@ Vibe Semantic의 Fake Door 랜딩 페이지를 통해 Early Access 신청자를 
 
 ### 4.1 기술 스택
 - **프레임워크**: Next.js 14 (App Router)
-- **언어**: TypeScript
+- **언어**: TypeScript (Strict Mode)
 - **스타일링**: TailwindCSS
 - **아키텍처**: 클린 아키텍처 (프론트엔드 레이어링)
+- **상태 관리**: React Query
+- **인증**: Supabase Auth (Email OTP, Google OAuth)
+- **백엔드**: Python FastAPI (Brain API) - LangGraph 엔진
+- **데이터베이스**: Supabase (PostgreSQL, RLS)
+- **데이터 소스**: Google Analytics 4, CSV 파일
 
 ### 4.2 데이터 저장
 - **Early Access 폼**: Google Sheets (Sheet1)
 - **Pricing 폼**: Google Sheets (Pricing 시트)
 - **연동 방식**: Google Apps Script 웹 앱
+- **애플리케이션 데이터**: Supabase PostgreSQL
+  - 프로젝트, 워크스페이스, 메트릭 정의
+  - 수집된 이벤트 데이터 (mart_events)
+  - 채팅 메시지 히스토리
 
 ### 4.3 성능 요구사항
 - SSR 우선 (서버 컴포넌트 기본)
@@ -221,9 +230,12 @@ Vibe Semantic의 Fake Door 랜딩 페이지를 통해 Early Access 신청자를 
 ## 6. 향후 계획
 
 ### 6.1 단기 (1-2개월)
+- ✅ 인증 시스템 완료 (Email OTP, Google OAuth)
+- ✅ AI 분석 기능 완료 (리포트 생성, 채팅)
+- ✅ 데이터 수집 완료 (GA4, CSV)
+- ✅ Semantic Layer 완료 (메트릭 정의 자동 생성)
 - 실제 결제 시스템 연동 (Premium 플랜)
 - 이메일 알림 시스템 구축
-- 신청자 관리 대시보드
 
 ### 6.2 중기 (3-6개월)
 - /about 페이지 추가
@@ -274,6 +286,6 @@ Vibe Semantic의 Fake Door 랜딩 페이지를 통해 Early Access 신청자를 
 
 ---
 
-**문서 버전**: 1.0  
-**최종 수정일**: 2026-01-05
+**문서 버전**: 2.0  
+**최종 수정일**: 2026-01-26
 
