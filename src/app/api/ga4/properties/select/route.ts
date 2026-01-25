@@ -5,14 +5,21 @@ import { createAuditLog, AuditActions } from '@/lib/audit'
 
 export async function POST(request: NextRequest) {
   const body = await request.json()
-  const { projectId, propertyId } = body
+  let { projectId, propertyId } = body
 
   if (!projectId || !propertyId) {
     return NextResponse.json({ error: 'Project ID and Property ID required' }, { status: 400 })
   }
 
+  // Decode URL-encoded projectId (handles Korean characters in slugs)
+  try {
+    projectId = decodeURIComponent(projectId)
+  } catch {
+    // If decoding fails, use original value (might already be decoded or be a UUID)
+  }
+
   // Debug logging
-  console.log('[GA4 Property Select] Received:', { projectId, propertyId })
+  console.log('[GA4 Property Select] Received:', { projectId, propertyId, original: body.projectId })
 
   const { context, error } = await getAuthContext(projectId)
   if (error || !context) {

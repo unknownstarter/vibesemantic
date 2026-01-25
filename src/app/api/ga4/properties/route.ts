@@ -3,10 +3,17 @@ import { createClient } from '@/lib/supabase/server'
 import { getAuthContext } from '@/lib/supabase/auth-helpers'
 
 export async function GET(request: NextRequest) {
-  const projectId = request.nextUrl.searchParams.get('projectId')
+  let projectId = request.nextUrl.searchParams.get('projectId')
   
   if (!projectId) {
     return NextResponse.json({ error: 'Project ID required' }, { status: 400 })
+  }
+
+  // Decode URL-encoded projectId (handles Korean characters in slugs)
+  try {
+    projectId = decodeURIComponent(projectId)
+  } catch {
+    // If decoding fails, use original value (might already be decoded or be a UUID)
   }
 
   const { context, error } = await getAuthContext(projectId)
