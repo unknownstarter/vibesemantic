@@ -118,7 +118,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         data_refreshed_at: new Date().toISOString(),
       }
       
-      if (project && project.setup_status !== 'ready') {
+      const wasNotReady = project && project.setup_status !== 'ready'
+      if (wasNotReady) {
         updateData.setup_status = 'ready'
       }
 
@@ -126,6 +127,35 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         .from('projects')
         .update(updateData)
         .eq('id', projectId)
+
+      // 연동 완료 시 (ready 상태가 된 경우) 첫 워크스페이스에 대해 자동 리포트 생성 (백그라운드)
+      if (wasNotReady) {
+        // 첫 번째 ready 워크스페이스에 대해 리포트 생성
+        const { data: firstWorkspace } = await supabase
+          .from('workspaces')
+          .select('id')
+          .eq('project_id', projectId)
+          .eq('status', 'ready')
+          .order('created_at', { ascending: true })
+          .limit(1)
+          .single()
+
+        if (firstWorkspace) {
+          // 백그라운드에서 리포트 생성 (비동기, 에러 무시)
+          import('@/lib/api/workspaces').then(({ generateInitialReport }) => {
+            generateInitialReport({
+              projectId,
+              workspaceId: firstWorkspace.id,
+              userId: auth.user!.id,
+              range: '7d',
+            }).catch((err) => {
+              console.error('[Ingest] Failed to generate initial report:', err)
+            })
+          }).catch(() => {
+            // Import 실패는 무시
+          })
+        }
+      }
     }
 
     // Create audit log

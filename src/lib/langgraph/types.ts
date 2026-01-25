@@ -1,12 +1,13 @@
-import type { 
-  MemberRole, 
-  ProjectProfile, 
-  WorkspacePurpose, 
+import type {
+  MemberRole,
+  ProjectProfile,
+  WorkspacePurpose,
   AgentConfig,
-  ReportRange 
+  ReportRange,
+  MetricDefinition,
 } from '@/types/database'
 
-export type { WorkspacePurpose, ProjectProfile, ReportRange } from '@/types/database'
+export type { WorkspacePurpose, ProjectProfile, ReportRange, MetricDefinition } from '@/types/database'
 
 // Graph State
 export interface AnalysisState {
@@ -94,6 +95,8 @@ export interface MartSummary {
     csv: { available: boolean; metrics?: string[]; recordCount?: number }
     integrated: boolean
   }
+  // Semantic Layer: 프로젝트별 메트릭 정의
+  metricDefinitions?: MetricDefinition[]
 }
 
 // 분석가 질문 (Quick Reply 포함)

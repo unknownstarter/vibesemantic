@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { createAuditLog, AuditActions } from '@/lib/audit'
 import type { ProjectProfile, MemberRole, Json } from '@/types/database'
+import { generateMetricDefinitions } from '@/lib/semantic/metric-definitions'
+import { isSemanticLayerEnabled } from '@/lib/feature-flags'
 
 // GET: 사용자가 접근 가능한 프로젝트 목록
 export async function GET() {
@@ -83,6 +85,26 @@ export async function POST(request: NextRequest) {
     projectId: project.id,
     action: AuditActions.PROJECT_CREATE,
   })
+
+  // Auto-generate metric definitions if profile is provided and semantic layer is enabled
+  if (profile && Object.keys(profile).length > 0) {
+    try {
+      // Check if semantic layer is enabled (default: false, but generate anyway for new projects)
+      // For new projects, we'll generate definitions if profile has industry or goals
+      const shouldGenerate = profile.industry || (profile.goals && profile.goals.length > 0)
+      
+      if (shouldGenerate) {
+        // Generate metric definitions asynchronously (don't block response)
+        generateMetricDefinitions(project.id, profile).catch(error => {
+          console.error('[Projects] Failed to auto-generate metric definitions:', error)
+          // Non-blocking: log error but don't fail the request
+        })
+      }
+    } catch (error) {
+      // Non-blocking: log error but don't fail the request
+      console.error('[Projects] Error generating metric definitions:', error)
+    }
+  }
 
   return NextResponse.json({ project }, { status: 201 })
 }

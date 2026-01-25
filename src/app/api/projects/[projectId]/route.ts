@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { getAuthContext, canEdit, isOwner } from '@/lib/supabase/auth-helpers'
 import { createAuditLog, AuditActions } from '@/lib/audit'
 import type { ProjectProfile } from '@/types/database'
+import { syncMetricDefinitionsWithProfile } from '@/lib/semantic/metric-definitions'
+import { isSemanticLayerEnabled } from '@/lib/feature-flags'
 
 type RouteParams = { params: Promise<{ projectId: string }> }
 
@@ -113,6 +115,23 @@ export async function PATCH(
     action: profile ? AuditActions.PROJECT_PROFILE_UPDATE : AuditActions.PROJECT_UPDATE,
     llmPayloadSummary: { updatedFields: Object.keys(updateData) },
   })
+
+  // Sync metric definitions if profile was updated
+  if (profile) {
+    try {
+      const semanticLayerEnabled = await isSemanticLayerEnabled(projectId)
+      if (semanticLayerEnabled) {
+        // Sync metric definitions asynchronously (don't block response)
+        syncMetricDefinitionsWithProfile(projectId, profile).catch(error => {
+          console.error('[Projects] Failed to sync metric definitions:', error)
+          // Non-blocking: log error but don't fail the request
+        })
+      }
+    } catch (error) {
+      // Non-blocking: log error but don't fail the request
+      console.error('[Projects] Error syncing metric definitions:', error)
+    }
+  }
 
   return NextResponse.json({ project })
 }

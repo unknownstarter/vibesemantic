@@ -48,5 +48,32 @@ export async function POST(
     llmPayloadSummary: { range },
   })
 
+  // 데이터 새로고침 완료 시 첫 워크스페이스에 대해 자동 리포트 생성 (백그라운드)
+  const supabase = await createClient()
+  const { data: firstWorkspace } = await supabase
+    .from('workspaces')
+    .select('id')
+    .eq('project_id', projectId)
+    .eq('status', 'ready')
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .single()
+
+  if (firstWorkspace) {
+    // 백그라운드에서 리포트 생성 (비동기, 에러 무시)
+    import('@/lib/api/workspaces').then(({ generateInitialReport }) => {
+      generateInitialReport({
+        projectId,
+        workspaceId: firstWorkspace.id,
+        userId: context.userId,
+        range,
+      }).catch((err) => {
+        console.error('[Refresh] Failed to generate initial report:', err)
+      })
+    }).catch(() => {
+      // Import 실패는 무시
+    })
+  }
+
   return NextResponse.json({ success: true, range })
 }

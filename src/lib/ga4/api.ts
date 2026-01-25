@@ -1,6 +1,9 @@
 import { google, analyticsadmin_v1beta, analyticsdata_v1beta } from 'googleapis'
 import { getOAuth2Client, decryptToken, encryptToken, refreshAccessToken } from './oauth'
 import { createServiceClient } from '@/lib/supabase/server'
+import { executeGA4Request, withRateLimitAndRetry } from './rate-limiter'
+import { isSemanticLayerEnabled, isEventCollectionEnabled } from '@/lib/feature-flags'
+import type { ProjectProfile } from '@/types/database'
 
 interface GA4Credentials {
   accessToken: string
@@ -105,6 +108,160 @@ export async function getGA4Analytics(
   projectId: string,
   propertyId: string,
   startDate: string,
+  endDate: string,
+  options?: {
+    includeRetention?: boolean
+    includeEvents?: boolean
+    projectProfile?: ProjectProfile
+  }
+) {
+  const credentials = await getValidCredentials(projectId)
+  if (!credentials) throw new Error('No valid GA4 credentials')
+
+  const oauth2Client = getOAuth2Client()
+  oauth2Client.setCredentials({ access_token: credentials.accessToken })
+
+  const analyticsData = google.analyticsdata({
+    version: 'v1beta',
+    auth: oauth2Client,
+  })
+
+  // 1. Daily KPIs (with rate limiting)
+  const kpisResponse = await executeGA4Request(() =>
+    analyticsData.properties.runReport({
+      property: `properties/${propertyId}`,
+      requestBody: {
+        dateRanges: [{ startDate, endDate }],
+        dimensions: [{ name: 'date' }],
+        metrics: [
+          { name: 'sessions' },
+          { name: 'activeUsers' },
+          { name: 'newUsers' },
+          { name: 'engagedSessions' },
+          { name: 'engagementRate' },
+          { name: 'bounceRate' },
+          { name: 'averageSessionDuration' },
+        ],
+      },
+    })
+  )
+
+  // 2. Channel Daily (with rate limiting)
+  const channelResponse = await executeGA4Request(() =>
+    analyticsData.properties.runReport({
+      property: `properties/${propertyId}`,
+      requestBody: {
+        dateRanges: [{ startDate, endDate }],
+        dimensions: [
+          { name: 'date' },
+          { name: 'sessionDefaultChannelGroup' },
+        ],
+        metrics: [
+          { name: 'sessions' },
+          { name: 'activeUsers' },
+          { name: 'newUsers' },
+          { name: 'engagedSessions' },
+        ],
+        limit: '10000',
+      },
+    })
+  )
+
+  // 3. Top Pages Daily (with rate limiting)
+  const pagesResponse = await executeGA4Request(() =>
+    analyticsData.properties.runReport({
+      property: `properties/${propertyId}`,
+      requestBody: {
+        dateRanges: [{ startDate, endDate }],
+        dimensions: [
+          { name: 'date' },
+          { name: 'pagePath' },
+          { name: 'pageTitle' },
+        ],
+        metrics: [
+          { name: 'sessions' },
+          { name: 'activeUsers' },
+          { name: 'screenPageViews' },
+          { name: 'engagementRate' },
+        ],
+        orderBys: [
+          { dimension: { dimensionName: 'date' } },
+          { metric: { metricName: 'screenPageViews' }, desc: true },
+        ],
+        limit: '10000',
+      },
+    })
+  )
+
+  const result: {
+    kpis: analyticsdata_v1beta.Schema$RunReportResponse
+    channels: analyticsdata_v1beta.Schema$RunReportResponse
+    pages: analyticsdata_v1beta.Schema$RunReportResponse
+    retention?: analyticsdata_v1beta.Schema$RunReportResponse
+    events?: analyticsdata_v1beta.Schema$RunReportResponse
+  } = {
+    kpis: kpisResponse.data,
+    channels: channelResponse.data,
+    pages: pagesResponse.data,
+  }
+
+  // 4. Retention Metrics (optional, with rate limiting)
+  if (options?.includeRetention) {
+    const retentionResponse = await executeGA4Request(() =>
+      analyticsData.properties.runReport({
+        property: `properties/${propertyId}`,
+        requestBody: {
+          dateRanges: [{ startDate, endDate }],
+          dimensions: [{ name: 'date' }],
+          metrics: [
+            { name: 'active1DayUsers' },
+            { name: 'active7DayUsers' },
+            { name: 'active28DayUsers' },
+            { name: 'dauPerMau' },
+            { name: 'dauPerWau' },
+            { name: 'wauPerMau' },
+          ],
+        },
+      })
+    )
+    result.retention = retentionResponse.data
+  }
+
+  // 5. Event Data (optional, with rate limiting)
+  if (options?.includeEvents) {
+    const eventsResponse = await executeGA4Request(() =>
+      analyticsData.properties.runReport({
+        property: `properties/${propertyId}`,
+        requestBody: {
+          dateRanges: [{ startDate, endDate }],
+          dimensions: [
+            { name: 'date' },
+            { name: 'eventName' },
+          ],
+          metrics: [
+            { name: 'eventCount' },
+            { name: 'totalUsers' },
+            { name: 'eventsPerSession' },
+          ],
+          orderBys: [
+            { dimension: { dimensionName: 'date' } },
+            { metric: { metricName: 'eventCount' }, desc: true },
+          ],
+          limit: '10000',
+        },
+      })
+    )
+    result.events = eventsResponse.data
+  }
+
+  return result
+}
+
+// Retention 메트릭만 별도로 조회 (비동기 수집용)
+export async function getGA4RetentionMetrics(
+  projectId: string,
+  propertyId: string,
+  startDate: string,
   endDate: string
 ) {
   const credentials = await getValidCredentials(projectId)
@@ -118,72 +275,83 @@ export async function getGA4Analytics(
     auth: oauth2Client,
   })
 
-  // 1. Daily KPIs
-  const kpisResponse = await analyticsData.properties.runReport({
-    property: `properties/${propertyId}`,
-    requestBody: {
-      dateRanges: [{ startDate, endDate }],
-      dimensions: [{ name: 'date' }],
-      metrics: [
-        { name: 'sessions' },
-        { name: 'activeUsers' },
-        { name: 'newUsers' },
-        { name: 'engagedSessions' },
-        { name: 'engagementRate' },
-        { name: 'bounceRate' },
-        { name: 'averageSessionDuration' },
-      ],
-    },
+  const response = await executeGA4Request(() =>
+    analyticsData.properties.runReport({
+      property: `properties/${propertyId}`,
+      requestBody: {
+        dateRanges: [{ startDate, endDate }],
+        dimensions: [{ name: 'date' }],
+        metrics: [
+          { name: 'active1DayUsers' },
+          { name: 'active7DayUsers' },
+          { name: 'active28DayUsers' },
+          { name: 'dauPerMau' },
+          { name: 'dauPerWau' },
+          { name: 'wauPerMau' },
+        ],
+      },
+    })
+  )
+
+  return response.data
+}
+
+// Event 데이터만 별도로 조회 (비동기 수집용)
+export async function getGA4EventData(
+  projectId: string,
+  propertyId: string,
+  startDate: string,
+  endDate: string,
+  eventNames?: string[]
+) {
+  const credentials = await getValidCredentials(projectId)
+  if (!credentials) throw new Error('No valid GA4 credentials')
+
+  const oauth2Client = getOAuth2Client()
+  oauth2Client.setCredentials({ access_token: credentials.accessToken })
+
+  const analyticsData = google.analyticsdata({
+    version: 'v1beta',
+    auth: oauth2Client,
   })
 
-  // 2. Channel Daily
-  const channelResponse = await analyticsData.properties.runReport({
-    property: `properties/${propertyId}`,
-    requestBody: {
-      dateRanges: [{ startDate, endDate }],
-      dimensions: [
-        { name: 'date' },
-        { name: 'sessionDefaultChannelGroup' },
-      ],
-      metrics: [
-        { name: 'sessions' },
-        { name: 'activeUsers' },
-        { name: 'newUsers' },
-        { name: 'engagedSessions' },
-      ],
-      limit: '10000',
-    },
-  })
+  // Build filter for specific events if provided
+  const dimensionFilter = eventNames?.length
+    ? {
+        filter: {
+          fieldName: 'eventName',
+          inListFilter: {
+            values: eventNames,
+          },
+        },
+      }
+    : undefined
 
-  // 3. Top Pages Daily
-  const pagesResponse = await analyticsData.properties.runReport({
-    property: `properties/${propertyId}`,
-    requestBody: {
-      dateRanges: [{ startDate, endDate }],
-      dimensions: [
-        { name: 'date' },
-        { name: 'pagePath' },
-        { name: 'pageTitle' },
-      ],
-      metrics: [
-        { name: 'sessions' },
-        { name: 'activeUsers' },
-        { name: 'screenPageViews' },
-        { name: 'engagementRate' },
-      ],
-      orderBys: [
-        { dimension: { dimensionName: 'date' } },
-        { metric: { metricName: 'screenPageViews' }, desc: true },
-      ],
-      limit: '10000',
-    },
-  })
+  const response = await executeGA4Request(() =>
+    analyticsData.properties.runReport({
+      property: `properties/${propertyId}`,
+      requestBody: {
+        dateRanges: [{ startDate, endDate }],
+        dimensions: [
+          { name: 'date' },
+          { name: 'eventName' },
+        ],
+        metrics: [
+          { name: 'eventCount' },
+          { name: 'totalUsers' },
+          { name: 'eventsPerSession' },
+        ],
+        dimensionFilter,
+        orderBys: [
+          { dimension: { dimensionName: 'date' } },
+          { metric: { metricName: 'eventCount' }, desc: true },
+        ],
+        limit: '10000',
+      },
+    })
+  )
 
-  return {
-    kpis: kpisResponse.data,
-    channels: channelResponse.data,
-    pages: pagesResponse.data,
-  }
+  return response.data
 }
 
 // GA4 데이터를 Mart 테이블에 저장
@@ -213,27 +381,68 @@ export async function refreshMartData(
   const startDateStr = startDate.toISOString().split('T')[0]
   const endDateStr = endDate.toISOString().split('T')[0]
 
+  // Feature flags 확인
+  const [semanticEnabled, eventsEnabled] = await Promise.all([
+    isSemanticLayerEnabled(projectId),
+    isEventCollectionEnabled(projectId),
+  ])
+
   try {
     const data = await getGA4Analytics(
       projectId,
       property.property_id,
       startDateStr,
-      endDateStr
+      endDateStr,
+      {
+        includeRetention: semanticEnabled,
+        includeEvents: eventsEnabled,
+      }
     )
 
-    // 1. Daily KPIs upsert
+    // 1. Daily KPIs upsert (including retention metrics if available)
     if (data.kpis.rows) {
-      const kpiRows = data.kpis.rows.map(row => ({
-        project_id: projectId,
-        date: formatGA4Date(row.dimensionValues![0].value!),
-        sessions: parseInt(row.metricValues![0].value || '0'),
-        active_users: parseInt(row.metricValues![1].value || '0'),
-        new_users: parseInt(row.metricValues![2].value || '0'),
-        engaged_sessions: parseInt(row.metricValues![3].value || '0'),
-        engagement_rate: parseFloat(row.metricValues![4].value || '0'),
-        bounce_rate: parseFloat(row.metricValues![5].value || '0'),
-        avg_session_duration: parseFloat(row.metricValues![6].value || '0'),
-      }))
+      // Build retention data map for merging
+      const retentionMap = new Map<string, {
+        active_1day_users: number
+        active_7day_users: number
+        active_28day_users: number
+        dau_per_mau: number
+        dau_per_wau: number
+        wau_per_mau: number
+      }>()
+
+      if (data.retention?.rows) {
+        for (const row of data.retention.rows) {
+          const date = formatGA4Date(row.dimensionValues![0].value!)
+          retentionMap.set(date, {
+            active_1day_users: parseInt(row.metricValues![0].value || '0'),
+            active_7day_users: parseInt(row.metricValues![1].value || '0'),
+            active_28day_users: parseInt(row.metricValues![2].value || '0'),
+            dau_per_mau: parseFloat(row.metricValues![3].value || '0'),
+            dau_per_wau: parseFloat(row.metricValues![4].value || '0'),
+            wau_per_mau: parseFloat(row.metricValues![5].value || '0'),
+          })
+        }
+      }
+
+      const kpiRows = data.kpis.rows.map(row => {
+        const date = formatGA4Date(row.dimensionValues![0].value!)
+        const retention = retentionMap.get(date)
+
+        return {
+          project_id: projectId,
+          date,
+          sessions: parseInt(row.metricValues![0].value || '0'),
+          active_users: parseInt(row.metricValues![1].value || '0'),
+          new_users: parseInt(row.metricValues![2].value || '0'),
+          engaged_sessions: parseInt(row.metricValues![3].value || '0'),
+          engagement_rate: parseFloat(row.metricValues![4].value || '0'),
+          bounce_rate: parseFloat(row.metricValues![5].value || '0'),
+          avg_session_duration: parseFloat(row.metricValues![6].value || '0'),
+          // Retention metrics (null if not fetched)
+          ...(retention ?? {}),
+        }
+      })
 
       await supabase
         .from('mart_ga4_daily_kpis')
@@ -290,6 +499,25 @@ export async function refreshMartData(
         .upsert(pageRows, { onConflict: 'project_id,date,page_path' })
     }
 
+    // 4. Event Data upsert (if enabled)
+    if (data.events?.rows && eventsEnabled) {
+      const eventRows = data.events.rows.map(row => ({
+        project_id: projectId,
+        source: 'ga4',
+        date: formatGA4Date(row.dimensionValues![0].value!),
+        event_name: row.dimensionValues![1].value || 'unknown',
+        event_count: parseInt(row.metricValues![0].value || '0'),
+        unique_users: parseInt(row.metricValues![1].value || '0'),
+        events_per_user: parseFloat(row.metricValues![2].value || '0'),
+        dimensions: {},
+        event_params: {},
+      }))
+
+      await supabase
+        .from('mart_events')
+        .upsert(eventRows, { onConflict: 'project_id,source,date,event_name,dimensions' })
+    }
+
     // Project status 및 data_refreshed_at 업데이트
     const { data: project } = await supabase
       .from('projects')
@@ -300,7 +528,7 @@ export async function refreshMartData(
     const updateData: Record<string, unknown> = {
       data_refreshed_at: new Date().toISOString(),
     }
-    
+
     if (project?.setup_status === 'ga4_ready') {
       updateData.setup_status = 'ready'
     }
@@ -313,9 +541,146 @@ export async function refreshMartData(
     return { success: true }
   } catch (error) {
     console.error('GA4 data refresh error:', error)
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }
+  }
+}
+
+// 비동기로 Event 데이터만 수집 (백그라운드 작업용)
+export async function refreshEventDataAsync(
+  projectId: string,
+  range: '7d' | '30d'
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = createServiceClient()
+
+  // 선택된 property 가져오기
+  const { data: property, error: propError } = await supabase
+    .from('ga4_properties')
+    .select('property_id')
+    .eq('project_id', projectId)
+    .eq('is_selected', true)
+    .single()
+
+  if (propError || !property) {
+    return { success: false, error: 'No GA4 property selected' }
+  }
+
+  // 날짜 범위 계산
+  const endDate = new Date()
+  const startDate = new Date()
+  startDate.setDate(endDate.getDate() - (range === '7d' ? 7 : 30))
+
+  const startDateStr = startDate.toISOString().split('T')[0]
+  const endDateStr = endDate.toISOString().split('T')[0]
+
+  try {
+    const eventsData = await getGA4EventData(
+      projectId,
+      property.property_id,
+      startDateStr,
+      endDateStr
+    )
+
+    if (eventsData.rows) {
+      const eventRows = eventsData.rows.map(row => ({
+        project_id: projectId,
+        source: 'ga4',
+        date: formatGA4Date(row.dimensionValues![0].value!),
+        event_name: row.dimensionValues![1].value || 'unknown',
+        event_count: parseInt(row.metricValues![0].value || '0'),
+        unique_users: parseInt(row.metricValues![1].value || '0'),
+        events_per_user: parseFloat(row.metricValues![2].value || '0'),
+        dimensions: {},
+        event_params: {},
+      }))
+
+      await supabase
+        .from('mart_events')
+        .upsert(eventRows, { onConflict: 'project_id,source,date,event_name,dimensions' })
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error('GA4 event data refresh error:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }
+  }
+}
+
+// Retention 메트릭만 비동기로 수집 (백그라운드 작업용)
+export async function refreshRetentionDataAsync(
+  projectId: string,
+  range: '7d' | '30d'
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = createServiceClient()
+
+  // 선택된 property 가져오기
+  const { data: property, error: propError } = await supabase
+    .from('ga4_properties')
+    .select('property_id')
+    .eq('project_id', projectId)
+    .eq('is_selected', true)
+    .single()
+
+  if (propError || !property) {
+    return { success: false, error: 'No GA4 property selected' }
+  }
+
+  // 날짜 범위 계산
+  const endDate = new Date()
+  const startDate = new Date()
+  startDate.setDate(endDate.getDate() - (range === '7d' ? 7 : 30))
+
+  const startDateStr = startDate.toISOString().split('T')[0]
+  const endDateStr = endDate.toISOString().split('T')[0]
+
+  try {
+    const retentionData = await getGA4RetentionMetrics(
+      projectId,
+      property.property_id,
+      startDateStr,
+      endDateStr
+    )
+
+    if (retentionData.rows) {
+      const retentionUpdates = retentionData.rows.map(row => ({
+        project_id: projectId,
+        date: formatGA4Date(row.dimensionValues![0].value!),
+        active_1day_users: parseInt(row.metricValues![0].value || '0'),
+        active_7day_users: parseInt(row.metricValues![1].value || '0'),
+        active_28day_users: parseInt(row.metricValues![2].value || '0'),
+        dau_per_mau: parseFloat(row.metricValues![3].value || '0'),
+        dau_per_wau: parseFloat(row.metricValues![4].value || '0'),
+        wau_per_mau: parseFloat(row.metricValues![5].value || '0'),
+      }))
+
+      // Update existing rows with retention data
+      for (const update of retentionUpdates) {
+        await supabase
+          .from('mart_ga4_daily_kpis')
+          .update({
+            active_1day_users: update.active_1day_users,
+            active_7day_users: update.active_7day_users,
+            active_28day_users: update.active_28day_users,
+            dau_per_mau: update.dau_per_mau,
+            dau_per_wau: update.dau_per_wau,
+            wau_per_mau: update.wau_per_mau,
+          })
+          .eq('project_id', update.project_id)
+          .eq('date', update.date)
+      }
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error('GA4 retention data refresh error:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
     }
   }
 }

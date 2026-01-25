@@ -1,11 +1,13 @@
 /**
  * CSV Schema Probe using LLM
  * Analyzes CSV headers and sample data to generate mapping suggestions
+ * Optionally uses project profile to prioritize relevant KPIs
  */
 
 import { ChatOpenAI } from '@langchain/openai'
 import { maskSensitiveData, getDetailedColumnAnalysis, type ColumnAnalysis } from './parser'
-import type { MetricColumn, DimensionColumn, LLMQuestion } from '@/types/database'
+import type { MetricColumn, DimensionColumn, LLMQuestion, ProjectProfile } from '@/types/database'
+import { getIndustryKPIs, matchGoalsToKPIs } from '@/lib/templates/industry-kpis'
 
 export interface ProbeResult {
   dateColumn: string | null
@@ -17,12 +19,14 @@ export interface ProbeResult {
 
 /**
  * Build context-rich prompt for LLM with detailed column analysis
+ * Optionally includes project context for better KPI prioritization
  */
 function buildEnrichedPrompt(
   headers: string[],
   sampleRows: string[][],
   columnAnalysis: Record<string, ColumnAnalysis>,
-  language: 'ko' | 'en'
+  language: 'ko' | 'en',
+  projectProfile?: ProjectProfile
 ): string {
   // Format column analysis for LLM
   const columnDescriptions = headers.map(h => {
@@ -62,9 +66,32 @@ function buildEnrichedPrompt(
     row.map(cell => cell.length > 15 ? cell.slice(0, 12) + '...' : cell).join(' | ')
   ).join('\n')
 
+  // Build project context section if profile is available
+  let projectContext = ''
+  if (projectProfile) {
+    const industryKPIs = getIndustryKPIs(projectProfile.industry)
+    const prioritizedKPIs = matchGoalsToKPIs(projectProfile.goals, industryKPIs)
+    const topKPIs = prioritizedKPIs.slice(0, 10)
+
+    projectContext = `
+=== PROJECT CONTEXT ===
+Service: ${projectProfile.serviceName || 'Unknown'}
+Industry: ${projectProfile.industry || 'General'}
+Target: ${projectProfile.targetAudience || 'General users'}
+Goals: ${projectProfile.goals?.join(', ') || 'Not specified'}
+
+RECOMMENDED KPIs FOR THIS INDUSTRY:
+${topKPIs.map(kpi => `- ${kpi.displayName} (${kpi.name}): ${kpi.description}`).join('\n')}
+
+PRIORITY: When matching columns to metrics, prioritize the recommended KPIs above.
+If a column name matches or is similar to a recommended KPI, mark it with higher priority.
+
+`
+  }
+
   return `=== CSV COLUMN ANALYSIS ===
 Total columns: ${headers.length}
-
+${projectContext}
 DETECTED COLUMN TYPES:
 ${columnDescriptions}
 
@@ -74,7 +101,7 @@ ${'-'.repeat(50)}
 ${tableRows}
 
 === YOUR TASK ===
-Based on the analysis above, categorize EVERY column:
+Based on the analysis above${projectProfile ? ' and the project context' : ''}, categorize EVERY column:
 
 1. **DATE column** (exactly 1 or null): Time-series key for aggregation
    - Look for: 📅 DATE type, or columns with "date", "날짜", "일자", "period" in name
@@ -86,13 +113,13 @@ Based on the analysis above, categorize EVERY column:
    - Exclude: 🔑 ID type columns
    - For metrics with names containing "rate", "ratio", "%", "avg" → use aggregation: "avg"
    - For counts, sums, totals → use aggregation: "sum"
-
+${projectProfile ? '   - PRIORITIZE columns that match the recommended KPIs for this industry\n' : ''}
 3. **DIMENSION columns** (categorical for grouping):
    - Include: 📝 TEXT type with reasonable uniqueness (< 90%)
    - Examples: country, channel, segment, category, platform
    - Exclude: High-uniqueness text (likely descriptions or IDs)
 
-CRITICAL: 
+CRITICAL:
 - Column names in output MUST exactly match input headers (case-sensitive!)
 - Every non-ID column should be categorized as either metric OR dimension
 - ${language === 'ko' ? 'Use Korean for displayName' : 'Use English for displayName'}
@@ -138,19 +165,23 @@ OUTPUT: Return ONLY valid JSON, no explanation.`
 export async function probeSchema(
   headers: string[],
   sampleRows: string[][],
-  language: 'ko' | 'en' = 'ko'
+  language: 'ko' | 'en' = 'ko',
+  projectProfile?: ProjectProfile
 ): Promise<ProbeResult> {
   // Step 1: Deep analyze all columns
   const columnAnalysis = getDetailedColumnAnalysis(headers, sampleRows)
-  
+
   console.log('[Probe] === COLUMN ANALYSIS ===')
+  if (projectProfile) {
+    console.log(`[Probe] Project context: ${projectProfile.serviceName} (${projectProfile.industry})`)
+  }
   Object.entries(columnAnalysis).forEach(([col, analysis]) => {
     console.log(`[Probe] "${col}": ${analysis.type} (${(analysis.confidence * 100).toFixed(0)}%) | samples: ${analysis.sampleValues.slice(0, 2).join(', ')}`)
   })
 
-  // Step 2: Build enriched prompt
+  // Step 2: Build enriched prompt with project context
   const maskedRows = maskSensitiveData(sampleRows)
-  const userPrompt = buildEnrichedPrompt(headers, maskedRows, columnAnalysis, language)
+  const userPrompt = buildEnrichedPrompt(headers, maskedRows, columnAnalysis, language, projectProfile)
 
   // Step 3: Call LLM
   const model = new ChatOpenAI({

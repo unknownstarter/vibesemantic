@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { requireAuth, requireProjectMember, canEdit } from '@/lib/supabase/auth-helpers'
 import { probeSchema } from '@/lib/csv/probe'
-import type { Json } from '@/types/database'
+import type { Json, ProjectProfile } from '@/types/database'
 
 type RouteParams = { params: Promise<{ projectId: string; datasetId: string }> }
 
@@ -69,6 +69,15 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: 'File has no headers' }, { status: 400 })
   }
 
+  // Fetch project profile for context-aware probing
+  const { data: project } = await supabase
+    .from('projects')
+    .select('profile')
+    .eq('id', projectId)
+    .single()
+
+  const projectProfile = project?.profile as ProjectProfile | null
+
   // Update dataset status to probing
   await supabase
     .from('csv_datasets')
@@ -76,8 +85,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     .eq('id', datasetId)
 
   try {
-    // Run LLM probe
-    const probeResult = await probeSchema(headers, sampleRows, language)
+    // Run LLM probe with project context
+    const probeResult = await probeSchema(headers, sampleRows, language, projectProfile ?? undefined)
 
     // Create or update source_mappings
     const mappingData = {

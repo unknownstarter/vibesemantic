@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { runAnalysis } from '@/lib/langgraph/graph'
+import { callBrainAnalyze } from '@/lib/api/brain-api'
 import type { 
   ProjectProfile, 
   AgentConfig, 
@@ -88,7 +88,7 @@ export async function POST(
   }
 
   try {
-    const result = await runAnalysis({
+    const result = await callBrainAnalyze({
       userId: user.id,
       projectId: project.id,
       workspaceId,
@@ -111,7 +111,7 @@ export async function POST(
       analysisMarkdown: result.analysisMarkdown,
       analystQuestions: result.analystQuestions,
       martSummary: result.martSummary, // 차트용 데이터
-      threadId,
+      threadId: result.threadId,
       dataAccessed: result.dataAccessed,
     })
   } catch (error) {

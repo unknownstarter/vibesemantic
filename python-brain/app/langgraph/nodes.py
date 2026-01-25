@@ -1,0 +1,579 @@
+"""
+LangGraph 노드 로직
+TypeScript에서 Python으로 포팅
+"""
+
+from typing import Optional, TypedDict, List, Dict, Any
+from datetime import datetime, timedelta
+from app.services.supabase import get_supabase_client
+from app.langgraph.types import AnalysisState, MartSummary, AnalystQuestion
+from app.langgraph.prompts import build_system_prompt, build_user_prompt
+import json
+import re
+
+# Guard and Route
+def guard_and_route(state: AnalysisState) -> Dict[str, Any]:
+    """권한 및 프로젝트 상태 체크"""
+    from app.services.auth import verify_project_access
+    
+    allowed, error = verify_project_access(
+        state["userId"],
+        state["projectId"],
+        state.get("workspaceId")
+    )
+    
+    if not allowed:
+        return {"error": error}
+    
+    return {}
+
+# Load Context and Mart Summary
+def load_context_and_mart_summary(state: AnalysisState) -> Dict[str, Any]:
+    """컨텍스트 및 Mart 요약 로드"""
+    supabase = get_supabase_client()
+    data_accessed = []
+    
+    # 날짜 범위 계산
+    end_date = datetime.now()
+    days = 7 if state["range"] == "7d" else 30
+    start_date = end_date - timedelta(days=days)
+    
+    start_str = start_date.strftime("%Y-%m-%d")
+    end_str = end_date.strftime("%Y-%m-%d")
+    
+    # 최적화: 5개 쿼리를 병렬 처리로 동시 실행
+    # Supabase Python 클라이언트는 동기적이므로 ThreadPoolExecutor 사용
+    from concurrent.futures import ThreadPoolExecutor
+    
+    def fetch_ga4_metrics():
+        result = supabase.table("mart_ga4_metrics") \
+            .select("*") \
+            .eq("project_id", state["projectId"]) \
+            .gte("date", start_str) \
+            .lte("date", end_str) \
+            .order("date") \
+            .execute()
+        return result.data or []
+    
+    def fetch_kpis():
+        result = supabase.table("mart_ga4_daily_kpis") \
+            .select("*") \
+            .eq("project_id", state["projectId"]) \
+            .gte("date", start_str) \
+            .lte("date", end_str) \
+            .order("date") \
+            .execute()
+        return result.data or []
+    
+    def fetch_channels():
+        result = supabase.table("mart_ga4_channel_daily") \
+            .select("*") \
+            .eq("project_id", state["projectId"]) \
+            .gte("date", start_str) \
+            .lte("date", end_str) \
+            .execute()
+        return result.data or []
+    
+    def fetch_pages():
+        result = supabase.table("mart_ga4_top_pages_daily") \
+            .select("*") \
+            .eq("project_id", state["projectId"]) \
+            .gte("date", start_str) \
+            .lte("date", end_str) \
+            .order("screen_page_views", desc=True) \
+            .limit(20) \
+            .execute()
+        return result.data or []
+    
+    def fetch_csv_metrics():
+        result = supabase.table("mart_csv_daily_metrics") \
+            .select("*") \
+            .eq("project_id", state["projectId"]) \
+            .gte("date", start_str) \
+            .lte("date", end_str) \
+            .order("date") \
+            .execute()
+        return result.data or []
+    
+    # 병렬 실행
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = [
+            executor.submit(fetch_ga4_metrics),
+            executor.submit(fetch_kpis),
+            executor.submit(fetch_channels),
+            executor.submit(fetch_pages),
+            executor.submit(fetch_csv_metrics)
+        ]
+        ga4_metrics, kpis, channels, pages, csv_metrics = [f.result() for f in futures]
+    
+    data_accessed.extend([
+        "mart_ga4_metrics",
+        "mart_ga4_daily_kpis",
+        "mart_ga4_channel_daily",
+        "mart_ga4_top_pages_daily",
+        "mart_csv_daily_metrics"
+    ])
+    
+    # GA4 Metrics 집계 (새 유연한 테이블 우선)
+    ga4_global_metrics = [
+        m for m in ga4_metrics
+        if not m.get("dimensions") or len(m.get("dimensions", {})) == 0
+    ]
+    
+    def sum_metric(metric_name: str) -> float:
+        return sum(
+            float(m.get("metric_value", 0) or 0)
+            for m in ga4_global_metrics
+            if m.get("metric_name") == metric_name
+        )
+    
+    def avg_metric(metric_name: str) -> float:
+        values = [
+            float(m.get("metric_value", 0) or 0)
+            for m in ga4_global_metrics
+            if m.get("metric_name") == metric_name
+        ]
+        return sum(values) / len(values) if values else 0
+    
+    use_new_table = len(ga4_global_metrics) > 0
+    
+    total_sessions = sum_metric("sessions") if use_new_table else sum(k.get("sessions", 0) or 0 for k in kpis)
+    total_active_users = sum_metric("active_users") if use_new_table else sum(k.get("active_users", 0) or 0 for k in kpis)
+    total_new_users = sum_metric("new_users") if use_new_table else sum(k.get("new_users", 0) or 0 for k in kpis)
+    
+    if use_new_table:
+        avg_engagement_rate = avg_metric("engagement_rate")
+        avg_bounce_rate = avg_metric("bounce_rate")
+        avg_session_duration = avg_metric("avg_session_duration")
+    else:
+        if kpis:
+            avg_engagement_rate = sum(float(k.get("engagement_rate", 0) or 0) for k in kpis) / len(kpis)
+            avg_bounce_rate = sum(float(k.get("bounce_rate", 0) or 0) for k in kpis) / len(kpis)
+            avg_session_duration = sum(float(k.get("avg_session_duration", 0) or 0) for k in kpis) / len(kpis)
+        else:
+            avg_engagement_rate = avg_bounce_rate = avg_session_duration = 0
+    
+    # 채널별 집계
+    channel_map = {}
+    ga4_channel_metrics = [
+        m for m in ga4_metrics
+        if m.get("dimensions") and m.get("dimensions", {}).get("channel_group")
+    ]
+    
+    if ga4_channel_metrics:
+        for m in ga4_channel_metrics:
+            channel_group = m["dimensions"]["channel_group"]
+            if not channel_group:
+                continue
+            
+            if channel_group not in channel_map:
+                channel_map[channel_group] = {"sessions": 0, "users": 0}
+            
+            if m.get("metric_name") == "sessions":
+                channel_map[channel_group]["sessions"] += float(m.get("metric_value", 0) or 0)
+            elif m.get("metric_name") == "active_users":
+                channel_map[channel_group]["users"] += float(m.get("metric_value", 0) or 0)
+    else:
+        for c in channels:
+            channel_group = c.get("channel_group")
+            if not channel_group:
+                continue
+            
+            if channel_group not in channel_map:
+                channel_map[channel_group] = {"sessions": 0, "users": 0}
+            
+            channel_map[channel_group]["sessions"] += c.get("sessions", 0) or 0
+            channel_map[channel_group]["users"] += c.get("active_users", 0) or 0
+    
+    top_channels = sorted(
+        [
+            {
+                "name": name,
+                "sessions": data["sessions"],
+                "users": data["users"],
+                "percentage": (data["sessions"] / total_sessions * 100) if total_sessions > 0 else 0
+            }
+            for name, data in channel_map.items()
+        ],
+        key=lambda x: x["sessions"],
+        reverse=True
+    )[:5]
+    
+    # 페이지별 집계
+    page_map = {}
+    for p in pages:
+        page_path = p.get("page_path")
+        if not page_path:
+            continue
+        
+        if page_path not in page_map:
+            page_map[page_path] = {
+                "title": p.get("page_title"),
+                "views": 0,
+                "engagementRate": 0,
+                "count": 0
+            }
+        
+        page_map[page_path]["views"] += p.get("screen_page_views", 0) or 0
+        page_map[page_path]["engagementRate"] += float(p.get("engagement_rate", 0) or 0)
+        page_map[page_path]["count"] += 1
+    
+    top_pages = sorted(
+        [
+            {
+                "path": path,
+                "title": data["title"],
+                "views": data["views"],
+                "engagementRate": data["engagementRate"] / data["count"] if data["count"] > 0 else 0
+            }
+            for path, data in page_map.items()
+        ],
+        key=lambda x: x["views"],
+        reverse=True
+    )[:10]
+    
+    # 일별 트렌드
+    daily_trend = [
+        {
+            "date": k.get("date"),
+            "sessions": k.get("sessions", 0) or 0,
+            "users": k.get("active_users", 0) or 0
+        }
+        for k in kpis
+    ]
+    
+    # CSV Metrics 집계
+    csv_metrics_summary = {}
+    if csv_metrics:
+        for m in csv_metrics:
+            metric_name = m.get("metric_name")
+            if not metric_name:
+                continue
+            
+            if metric_name not in csv_metrics_summary:
+                csv_metrics_summary[metric_name] = {
+                    "total": 0,
+                    "byDimension": {},
+                    "trend": []
+                }
+            
+            metric_value = float(m.get("metric_value", 0) or 0)
+            csv_metrics_summary[metric_name]["total"] += metric_value
+            
+            # Dimension별 집계
+            dimension_key = m.get("dimension_key")
+            dimension_value = m.get("dimension_value")
+            if dimension_key and dimension_value:
+                if dimension_key not in csv_metrics_summary[metric_name]["byDimension"]:
+                    csv_metrics_summary[metric_name]["byDimension"][dimension_key] = {}
+                csv_metrics_summary[metric_name]["byDimension"][dimension_key][dimension_value] = \
+                    csv_metrics_summary[metric_name]["byDimension"][dimension_key].get(dimension_value, 0) + metric_value
+            
+            # 트렌드 (날짜별로 집계)
+            date = m.get("date")
+            if date:
+                # 같은 날짜의 기존 항목 찾기
+                existing_trend = next(
+                    (t for t in csv_metrics_summary[metric_name]["trend"] if t["date"] == date),
+                    None
+                )
+                if existing_trend:
+                    existing_trend["value"] += metric_value
+                else:
+                    csv_metrics_summary[metric_name]["trend"].append({
+                        "date": date,
+                        "value": metric_value
+                    })
+    
+    # 트렌드 정렬 (날짜순)
+    for metric_name in csv_metrics_summary:
+        csv_metrics_summary[metric_name]["trend"].sort(key=lambda x: x["date"])
+    
+    # 통합 트렌드 (GA4 + CSV)
+    integrated_trend = None
+    has_ga4_data = len(kpis) > 0
+    has_csv_data = len(csv_metrics) > 0
+    
+    if has_ga4_data and has_csv_data:
+        all_dates = set()
+        for k in kpis:
+            all_dates.add(k.get("date"))
+        for m in csv_metrics:
+            all_dates.add(m.get("date"))
+        
+        integrated_trend = []
+        for date in sorted(all_dates):
+            ga4_day = next((k for k in kpis if k.get("date") == date), None)
+            csv_day = [m for m in csv_metrics if m.get("date") == date]
+            
+            csv_metrics_for_day = {}
+            for m in csv_day:
+                metric_name = m.get("metric_name")
+                if metric_name:
+                    csv_metrics_for_day[metric_name] = csv_metrics_for_day.get(metric_name, 0) + float(m.get("metric_value", 0) or 0)
+            
+            integrated_trend.append({
+                "date": date,
+                "ga4Sessions": ga4_day.get("sessions") if ga4_day else None,
+                "ga4Users": ga4_day.get("active_users") if ga4_day else None,
+                "csvMetrics": csv_metrics_for_day if csv_metrics_for_day else None
+            })
+    
+    # 데이터 소스 요약
+    data_sources = {
+        "ga4": {
+            "available": has_ga4_data,
+            "dateRange": {
+                "start": kpis[0].get("date"),
+                "end": kpis[-1].get("date")
+            } if kpis else None,
+            "recordCount": len(kpis)
+        },
+        "csv": {
+            "available": has_csv_data,
+            "metrics": list(csv_metrics_summary.keys()) if csv_metrics_summary else None,
+            "recordCount": len(csv_metrics)
+        },
+        "integrated": has_ga4_data and has_csv_data
+    }
+    
+    # Metric Definitions 조회 (Semantic Layer)
+    metric_definitions = None
+    try:
+        # Feature flag 확인 (간단히 구현)
+        # 실제로는 feature_flags 테이블에서 확인해야 함
+        metric_defs_result = supabase.table("metric_definitions") \
+            .select("*") \
+            .eq("project_id", state["projectId"]) \
+            .eq("is_active", True) \
+            .order("priority") \
+            .execute()
+        
+        if metric_defs_result.data:
+            metric_definitions = metric_defs_result.data
+            data_accessed.append("metric_definitions")
+    except Exception as e:
+        print(f"[LangGraph] Failed to load metric definitions: {e}")
+    
+    mart_summary: MartSummary = {
+        "period": {
+            "start": start_str,
+            "end": end_str,
+            "days": days
+        },
+        "kpis": {
+            "totalSessions": total_sessions,
+            "totalActiveUsers": total_active_users,
+            "totalNewUsers": total_new_users,
+            "avgEngagementRate": round(avg_engagement_rate * 10000) / 100,
+            "avgBounceRate": round(avg_bounce_rate * 10000) / 100,
+            "avgSessionDuration": round(avg_session_duration)
+        },
+        "topChannels": top_channels,
+        "topPages": top_pages,
+        "dailyTrend": daily_trend,
+        "csvMetrics": csv_metrics_summary if csv_metrics_summary else None,
+        "integratedTrend": integrated_trend,
+        "dataSources": data_sources,
+        "metricDefinitions": metric_definitions
+    }
+    
+    return {"martSummary": mart_summary, "dataAccessed": data_accessed}
+
+# Parse Analyst Questions
+def parse_analyst_questions(markdown: str) -> List[AnalystQuestion]:
+    """마크다운에서 Analyst Questions 추출"""
+    # Analyst Questions 섹션 찾기
+    questions_match = re.search(
+        r'#{1,4}\s*Analyst Questions[\s\S]*?(?=#{1,4}\s+[A-Z]|$)',
+        markdown,
+        re.IGNORECASE
+    )
+    
+    if not questions_match:
+        return get_default_questions()
+    
+    section = questions_match.group(0)
+    questions = []
+    
+    # 번호 매긴 질문 찾기 (1. 질문내용?)
+    numbered_pattern = r'\d+\.\s*\*?\*?([^\n*]+\?)\*?\*?'
+    matches = re.finditer(numbered_pattern, section)
+    
+    for idx, match in enumerate(matches):
+        if idx >= 3:
+            break
+        
+        question_text = re.sub(r'^\*+|\*+$', '', match.group(1)).strip()
+        
+        if len(question_text) > 10 and '?' in question_text:
+            questions.append({
+                "id": f"q{idx + 1}",
+                "question": question_text,
+                "context": extract_context(section, question_text),
+                "quickReplies": generate_quick_replies(question_text)
+            })
+    
+    # 번호 없이 질문만 있는 경우
+    if not questions:
+        bullet_pattern = r'[-•]\s*([^\n]+\?)'
+        matches = re.finditer(bullet_pattern, section)
+        
+        for idx, match in enumerate(matches):
+            if idx >= 3:
+                break
+            
+            question_text = re.sub(r'^\*+|\*+$', '', match.group(1)).strip()
+            
+            if (len(question_text) > 10 and 
+                '?' in question_text and 
+                'quick reply' not in question_text.lower() and
+                'next_params' not in question_text.lower()):
+                questions.append({
+                    "id": f"q{idx + 1}",
+                    "question": question_text,
+                    "context": extract_context(section, question_text),
+                    "quickReplies": generate_quick_replies(question_text)
+                })
+    
+    return questions[:3] if questions else get_default_questions()
+
+def extract_context(section: str, question: str) -> str:
+    """질문의 컨텍스트 추출"""
+    # 간단한 구현: 질문 주변 텍스트
+    idx = section.find(question)
+    if idx == -1:
+        return "분석 결과"
+    
+    start = max(0, idx - 100)
+    end = min(len(section), idx + len(question) + 100)
+    context = section[start:end]
+    
+    # 키워드 추출
+    keywords = ["세션", "유저", "채널", "페이지", "전환", "리텐션"]
+    found_keywords = [kw for kw in keywords if kw in context]
+    
+    return ", ".join(found_keywords) if found_keywords else "분석 결과"
+
+def generate_quick_replies(question: str) -> List[Dict[str, Any]]:
+    """Quick Replies 자동 생성"""
+    replies = []
+    
+    # Range 관련 질문
+    if any(kw in question for kw in ["7일", "30일", "기간", "기간별"]):
+        replies.append({
+            "label": "7일로 보기",
+            "nextParams": {"range": "7d"}
+        })
+        replies.append({
+            "label": "30일로 보기",
+            "nextParams": {"range": "30d"}
+        })
+    
+    # 채널 관련 질문
+    if any(kw in question for kw in ["채널", "유입", "트래픽"]):
+        replies.append({
+            "label": "채널 상세 분석",
+            "nextParams": {"focus": "channel"}
+        })
+    
+    # 페이지 관련 질문
+    if any(kw in question for kw in ["페이지", "화면", "경로"]):
+        replies.append({
+            "label": "페이지 상세 분석",
+            "nextParams": {"focus": "page"}
+        })
+    
+    # 기본 Quick Reply
+    if not replies:
+        replies.append({
+            "label": "더 자세히 보기",
+            "nextParams": {"range": "30d"}
+        })
+    
+    return replies
+
+def get_default_questions() -> List[AnalystQuestion]:
+    """기본 질문 반환"""
+    return [
+        {
+            "id": "q1",
+            "question": "이번 기간 가장 큰 변화는 무엇인가요?",
+            "context": "분석 결과",
+            "quickReplies": [
+                {"label": "7일로 보기", "nextParams": {"range": "7d"}},
+                {"label": "30일로 보기", "nextParams": {"range": "30d"}}
+            ]
+        }
+    ]
+
+def remove_analyst_questions_section(markdown: str) -> str:
+    """마크다운에서 Analyst Questions 섹션 제거"""
+    pattern = r'#{1,4}\s*Analyst Questions[\s\S]*?(?=#{1,4}\s+[A-Z]|$)'
+    return re.sub(pattern, '', markdown, flags=re.IGNORECASE).strip()
+
+# Persist Results
+def persist_results(
+    state: AnalysisState,
+    analysis_markdown: str,
+    analyst_questions: List[AnalystQuestion],
+    mart_summary: Optional[MartSummary] = None
+) -> None:
+    """결과 저장"""
+    supabase = get_supabase_client()
+    
+    # Chat message 저장 (user message가 있으면)
+    if state.get("userMessage"):
+        supabase.table("chat_messages").insert({
+            "workspace_id": state["workspaceId"],
+            "thread_id": state["threadId"],
+            "role": "user",
+            "content": state["userMessage"]
+        }).execute()
+    
+    # Assistant message 저장
+    supabase.table("chat_messages").insert({
+        "workspace_id": state["workspaceId"],
+        "thread_id": state["threadId"],
+        "role": "assistant",
+        "content": analysis_markdown,
+        "metadata": {"questions": analyst_questions}
+    }).execute()
+    
+    # Report 모드면 reports 테이블에도 저장
+    if state["mode"] == "report":
+        metadata = {
+            "questions": analyst_questions
+        }
+        if mart_summary:
+            metadata["martSummary"] = mart_summary
+        
+        supabase.table("reports").insert({
+            "workspace_id": state["workspaceId"],
+            "range": state["range"],
+            "report_markdown": analysis_markdown,
+            "metadata": metadata
+        }).execute()
+    
+    # Analysis thread 업데이트
+    supabase.table("analysis_threads").upsert({
+        "workspace_id": state["workspaceId"],
+        "thread_id": state["threadId"],
+        "last_range": state["range"],
+        "last_snapshot_at": datetime.now().isoformat()
+    }, on_conflict="workspace_id,thread_id").execute()
+    
+    # Audit log
+    supabase.table("audit_logs").insert({
+        "user_id": state["userId"],
+        "project_id": state["projectId"],
+        "workspace_id": state["workspaceId"],
+        "action": "agent.report.generate" if state["mode"] == "report" else "agent.chat.message",
+        "data_accessed": state.get("dataAccessed", []),
+        "llm_payload_summary": {
+            "mode": state["mode"],
+            "range": state["range"],
+            "questionsCount": len(analyst_questions),
+            "responseLength": len(analysis_markdown)
+        }
+    }).execute()

@@ -550,6 +550,12 @@ export type Database = {
           project_id: string
           sessions: number | null
           updated_at: string | null
+          dau_per_mau: number | null
+          dau_per_wau: number | null
+          wau_per_mau: number | null
+          active_1day_users: number | null
+          active_7day_users: number | null
+          active_28day_users: number | null
         }
         Insert: {
           active_users?: number | null
@@ -564,6 +570,12 @@ export type Database = {
           project_id: string
           sessions?: number | null
           updated_at?: string | null
+          dau_per_mau?: number | null
+          dau_per_wau?: number | null
+          wau_per_mau?: number | null
+          active_1day_users?: number | null
+          active_7day_users?: number | null
+          active_28day_users?: number | null
         }
         Update: {
           active_users?: number | null
@@ -578,6 +590,12 @@ export type Database = {
           project_id?: string
           sessions?: number | null
           updated_at?: string | null
+          dau_per_mau?: number | null
+          dau_per_wau?: number | null
+          wau_per_mau?: number | null
+          active_1day_users?: number | null
+          active_7day_users?: number | null
+          active_28day_users?: number | null
         }
         Relationships: [
           {
@@ -679,6 +697,7 @@ export type Database = {
           created_at: string | null
           created_by: string
           data_refreshed_at: string | null
+          feature_flags: Json | null
           id: string
           name: string
           profile: Json | null
@@ -691,6 +710,7 @@ export type Database = {
           created_at?: string | null
           created_by: string
           data_refreshed_at?: string | null
+          feature_flags?: Json | null
           id?: string
           name: string
           profile?: Json | null
@@ -703,6 +723,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string
           data_refreshed_at?: string | null
+          feature_flags?: Json | null
           id?: string
           name?: string
           profile?: Json | null
@@ -712,6 +733,136 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      metric_definitions: {
+        Row: {
+          id: string
+          project_id: string
+          name: string
+          display_name: string
+          description: string | null
+          category: string | null
+          source_type: string
+          source_table: string | null
+          source_column: string | null
+          formula: string | null
+          dependencies: Json | null
+          aggregation: string
+          data_type: string
+          synonyms: string[] | null
+          example_questions: string[] | null
+          priority: number
+          is_from_profile: boolean
+          matched_goal: string | null
+          is_active: boolean
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          name: string
+          display_name: string
+          description?: string | null
+          category?: string | null
+          source_type: string
+          source_table?: string | null
+          source_column?: string | null
+          formula?: string | null
+          dependencies?: Json | null
+          aggregation?: string
+          data_type?: string
+          synonyms?: string[] | null
+          example_questions?: string[] | null
+          priority?: number
+          is_from_profile?: boolean
+          matched_goal?: string | null
+          is_active?: boolean
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          name?: string
+          display_name?: string
+          description?: string | null
+          category?: string | null
+          source_type?: string
+          source_table?: string | null
+          source_column?: string | null
+          formula?: string | null
+          dependencies?: Json | null
+          aggregation?: string
+          data_type?: string
+          synonyms?: string[] | null
+          example_questions?: string[] | null
+          priority?: number
+          is_from_profile?: boolean
+          matched_goal?: string | null
+          is_active?: boolean
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metric_definitions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mart_events: {
+        Row: {
+          id: string
+          project_id: string
+          source: string
+          date: string
+          event_name: string
+          event_params: Json
+          event_count: number
+          unique_users: number
+          events_per_user: number | null
+          dimensions: Json
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          source: string
+          date: string
+          event_name: string
+          event_params?: Json
+          event_count?: number
+          unique_users?: number
+          events_per_user?: number | null
+          dimensions?: Json
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          source?: string
+          date?: string
+          event_name?: string
+          event_params?: Json
+          event_count?: number
+          unique_users?: number
+          events_per_user?: number | null
+          dimensions?: Json
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mart_events_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reports: {
         Row: {
@@ -909,4 +1060,103 @@ export interface LLMQuestion {
   id: string
   question: string
   quickReplies: QuickReply[]
+}
+
+// ============================================
+// Semantic Layer Types (Phase 1)
+// ============================================
+
+// Feature flags for gradual rollout
+export interface FeatureFlags {
+  semanticLayer?: boolean
+  eventCollection?: boolean
+}
+
+// Metric definition for semantic layer
+export interface MetricDefinition {
+  id: string
+  project_id: string
+  name: string
+  display_name: string
+  description: string | null
+  category: MetricCategory | null
+  source_type: MetricSourceType
+  source_table: string | null
+  source_column: string | null
+  formula: string | null
+  dependencies: string[] | null
+  aggregation: MetricAggregation
+  data_type: MetricDataType
+  synonyms: string[] | null
+  example_questions: string[] | null
+  priority: number
+  is_from_profile: boolean
+  matched_goal: string | null
+  is_active: boolean
+  created_at: string | null
+  updated_at: string | null
+}
+
+export type MetricCategory = 'acquisition' | 'engagement' | 'retention' | 'conversion' | 'revenue'
+export type MetricSourceType = 'ga4' | 'csv' | 'calculated' | 'bigquery'
+export type MetricAggregation = 'sum' | 'avg' | 'count' | 'min' | 'max' | 'ratio'
+export type MetricDataType = 'number' | 'percentage' | 'currency' | 'duration'
+
+// Metric definition insert type
+export interface MetricDefinitionInsert {
+  id?: string
+  project_id: string
+  name: string
+  display_name: string
+  description?: string | null
+  category?: MetricCategory | null
+  source_type: MetricSourceType
+  source_table?: string | null
+  source_column?: string | null
+  formula?: string | null
+  dependencies?: string[] | null
+  aggregation?: MetricAggregation
+  data_type?: MetricDataType
+  synonyms?: string[] | null
+  example_questions?: string[] | null
+  priority?: number
+  is_from_profile?: boolean
+  matched_goal?: string | null
+  is_active?: boolean
+}
+
+// Mart events for event-level analytics
+export interface MartEvent {
+  id: string
+  project_id: string
+  source: string
+  date: string
+  event_name: string
+  event_params: Record<string, unknown>
+  event_count: number
+  unique_users: number
+  events_per_user: number | null
+  dimensions: Record<string, unknown>
+  created_at: string | null
+}
+
+export interface MartEventInsert {
+  id?: string
+  project_id: string
+  source: string
+  date: string
+  event_name: string
+  event_params?: Record<string, unknown>
+  event_count?: number
+  unique_users?: number
+  events_per_user?: number | null
+  dimensions?: Record<string, unknown>
+}
+
+// Note: MartDailyKPIs now includes retention metrics (dau_per_mau, etc.)
+// Use Tables<'mart_ga4_daily_kpis'> directly
+
+// Project with typed feature flags (for convenience)
+export type ProjectWithFlags = Omit<Project, 'feature_flags'> & {
+  feature_flags: FeatureFlags | null
 }
