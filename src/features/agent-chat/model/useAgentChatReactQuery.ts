@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useWorkspaceQuery, useWorkspaceReportQuery, useGenerateReportMutation, useSendChatMessageMutation } from '@/lib/react-query/queries'
-import type { ReportRange, ChatMessage, AgentConfig } from '@/types/database'
+import type { ReportRange, ChatMessage, AgentConfig, Json } from '@/types/database'
 import type { AnalystQuestion, MartSummary } from '@/lib/langgraph/types'
 
 interface UseAgentChatOptions {

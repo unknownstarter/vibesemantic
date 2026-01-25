@@ -3,13 +3,14 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import type { Workspace, ReportRange } from '@/types/database'
+import type { Workspace, ReportRange, Json } from '@/types/database'
 
 export interface ProjectData {
   project: {
     id: string
     name: string
     setup_status: string
+    profile?: Json | null
   }
   role: string
   ga4: {
