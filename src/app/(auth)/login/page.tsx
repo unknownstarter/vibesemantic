@@ -149,8 +149,18 @@ function LoginForm() {
       const supabase = createClient()
       
       // 프로덕션 환경에서 올바른 리다이렉트 URL 생성
-      const origin = typeof window !== 'undefined' ? window.location.origin : ''
+      let origin = typeof window !== 'undefined' ? window.location.origin : ''
+      
+      // Vercel에서 vibesemantic.xyz가 www.vibesemantic.xyz로 리다이렉트되므로
+      // origin을 www 버전으로 강제 변환하여 일관성 유지
+      if (origin === 'https://vibesemantic.xyz') {
+        origin = 'https://www.vibesemantic.xyz'
+        console.log('[Google Login] Redirected to www version:', origin)
+      }
+      
       const callbackUrl = `${origin}/callback?redirect=${encodeURIComponent(redirect)}`
+      
+      console.log('[Google Login] Callback URL:', callbackUrl)
       
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
