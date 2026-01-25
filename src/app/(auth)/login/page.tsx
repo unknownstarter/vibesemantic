@@ -164,18 +164,36 @@ function LoginForm() {
       })
       
       if (error) {
-        console.error('Google OAuth error:', error)
+        // 상세 에러는 콘솔에만 기록
+        console.error('[Google OAuth] Error details:', {
+          message: error.message,
+          status: error.status,
+          name: error.name,
+        })
         setStatus('error')
-        setMessage(error.message || 'Google 로그인에 실패했습니다')
+        // 사용자에게는 친화적인 메시지
+        setMessage('Google 로그인에 실패했습니다. 잠시 후 다시 시도해주세요.')
         setLoading(false)
       } else if (data?.url) {
         // OAuth URL로 리다이렉트
         window.location.href = data.url
+      } else {
+        // 예상치 못한 경우
+        console.error('[Google OAuth] No URL returned:', data)
+        setStatus('error')
+        setMessage('Google 로그인에 실패했습니다. 잠시 후 다시 시도해주세요.')
+        setLoading(false)
       }
     } catch (err) {
-      console.error('Google login error:', err)
+      // 상세 에러는 콘솔에만 기록
+      console.error('[Google Login] Unexpected error:', {
+        error: err,
+        message: err instanceof Error ? err.message : 'Unknown error',
+        stack: err instanceof Error ? err.stack : undefined,
+      })
       setStatus('error')
-      setMessage(err instanceof Error ? err.message : 'Google 로그인 중 오류가 발생했습니다')
+      // 사용자에게는 친화적인 메시지
+      setMessage('로그인 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.')
       setLoading(false)
     }
   }
