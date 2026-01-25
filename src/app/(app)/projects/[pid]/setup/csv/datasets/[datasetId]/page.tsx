@@ -140,45 +140,45 @@ export default function DatasetDetailPage() {
   }
 
   // Quick Reply handler - applies the action and updates mapping
-  const handleQuickReply = async (question: LLMQuestion, reply: QuickReply) => {
+  const handleQuickReply = (question: LLMQuestion, reply: QuickReply) => {
     setError(null)
     
-    // Handle different action types
+    // Handle different action types - 즉시 UI 업데이트 (저장은 나중에 확인 버튼에서)
     if (reply.action === 'set_date_column') {
       setEditDateColumn(reply.value)
-      // Auto-save the change
-      await saveMapping({ dateColumn: reply.value })
     } else if (reply.action === 'add_metric') {
+      // 중복 체크: 이미 추가된 컬럼은 무시
+      if (editMetricColumns.some(m => m.name === reply.value)) {
+        return
+      }
       const newMetric: MetricColumn = {
         name: reply.value,
         displayName: reply.value,
         type: 'number',
         aggregation: 'sum',
       }
-      const updated = [...editMetricColumns, newMetric]
-      setEditMetricColumns(updated)
-      await saveMapping({ metricColumns: updated })
+      setEditMetricColumns([...editMetricColumns, newMetric])
     } else if (reply.action === 'add_dimension') {
+      // 중복 체크: 이미 추가된 컬럼은 무시
+      if (editDimensionColumns.some(d => d.name === reply.value)) {
+        return
+      }
       const newDim: DimensionColumn = {
         name: reply.value,
         displayName: reply.value,
         type: 'string',
       }
-      const updated = [...editDimensionColumns, newDim]
-      setEditDimensionColumns(updated)
-      await saveMapping({ dimensionColumns: updated })
+      setEditDimensionColumns([...editDimensionColumns, newDim])
     } else if (reply.action === 'remove_metric') {
-      const updated = editMetricColumns.filter(m => m.name !== reply.value)
-      setEditMetricColumns(updated)
-      await saveMapping({ metricColumns: updated })
+      setEditMetricColumns(editMetricColumns.filter(m => m.name !== reply.value))
     } else if (reply.action === 'remove_dimension') {
-      const updated = editDimensionColumns.filter(d => d.name !== reply.value)
-      setEditDimensionColumns(updated)
-      await saveMapping({ dimensionColumns: updated })
+      setEditDimensionColumns(editDimensionColumns.filter(d => d.name !== reply.value))
     }
     
-    // Refresh dataset to get updated questions
-    await fetchDataset()
+    // 편집 모드로 전환하여 변경사항이 표시되도록
+    if (!isEditing) {
+      setIsEditing(true)
+    }
   }
   
   // Save mapping changes (partial update)
@@ -484,9 +484,12 @@ export default function DatasetDetailPage() {
 
               {/* Metric Columns */}
               <div className="p-4 bg-surface-inset rounded-xl">
-                <p className="text-xs text-muted uppercase tracking-wide mb-2">
-                  지표 컬럼 ({isEditing ? editMetricColumns.length : dataset.source_mappings.metric_columns.length}개)
-                </p>
+                <div className="flex items-center gap-2 mb-2">
+                  <p className="text-xs text-muted uppercase tracking-wide">
+                    지표 컬럼 ({isEditing ? editMetricColumns.length : dataset.source_mappings.metric_columns.length}개)
+                  </p>
+                  <span className="text-xs text-muted/70">• 숫자 데이터 (매출, 세션, 전환율 등)</span>
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {(isEditing ? editMetricColumns : dataset.source_mappings.metric_columns).map((col) => (
                     <span 
@@ -531,9 +534,12 @@ export default function DatasetDetailPage() {
 
               {/* Dimension Columns */}
               <div className="p-4 bg-surface-inset rounded-xl">
-                <p className="text-xs text-muted uppercase tracking-wide mb-2">
-                  차원 컬럼 ({isEditing ? editDimensionColumns.length : dataset.source_mappings.dimension_columns.length}개)
-                </p>
+                <div className="flex items-center gap-2 mb-2">
+                  <p className="text-xs text-muted uppercase tracking-wide">
+                    차원 컬럼 ({isEditing ? editDimensionColumns.length : dataset.source_mappings.dimension_columns.length}개)
+                  </p>
+                  <span className="text-xs text-muted/70">• 그룹화 기준 (채널, 국가, 카테고리 등)</span>
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {(isEditing ? editDimensionColumns : dataset.source_mappings.dimension_columns).map((col) => (
                     <span 
@@ -577,22 +583,39 @@ export default function DatasetDetailPage() {
               </div>
 
               {/* LLM Questions with Quick Reply */}
-              {dataset.source_mappings.llm_questions.length > 0 && !isConfirmed && !isEditing && (
+              {dataset.source_mappings.llm_questions.length > 0 && !isConfirmed && (
                 <div className="p-4 bg-warning/10 border border-warning/30 rounded-xl">
                   <p className="text-xs text-warning uppercase tracking-wide mb-2">확인 필요</p>
                   {dataset.source_mappings.llm_questions.map((q) => (
                     <div key={q.id} className="mb-3 last:mb-0">
                       <p className="text-foreground text-sm mb-2">{q.question}</p>
                       <div className="flex flex-wrap gap-2">
-                        {q.quickReplies.map((reply) => (
-                          <button
-                            key={reply.value}
-                            onClick={() => handleQuickReply(q, reply)}
-                            className="px-3 py-1 text-sm bg-surface border border-border/30 rounded-lg hover:bg-surface-inset hover:border-primary/50 transition-all"
-                          >
-                            {reply.label}
-                          </button>
-                        ))}
+                        {q.quickReplies.map((reply) => {
+                          // 이미 추가된 컬럼인지 확인 (편집 모드일 때는 editMetricColumns, 아닐 때는 dataset.source_mappings 사용)
+                          const currentMetrics = isEditing ? editMetricColumns : (dataset.source_mappings.metric_columns || [])
+                          const currentDimensions = isEditing ? editDimensionColumns : (dataset.source_mappings.dimension_columns || [])
+                          const currentDateColumn = isEditing ? editDateColumn : dataset.source_mappings.date_column
+                          
+                          const isAdded = 
+                            (reply.action === 'add_metric' && currentMetrics.some(m => m.name === reply.value)) ||
+                            (reply.action === 'add_dimension' && currentDimensions.some(d => d.name === reply.value)) ||
+                            (reply.action === 'set_date_column' && currentDateColumn === reply.value)
+                          
+                          return (
+                            <button
+                              key={reply.value}
+                              onClick={() => handleQuickReply(q, reply)}
+                              disabled={isAdded}
+                              className={`px-3 py-1 text-sm rounded-lg transition-all ${
+                                isAdded
+                                  ? 'bg-primary/20 text-primary border border-primary/50 cursor-not-allowed opacity-60'
+                                  : 'bg-surface border border-border/30 hover:bg-surface-inset hover:border-primary/50'
+                              }`}
+                            >
+                              {reply.label}
+                            </button>
+                          )
+                        })}
                       </div>
                     </div>
                   ))}

@@ -130,7 +130,7 @@ function ProjectOverviewContent() {
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-2 text-sm text-muted mb-2">
-            <Link href="/dashboard" className="hover:text-foreground transition">프로젝트</Link>
+            <Link href="/dashboard" className="hover:text-foreground transition">모든 프로젝트</Link>
             <span>/</span>
             <span className="text-foreground">{project.name}</span>
           </div>
@@ -203,6 +203,7 @@ function ProjectOverviewContent() {
               csv={{
                 connected: csv?.ready || false,
                 datasetCount: csv?.datasets.length || 0,
+                datasets: csv?.datasets || [],
               }}
               projectSlug={slug}
             />

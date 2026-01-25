@@ -12,6 +12,7 @@ interface DataSourceStatusProps {
   csv?: {
     connected: boolean
     datasetCount?: number
+    datasets?: Array<{ id: string; name: string; status: string }>
   }
   projectSlug: string
 }
@@ -36,7 +37,11 @@ export function DataSourceStatus({ ga4, csv, projectSlug }: DataSourceStatusProp
       <StatusCard
         title="CSV 데이터"
         description="커스텀 데이터 업로드 및 분석"
-        csv={csv}
+        csv={{
+          connected: csv?.connected || false,
+          datasetCount: csv?.datasets?.length || 0,
+          datasetName: csv?.datasets && csv.datasets.length > 0 ? csv.datasets[0].name : undefined,
+        }}
         href={`/projects/${projectSlug}/setup/sources`}
         actionLabel={csv?.connected ? '관리' : '업로드하기'}
       />

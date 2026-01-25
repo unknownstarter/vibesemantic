@@ -16,6 +16,7 @@ interface StatusCardProps {
   csv?: {
     connected: boolean
     datasetCount?: number
+    datasetName?: string
   }
   href?: string
   onClick?: () => void
@@ -95,7 +96,11 @@ export function StatusCard({
           {csv?.connected && csv.datasetCount !== undefined && (
             <div className="flex justify-between py-1">
               <span className="text-muted">데이터셋</span>
-              <span className="text-foreground">{csv.datasetCount}개</span>
+              <span className="text-foreground truncate ml-2 text-right">
+                {csv.datasetName 
+                  ? (csv.datasetCount > 1 ? `${csv.datasetName} 외 ${csv.datasetCount - 1}개` : csv.datasetName)
+                  : `${csv.datasetCount}개`}
+              </span>
             </div>
           )}
         </div>

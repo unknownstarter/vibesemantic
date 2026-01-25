@@ -213,12 +213,49 @@ export async function probeSchema(
     console.log(`[Probe] Metrics (${result.metricColumns?.length || 0}): ${result.metricColumns?.map(m => m.name).join(', ')}`)
     console.log(`[Probe] Dimensions (${result.dimensionColumns?.length || 0}): ${result.dimensionColumns?.map(d => d.name).join(', ')}`)
     
+    // 자동 감지 개선: numeric 타입 컬럼 중 metric으로 분류되지 않은 컬럼 자동 추가
+    const detectedMetricNames = new Set((result.metricColumns || []).map(m => m.name))
+    const autoDetectedMetrics: typeof result.metricColumns = []
+    
+    headers.forEach(header => {
+      // 이미 metric으로 분류되었거나 date 컬럼이면 스킵
+      if (detectedMetricNames.has(header) || header === result.dateColumn) {
+        return
+      }
+      
+      const analysis = columnAnalysis[header]
+      // numeric 타입 컬럼이지만 metric으로 분류되지 않은 경우 자동 추가
+      if (analysis && ['number', 'currency', 'percentage'].includes(analysis.type)) {
+        const isRate = /rate|ratio|avg|percentage|%|retention|conversion|ctr|cpc/i.test(header)
+        autoDetectedMetrics.push({
+          name: header,
+          displayName: header,
+          type: (analysis.type === 'currency' ? 'currency' : 
+                 analysis.type === 'percentage' ? 'percentage' : 'number') as 'number' | 'currency' | 'percentage',
+          aggregation: (isRate || analysis.type === 'percentage' ? 'avg' : 'sum') as 'sum' | 'avg',
+        })
+      }
+    })
+    
+    // 자동 감지된 metric 추가
+    if (autoDetectedMetrics.length > 0) {
+      console.log(`[Probe] Auto-detected ${autoDetectedMetrics.length} additional metric columns: ${autoDetectedMetrics.map(m => m.name).join(', ')}`)
+    }
+    
+    const allMetricColumns = [...(result.metricColumns || []), ...autoDetectedMetrics]
+    
+    // aggregationRules 업데이트 (자동 감지된 metric 포함)
+    const allAggregationRules = { ...(result.aggregationRules || {}) }
+    autoDetectedMetrics.forEach(m => {
+      allAggregationRules[m.name] = m.aggregation
+    })
+    
     // Validate and ensure arrays
     return {
       dateColumn: result.dateColumn || null,
-      metricColumns: result.metricColumns || [],
+      metricColumns: allMetricColumns,
       dimensionColumns: result.dimensionColumns || [],
-      aggregationRules: result.aggregationRules || {},
+      aggregationRules: allAggregationRules,
       llmQuestions: result.llmQuestions || [],
     }
   } catch (error) {
