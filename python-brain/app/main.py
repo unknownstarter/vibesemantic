@@ -99,6 +99,10 @@ async def analyze(
         if result.get("error"):
             raise HTTPException(status_code=400, detail=result["error"])
         
+        # messages 필드가 남아있으면 제거 (JSON serialization 방지)
+        if "messages" in result:
+            result = {k: v for k, v in result.items() if k != "messages"}
+        
         return AnalyzeResponse(
             analysis_markdown=result.get("analysisMarkdown", ""),
             analyst_questions=result.get("analystQuestions", []),
@@ -106,8 +110,12 @@ async def analyze(
             thread_id=result.get("threadId", request.thread_id),
             data_accessed=result.get("dataAccessed", [])
         )
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        import traceback
+        error_detail = f"{str(e)}\n{traceback.format_exc()}"
+        raise HTTPException(status_code=500, detail=error_detail)
 
 @app.post("/api/v1/collect/ga4")
 async def collect_ga4(

@@ -14,6 +14,7 @@ from app.langgraph.nodes import (
     load_context_and_mart_summary,
     parse_analyst_questions,
     remove_analyst_questions_section,
+    extract_chat_followup_questions,
     persist_results
 )
 from app.langgraph.prompts import build_system_prompt, build_user_prompt
@@ -124,16 +125,21 @@ def generate_analysis(state: Dict[str, Any]) -> Dict[str, Any]:
     raw_content = response.content if isinstance(response.content, str) else \
         "".join(c.text if hasattr(c, "text") else str(c) for c in response.content)
     
-    # 질문 파싱
-    questions = parse_analyst_questions(raw_content)
+    # 리포트 모드: Analyst Questions 섹션에서 질문 파싱
+    # 채팅 모드: 답변 끝에 있는 후속 질문 추출
+    if state["mode"] == "report":
+        questions = parse_analyst_questions(raw_content)
+        cleaned_markdown = remove_analyst_questions_section(raw_content)
+    else:
+        # 채팅 모드: 후속 질문 추출 (답변 끝부분의 질문)
+        questions = extract_chat_followup_questions(raw_content)
+        cleaned_markdown = raw_content  # 채팅 모드에서는 전체 내용 유지
     
-    # 마크다운에서 Analyst Questions 섹션 제거
-    cleaned_markdown = remove_analyst_questions_section(raw_content)
-    
+    # LangChain 메시지 객체는 JSON serializable하지 않으므로 반환하지 않음
+    # messages 필드는 LangGraph 내부에서만 사용되며, 최종 응답에는 필요 없음
     return {
         "analysisMarkdown": cleaned_markdown,
         "analystQuestions": questions,
-        "messages": [response]
     }
 
 async def run_analysis(input: Dict[str, Any]) -> Dict[str, Any]:
@@ -147,6 +153,12 @@ async def run_analysis(input: Dict[str, Any]) -> Dict[str, Any]:
     }
     
     result = await graph.ainvoke(initial_state)
+    
+    # LangChain 메시지 객체는 JSON serializable하지 않으므로 제거
+    # 필요한 정보는 이미 analysisMarkdown과 analystQuestions에 포함됨
+    if "messages" in result:
+        del result["messages"]
+    
     return result
 
 async def run_analysis_stream(input: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:

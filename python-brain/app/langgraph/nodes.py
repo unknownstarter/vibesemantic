@@ -538,6 +538,53 @@ def remove_analyst_questions_section(markdown: str) -> str:
     pattern = r'#{1,4}\s*Analyst Questions[\s\S]*?(?=#{1,4}\s+[A-Z]|$)'
     return re.sub(pattern, '', markdown, flags=re.IGNORECASE).strip()
 
+def extract_chat_followup_questions(text: str) -> List[AnalystQuestion]:
+    """채팅 모드에서 후속 질문 추출"""
+    questions = []
+    
+    # 답변 끝부분에서 질문 패턴 찾기 (마지막 200자 내)
+    # "질문?", "~하시겠어요?", "~보시겠어요?" 등의 패턴
+    last_part = text[-200:] if len(text) > 200 else text
+    
+    # 질문 패턴: "?"로 끝나는 문장
+    question_patterns = [
+        r'([^.!?]*\?[^.!?]*)',  # 일반 질문
+        r'([^.!?]*하시겠어요\?[^.!?]*)',  # "~하시겠어요?"
+        r'([^.!?]*보시겠어요\?[^.!?]*)',  # "~보시겠어요?"
+        r'([^.!?]*알아보시겠어요\?[^.!?]*)',  # "~알아보시겠어요?"
+    ]
+    
+    found_questions = []
+    for pattern in question_patterns:
+        matches = re.finditer(pattern, last_part, re.IGNORECASE)
+        for match in matches:
+            question_text = match.group(1).strip()
+            # 너무 짧거나 긴 질문 제외
+            if 10 <= len(question_text) <= 100 and '?' in question_text:
+                found_questions.append(question_text)
+    
+    # 중복 제거하고 최대 2개만
+    unique_questions = []
+    seen = set()
+    for q in found_questions:
+        q_clean = q.strip().rstrip('?').strip()
+        if q_clean not in seen and len(q_clean) > 10:
+            seen.add(q_clean)
+            unique_questions.append(q)
+            if len(unique_questions) >= 2:
+                break
+    
+    # 질문을 AnalystQuestion 형식으로 변환
+    for idx, q_text in enumerate(unique_questions):
+        questions.append({
+            "id": f"chat_q{idx + 1}",
+            "question": q_text,
+            "context": "채팅 답변",
+            "quickReplies": generate_quick_replies(q_text)
+        })
+    
+    return questions
+
 # Persist Results
 def persist_results(state: AnalysisState) -> Dict[str, Any]:
     """결과 저장"""
