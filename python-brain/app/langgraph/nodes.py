@@ -53,97 +53,97 @@ def load_context_and_mart_summary(state: AnalysisState) -> Dict[str, Any]:
         from concurrent.futures import ThreadPoolExecutor
         
         def fetch_ga4_metrics():
-        result = supabase.table("mart_ga4_metrics") \
-            .select("*") \
-            .eq("project_id", state["projectId"]) \
-            .gte("date", start_str) \
-            .lte("date", end_str) \
-            .order("date") \
-            .execute()
-        return result.data or []
-    
-    def fetch_kpis():
-        result = supabase.table("mart_ga4_daily_kpis") \
-            .select("*") \
-            .eq("project_id", state["projectId"]) \
-            .gte("date", start_str) \
-            .lte("date", end_str) \
-            .order("date") \
-            .execute()
-        return result.data or []
-    
-    def fetch_channels():
-        result = supabase.table("mart_ga4_channel_daily") \
-            .select("*") \
-            .eq("project_id", state["projectId"]) \
-            .gte("date", start_str) \
-            .lte("date", end_str) \
-            .execute()
-        return result.data or []
-    
-    def fetch_pages():
-        result = supabase.table("mart_ga4_top_pages_daily") \
-            .select("*") \
-            .eq("project_id", state["projectId"]) \
-            .gte("date", start_str) \
-            .lte("date", end_str) \
-            .order("screen_page_views", desc=True) \
-            .limit(20) \
-            .execute()
-        return result.data or []
-    
-    def fetch_csv_metrics():
-        result = supabase.table("mart_csv_daily_metrics") \
-            .select("*") \
-            .eq("project_id", state["projectId"]) \
-            .gte("date", start_str) \
-            .lte("date", end_str) \
-            .order("date") \
-            .execute()
+            result = supabase.table("mart_ga4_metrics") \
+                .select("*") \
+                .eq("project_id", state["projectId"]) \
+                .gte("date", start_str) \
+                .lte("date", end_str) \
+                .order("date") \
+                .execute()
+            return result.data or []
+        
+        def fetch_kpis():
+            result = supabase.table("mart_ga4_daily_kpis") \
+                .select("*") \
+                .eq("project_id", state["projectId"]) \
+                .gte("date", start_str) \
+                .lte("date", end_str) \
+                .order("date") \
+                .execute()
+            return result.data or []
+        
+        def fetch_channels():
+            result = supabase.table("mart_ga4_channel_daily") \
+                .select("*") \
+                .eq("project_id", state["projectId"]) \
+                .gte("date", start_str) \
+                .lte("date", end_str) \
+                .execute()
+            return result.data or []
+        
+        def fetch_pages():
+            result = supabase.table("mart_ga4_top_pages_daily") \
+                .select("*") \
+                .eq("project_id", state["projectId"]) \
+                .gte("date", start_str) \
+                .lte("date", end_str) \
+                .order("screen_page_views", desc=True) \
+                .limit(20) \
+                .execute()
+            return result.data or []
+        
+        def fetch_csv_metrics():
+            result = supabase.table("mart_csv_daily_metrics") \
+                .select("*") \
+                .eq("project_id", state["projectId"]) \
+                .gte("date", start_str) \
+                .lte("date", end_str) \
+                .order("date") \
+                .execute()
             return result.data or []
         
         # 병렬 실행
         with ThreadPoolExecutor(max_workers=5) as executor:
-        futures = [
-            executor.submit(fetch_ga4_metrics),
-            executor.submit(fetch_kpis),
-            executor.submit(fetch_channels),
-            executor.submit(fetch_pages),
-            executor.submit(fetch_csv_metrics)
-        ]
+            futures = [
+                executor.submit(fetch_ga4_metrics),
+                executor.submit(fetch_kpis),
+                executor.submit(fetch_channels),
+                executor.submit(fetch_pages),
+                executor.submit(fetch_csv_metrics)
+            ]
             ga4_metrics, kpis, channels, pages, csv_metrics = [f.result() for f in futures]
         
         data_accessed.extend([
-        "mart_ga4_metrics",
-        "mart_ga4_daily_kpis",
-        "mart_ga4_channel_daily",
+            "mart_ga4_metrics",
+            "mart_ga4_daily_kpis",
+            "mart_ga4_channel_daily",
             "mart_ga4_top_pages_daily",
             "mart_csv_daily_metrics"
         ])
         
         # GA4 Metrics 집계 (새 유연한 테이블 우선)
         ga4_global_metrics = [
-        m for m in ga4_metrics
+            m for m in ga4_metrics
             if not m.get("dimensions") or len(m.get("dimensions", {})) == 0
         ]
         
         def sum_metric(metric_name: str) -> float:
-        return sum(
-            float(m.get("metric_value", 0) or 0)
-            for m in ga4_global_metrics
+            return sum(
+                float(m.get("metric_value", 0) or 0)
+                for m in ga4_global_metrics
                 if m.get("metric_name") == metric_name
             )
         
         def avg_metric(metric_name: str) -> float:
-        values = [
-            float(m.get("metric_value", 0) or 0)
+            values = [
+                float(m.get("metric_value", 0) or 0)
                 for m in ga4_global_metrics
                 if m.get("metric_name") == metric_name
             ]
             return sum(values) / len(values) if values else 0
         
         use_new_table = len(ga4_global_metrics) > 0
-    
+        
         total_sessions = sum_metric("sessions") if use_new_table else sum(k.get("sessions", 0) or 0 for k in kpis)
         total_active_users = sum_metric("active_users") if use_new_table else sum(k.get("active_users", 0) or 0 for k in kpis)
         total_new_users = sum_metric("new_users") if use_new_table else sum(k.get("new_users", 0) or 0 for k in kpis)
