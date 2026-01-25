@@ -80,67 +80,91 @@ def create_analysis_graph():
 
 def generate_analysis(state: Dict[str, Any]) -> Dict[str, Any]:
     """LLM을 사용한 분석 생성"""
-    if not state.get("martSummary"):
-        return {"error": "No mart summary available"}
-    
-    mart_summary = state["martSummary"]
-    conversation_history = state.get("conversationHistory", [])
-    
-    system_prompt = build_system_prompt(
-        language=state["language"],
-        purpose=state["workspacePurpose"],
-        profile=state["projectProfile"],
-        metric_definitions=mart_summary.get("metricDefinitions"),
-        mode=state["mode"]
-    )
-    
-    user_prompt = build_user_prompt(
-        state["mode"],
-        mart_summary,
-        state.get("userMessage")
-    )
-    
-    model = ChatOpenAI(
-        model_name="gpt-4o",
-        openai_api_key=os.getenv("OPENAI_API_KEY"),
-        temperature=0.3
-    )
-    
-    # 메시지 구성
-    messages = [SystemMessage(content=system_prompt)]
-    
-    # 채팅 모드일 때 이전 대화 히스토리 추가
-    if state["mode"] == "chat" and conversation_history:
-        for msg in conversation_history:
-            if msg.get("role") == "user":
-                messages.append(HumanMessage(content=msg.get("content", "")))
-            elif msg.get("role") == "assistant":
-                messages.append(AIMessage(content=msg.get("content", "")))
-    
-    # 현재 사용자 메시지 추가
-    messages.append(HumanMessage(content=user_prompt))
-    
-    response = model.invoke(messages)
-    
-    raw_content = response.content if isinstance(response.content, str) else \
-        "".join(c.text if hasattr(c, "text") else str(c) for c in response.content)
-    
-    # 리포트 모드: Analyst Questions 섹션에서 질문 파싱
-    # 채팅 모드: 답변 끝에 있는 후속 질문 추출
-    if state["mode"] == "report":
-        questions = parse_analyst_questions(raw_content)
-        cleaned_markdown = remove_analyst_questions_section(raw_content)
-    else:
-        # 채팅 모드: 후속 질문 추출 (답변 끝부분의 질문)
-        questions = extract_chat_followup_questions(raw_content)
-        cleaned_markdown = raw_content  # 채팅 모드에서는 전체 내용 유지
-    
-    # LangChain 메시지 객체는 JSON serializable하지 않으므로 반환하지 않음
-    # messages 필드는 LangGraph 내부에서만 사용되며, 최종 응답에는 필요 없음
-    return {
-        "analysisMarkdown": cleaned_markdown,
-        "analystQuestions": questions,
-    }
+    try:
+        if not state.get("martSummary"):
+            return {"error": "No mart summary available"}
+        
+        mart_summary = state["martSummary"]
+        conversation_history = state.get("conversationHistory") or []
+        mode = state.get("mode", "report")
+        user_message = state.get("userMessage")
+        
+        # 채팅 모드에서 userMessage 필수 체크
+        if mode == "chat" and not user_message:
+            return {"error": "User message is required for chat mode"}
+        
+        system_prompt = build_system_prompt(
+            language=state.get("language", "ko"),
+            purpose=state.get("workspacePurpose", "product"),
+            profile=state.get("projectProfile", {}),
+            metric_definitions=mart_summary.get("metricDefinitions"),
+            mode=mode
+        )
+        
+        user_prompt = build_user_prompt(
+            mode,
+            mart_summary,
+            user_message
+        )
+        
+        model = ChatOpenAI(
+            model_name="gpt-4o",
+            openai_api_key=os.getenv("OPENAI_API_KEY"),
+            temperature=0.3
+        )
+        
+        # 메시지 구성
+        messages = [SystemMessage(content=system_prompt)]
+        
+        # 채팅 모드일 때 이전 대화 히스토리 추가
+        if mode == "chat" and conversation_history:
+            for msg in conversation_history:
+                if not isinstance(msg, dict):
+                    continue
+                role = msg.get("role")
+                content = msg.get("content", "")
+                if not content:
+                    continue
+                    
+                if role == "user":
+                    messages.append(HumanMessage(content=content))
+                elif role == "assistant":
+                    messages.append(AIMessage(content=content))
+        
+        # 현재 사용자 메시지 추가
+        messages.append(HumanMessage(content=user_prompt))
+        
+        # LLM 호출
+        response = model.invoke(messages)
+        
+        raw_content = response.content if isinstance(response.content, str) else \
+            "".join(c.text if hasattr(c, "text") else str(c) for c in response.content)
+        
+        if not raw_content or len(raw_content.strip()) == 0:
+            return {"error": "Empty response from LLM"}
+        
+        # 리포트 모드: Analyst Questions 섹션에서 질문 파싱
+        # 채팅 모드: 답변 끝에 있는 후속 질문 추출
+        try:
+            if mode == "report":
+                questions = parse_analyst_questions(raw_content)
+                cleaned_markdown = remove_analyst_questions_section(raw_content)
+            else:
+                # 채팅 모드: 후속 질문 추출 (답변 끝부분의 질문)
+                questions = extract_chat_followup_questions(raw_content)
+                cleaned_markdown = raw_content  # 채팅 모드에서는 전체 내용 유지
+        except Exception:
+            questions = []
+            cleaned_markdown = raw_content
+        
+        # LangChain 메시지 객체는 JSON serializable하지 않으므로 반환하지 않음
+        # messages 필드는 LangGraph 내부에서만 사용되며, 최종 응답에는 필요 없음
+        return {
+            "analysisMarkdown": cleaned_markdown or "",
+            "analystQuestions": questions or [],
+        }
+    except Exception as e:
+        return {"error": str(e)}
 
 async def run_analysis(input: Dict[str, Any]) -> Dict[str, Any]:
     """분석 실행 (Non-streaming)"""

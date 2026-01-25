@@ -32,22 +32,23 @@ def guard_and_route(state: AnalysisState) -> Dict[str, Any]:
 # Load Context and Mart Summary
 def load_context_and_mart_summary(state: AnalysisState) -> Dict[str, Any]:
     """컨텍스트 및 Mart 요약 로드"""
-    supabase = get_supabase_client()
-    data_accessed = []
-    
-    # 날짜 범위 계산
-    end_date = datetime.now()
-    days = 7 if state["range"] == "7d" else 30
-    start_date = end_date - timedelta(days=days)
-    
-    start_str = start_date.strftime("%Y-%m-%d")
-    end_str = end_date.strftime("%Y-%m-%d")
-    
-    # 최적화: 5개 쿼리를 병렬 처리로 동시 실행
-    # Supabase Python 클라이언트는 동기적이므로 ThreadPoolExecutor 사용
-    from concurrent.futures import ThreadPoolExecutor
-    
-    def fetch_ga4_metrics():
+    try:
+        supabase = get_supabase_client()
+        data_accessed = []
+        
+        # 날짜 범위 계산
+        end_date = datetime.now()
+        days = 7 if state["range"] == "7d" else 30
+        start_date = end_date - timedelta(days=days)
+        
+        start_str = start_date.strftime("%Y-%m-%d")
+        end_str = end_date.strftime("%Y-%m-%d")
+        
+        # 최적화: 5개 쿼리를 병렬 처리로 동시 실행
+        # Supabase Python 클라이언트는 동기적이므로 ThreadPoolExecutor 사용
+        from concurrent.futures import ThreadPoolExecutor
+        
+        def fetch_ga4_metrics():
         result = supabase.table("mart_ga4_metrics") \
             .select("*") \
             .eq("project_id", state["projectId"]) \
@@ -95,10 +96,10 @@ def load_context_and_mart_summary(state: AnalysisState) -> Dict[str, Any]:
             .lte("date", end_str) \
             .order("date") \
             .execute()
-        return result.data or []
-    
-    # 병렬 실행
-    with ThreadPoolExecutor(max_workers=5) as executor:
+            return result.data or []
+        
+        # 병렬 실행
+        with ThreadPoolExecutor(max_workers=5) as executor:
         futures = [
             executor.submit(fetch_ga4_metrics),
             executor.submit(fetch_kpis),
@@ -106,77 +107,77 @@ def load_context_and_mart_summary(state: AnalysisState) -> Dict[str, Any]:
             executor.submit(fetch_pages),
             executor.submit(fetch_csv_metrics)
         ]
-        ga4_metrics, kpis, channels, pages, csv_metrics = [f.result() for f in futures]
-    
-    data_accessed.extend([
+            ga4_metrics, kpis, channels, pages, csv_metrics = [f.result() for f in futures]
+        
+        data_accessed.extend([
         "mart_ga4_metrics",
         "mart_ga4_daily_kpis",
         "mart_ga4_channel_daily",
-        "mart_ga4_top_pages_daily",
-        "mart_csv_daily_metrics"
-    ])
-    
-    # GA4 Metrics 집계 (새 유연한 테이블 우선)
-    ga4_global_metrics = [
+            "mart_ga4_top_pages_daily",
+            "mart_csv_daily_metrics"
+        ])
+        
+        # GA4 Metrics 집계 (새 유연한 테이블 우선)
+        ga4_global_metrics = [
         m for m in ga4_metrics
-        if not m.get("dimensions") or len(m.get("dimensions", {})) == 0
-    ]
-    
-    def sum_metric(metric_name: str) -> float:
+            if not m.get("dimensions") or len(m.get("dimensions", {})) == 0
+        ]
+        
+        def sum_metric(metric_name: str) -> float:
         return sum(
             float(m.get("metric_value", 0) or 0)
             for m in ga4_global_metrics
-            if m.get("metric_name") == metric_name
-        )
-    
-    def avg_metric(metric_name: str) -> float:
+                if m.get("metric_name") == metric_name
+            )
+        
+        def avg_metric(metric_name: str) -> float:
         values = [
             float(m.get("metric_value", 0) or 0)
-            for m in ga4_global_metrics
-            if m.get("metric_name") == metric_name
-        ]
-        return sum(values) / len(values) if values else 0
+                for m in ga4_global_metrics
+                if m.get("metric_name") == metric_name
+            ]
+            return sum(values) / len(values) if values else 0
+        
+        use_new_table = len(ga4_global_metrics) > 0
     
-    use_new_table = len(ga4_global_metrics) > 0
-    
-    total_sessions = sum_metric("sessions") if use_new_table else sum(k.get("sessions", 0) or 0 for k in kpis)
-    total_active_users = sum_metric("active_users") if use_new_table else sum(k.get("active_users", 0) or 0 for k in kpis)
-    total_new_users = sum_metric("new_users") if use_new_table else sum(k.get("new_users", 0) or 0 for k in kpis)
-    
-    if use_new_table:
-        avg_engagement_rate = avg_metric("engagement_rate")
-        avg_bounce_rate = avg_metric("bounce_rate")
-        avg_session_duration = avg_metric("avg_session_duration")
-    else:
-        if kpis:
-            avg_engagement_rate = sum(float(k.get("engagement_rate", 0) or 0) for k in kpis) / len(kpis)
-            avg_bounce_rate = sum(float(k.get("bounce_rate", 0) or 0) for k in kpis) / len(kpis)
-            avg_session_duration = sum(float(k.get("avg_session_duration", 0) or 0) for k in kpis) / len(kpis)
+        total_sessions = sum_metric("sessions") if use_new_table else sum(k.get("sessions", 0) or 0 for k in kpis)
+        total_active_users = sum_metric("active_users") if use_new_table else sum(k.get("active_users", 0) or 0 for k in kpis)
+        total_new_users = sum_metric("new_users") if use_new_table else sum(k.get("new_users", 0) or 0 for k in kpis)
+        
+        if use_new_table:
+            avg_engagement_rate = avg_metric("engagement_rate")
+            avg_bounce_rate = avg_metric("bounce_rate")
+            avg_session_duration = avg_metric("avg_session_duration")
         else:
-            avg_engagement_rate = avg_bounce_rate = avg_session_duration = 0
-    
-    # 채널별 집계
-    channel_map = {}
-    ga4_channel_metrics = [
-        m for m in ga4_metrics
-        if m.get("dimensions") and m.get("dimensions", {}).get("channel_group")
-    ]
-    
-    if ga4_channel_metrics:
-        for m in ga4_channel_metrics:
-            channel_group = m["dimensions"]["channel_group"]
-            if not channel_group:
-                continue
-            
-            if channel_group not in channel_map:
-                channel_map[channel_group] = {"sessions": 0, "users": 0}
-            
-            if m.get("metric_name") == "sessions":
-                channel_map[channel_group]["sessions"] += float(m.get("metric_value", 0) or 0)
-            elif m.get("metric_name") == "active_users":
-                channel_map[channel_group]["users"] += float(m.get("metric_value", 0) or 0)
-    else:
-        for c in channels:
+            if kpis:
+                avg_engagement_rate = sum(float(k.get("engagement_rate", 0) or 0) for k in kpis) / len(kpis)
+                avg_bounce_rate = sum(float(k.get("bounce_rate", 0) or 0) for k in kpis) / len(kpis)
+                avg_session_duration = sum(float(k.get("avg_session_duration", 0) or 0) for k in kpis) / len(kpis)
+            else:
+                avg_engagement_rate = avg_bounce_rate = avg_session_duration = 0
+        
+        # 채널별 집계
+        channel_map = {}
+        ga4_channel_metrics = [
+            m for m in ga4_metrics
+            if m.get("dimensions") and m.get("dimensions", {}).get("channel_group")
+        ]
+        
+        if ga4_channel_metrics:
+            for m in ga4_channel_metrics:
+                channel_group = m["dimensions"]["channel_group"]
+                if not channel_group:
+                    continue
+                
+                if channel_group not in channel_map:
+                    channel_map[channel_group] = {"sessions": 0, "users": 0}
+                
+                if m.get("metric_name") == "sessions":
+                    channel_map[channel_group]["sessions"] += float(m.get("metric_value", 0) or 0)
+                elif m.get("metric_name") == "active_users":
+                    channel_map[channel_group]["users"] += float(m.get("metric_value", 0) or 0)
+        else:
+            for c in channels:
             channel_group = c.get("channel_group")
             if not channel_group:
                 continue
@@ -184,10 +185,10 @@ def load_context_and_mart_summary(state: AnalysisState) -> Dict[str, Any]:
             if channel_group not in channel_map:
                 channel_map[channel_group] = {"sessions": 0, "users": 0}
             
-            channel_map[channel_group]["sessions"] += c.get("sessions", 0) or 0
-            channel_map[channel_group]["users"] += c.get("active_users", 0) or 0
-    
-    top_channels = sorted(
+                channel_map[channel_group]["sessions"] += c.get("sessions", 0) or 0
+                channel_map[channel_group]["users"] += c.get("active_users", 0) or 0
+        
+        top_channels = sorted(
         [
             {
                 "name": name,
@@ -197,13 +198,13 @@ def load_context_and_mart_summary(state: AnalysisState) -> Dict[str, Any]:
             }
             for name, data in channel_map.items()
         ],
-        key=lambda x: x["sessions"],
-        reverse=True
-    )[:5]
-    
-    # 페이지별 집계
-    page_map = {}
-    for p in pages:
+            key=lambda x: x["sessions"],
+            reverse=True
+        )[:5]
+        
+        # 페이지별 집계
+        page_map = {}
+        for p in pages:
         page_path = p.get("page_path")
         if not page_path:
             continue
@@ -216,11 +217,11 @@ def load_context_and_mart_summary(state: AnalysisState) -> Dict[str, Any]:
                 "count": 0
             }
         
-        page_map[page_path]["views"] += p.get("screen_page_views", 0) or 0
-        page_map[page_path]["engagementRate"] += float(p.get("engagement_rate", 0) or 0)
-        page_map[page_path]["count"] += 1
-    
-    top_pages = sorted(
+            page_map[page_path]["views"] += p.get("screen_page_views", 0) or 0
+            page_map[page_path]["engagementRate"] += float(p.get("engagement_rate", 0) or 0)
+            page_map[page_path]["count"] += 1
+        
+        top_pages = sorted(
         [
             {
                 "path": path,
@@ -230,23 +231,23 @@ def load_context_and_mart_summary(state: AnalysisState) -> Dict[str, Any]:
             }
             for path, data in page_map.items()
         ],
-        key=lambda x: x["views"],
-        reverse=True
-    )[:10]
-    
-    # 일별 트렌드
-    daily_trend = [
+            key=lambda x: x["views"],
+            reverse=True
+        )[:10]
+        
+        # 일별 트렌드
+        daily_trend = [
         {
             "date": k.get("date"),
             "sessions": k.get("sessions", 0) or 0,
-            "users": k.get("active_users", 0) or 0
-        }
-        for k in kpis
-    ]
-    
-    # CSV Metrics 집계
-    csv_metrics_summary = {}
-    if csv_metrics:
+                "users": k.get("active_users", 0) or 0
+            }
+            for k in kpis
+        ]
+        
+        # CSV Metrics 집계
+        csv_metrics_summary = {}
+        if csv_metrics:
         for m in csv_metrics:
             metric_name = m.get("metric_name")
             if not metric_name:
@@ -287,16 +288,16 @@ def load_context_and_mart_summary(state: AnalysisState) -> Dict[str, Any]:
                         "value": metric_value
                     })
     
-    # 트렌드 정렬 (날짜순)
-    for metric_name in csv_metrics_summary:
-        csv_metrics_summary[metric_name]["trend"].sort(key=lambda x: x["date"])
-    
-    # 통합 트렌드 (GA4 + CSV)
-    integrated_trend = None
-    has_ga4_data = len(kpis) > 0
-    has_csv_data = len(csv_metrics) > 0
-    
-    if has_ga4_data and has_csv_data:
+        # 트렌드 정렬 (날짜순)
+        for metric_name in csv_metrics_summary:
+            csv_metrics_summary[metric_name]["trend"].sort(key=lambda x: x["date"])
+        
+        # 통합 트렌드 (GA4 + CSV)
+        integrated_trend = None
+        has_ga4_data = len(kpis) > 0
+        has_csv_data = len(csv_metrics) > 0
+        
+        if has_ga4_data and has_csv_data:
         all_dates = set()
         for k in kpis:
             all_dates.add(k.get("date"))
@@ -318,11 +319,11 @@ def load_context_and_mart_summary(state: AnalysisState) -> Dict[str, Any]:
                 "date": date,
                 "ga4Sessions": ga4_day.get("sessions") if ga4_day else None,
                 "ga4Users": ga4_day.get("active_users") if ga4_day else None,
-                "csvMetrics": csv_metrics_for_day if csv_metrics_for_day else None
-            })
-    
-    # 데이터 소스 요약
-    data_sources = {
+                    "csvMetrics": csv_metrics_for_day if csv_metrics_for_day else None
+                })
+        
+        # 데이터 소스 요약
+        data_sources = {
         "ga4": {
             "available": has_ga4_data,
             "dateRange": {
@@ -336,12 +337,12 @@ def load_context_and_mart_summary(state: AnalysisState) -> Dict[str, Any]:
             "metrics": list(csv_metrics_summary.keys()) if csv_metrics_summary else None,
             "recordCount": len(csv_metrics)
         },
-        "integrated": has_ga4_data and has_csv_data
-    }
-    
-    # Metric Definitions 조회 (Semantic Layer)
-    metric_definitions = None
-    try:
+            "integrated": has_ga4_data and has_csv_data
+        }
+        
+        # Metric Definitions 조회 (Semantic Layer)
+        metric_definitions = None
+        try:
         # Feature flag 확인 (간단히 구현)
         # 실제로는 feature_flags 테이블에서 확인해야 함
         metric_defs_result = supabase.table("metric_definitions") \
@@ -352,12 +353,12 @@ def load_context_and_mart_summary(state: AnalysisState) -> Dict[str, Any]:
             .execute()
         
         if metric_defs_result.data:
-            metric_definitions = metric_defs_result.data
-            data_accessed.append("metric_definitions")
-    except Exception as e:
-        print(f"[LangGraph] Failed to load metric definitions: {e}")
-    
-    mart_summary: MartSummary = {
+                metric_definitions = metric_defs_result.data
+                data_accessed.append("metric_definitions")
+        except Exception:
+            pass
+        
+        mart_summary: MartSummary = {
         "period": {
             "start": start_str,
             "end": end_str,
@@ -376,13 +377,13 @@ def load_context_and_mart_summary(state: AnalysisState) -> Dict[str, Any]:
         "dailyTrend": daily_trend,
         "csvMetrics": csv_metrics_summary if csv_metrics_summary else None,
         "integratedTrend": integrated_trend,
-        "dataSources": data_sources,
-        "metricDefinitions": metric_definitions
-    }
-    
-    # 채팅 모드일 때 이전 대화 메시지 로드
-    conversation_history = []
-    if state["mode"] == "chat" and state.get("threadId"):
+            "dataSources": data_sources,
+            "metricDefinitions": metric_definitions
+        }
+        
+        # 채팅 모드일 때 이전 대화 메시지 로드
+        conversation_history = []
+        if state["mode"] == "chat" and state.get("threadId"):
         try:
             # 최근 10개 메시지 로드 (최신순, 현재 메시지 제외)
             messages_result = supabase.table("chat_messages") \
@@ -395,16 +396,16 @@ def load_context_and_mart_summary(state: AnalysisState) -> Dict[str, Any]:
             
             conversation_history = messages_result.data or []
             data_accessed.append("chat_messages")
-        except Exception as e:
-            # 대화 히스토리 로드 실패는 치명적이지 않음 (로그만)
-            print(f"[Warning] Failed to load conversation history: {e}")
+        except Exception:
             conversation_history = []
-    
-    return {
-        "martSummary": mart_summary,
-        "conversationHistory": conversation_history,
-        "dataAccessed": data_accessed
-    }
+        
+        return {
+            "martSummary": mart_summary,
+            "conversationHistory": conversation_history,
+            "dataAccessed": data_accessed
+        }
+    except Exception as e:
+        return {"error": str(e)}
 
 # Parse Analyst Questions
 def parse_analyst_questions(markdown: str) -> List[AnalystQuestion]:
@@ -588,69 +589,89 @@ def extract_chat_followup_questions(text: str) -> List[AnalystQuestion]:
 # Persist Results
 def persist_results(state: AnalysisState) -> Dict[str, Any]:
     """결과 저장"""
-    supabase = get_supabase_client()
-    
-    # State에서 필요한 데이터 가져오기
-    analysis_markdown = state.get("analysisMarkdown", "")
-    analyst_questions = state.get("analystQuestions", [])
-    mart_summary = state.get("martSummary")
-    
-    # Chat message 저장 (user message가 있으면)
-    if state.get("userMessage"):
-        supabase.table("chat_messages").insert({
-            "workspace_id": state["workspaceId"],
-            "thread_id": state["threadId"],
-            "role": "user",
-            "content": state["userMessage"]
-        }).execute()
-    
-    # Assistant message 저장
-    if analysis_markdown:
-        supabase.table("chat_messages").insert({
-            "workspace_id": state["workspaceId"],
-            "thread_id": state["threadId"],
-            "role": "assistant",
-            "content": analysis_markdown,
-            "metadata": {"questions": analyst_questions}
-        }).execute()
-    
-    # Report 모드면 reports 테이블에도 저장
-    if state["mode"] == "report" and analysis_markdown:
-        metadata = {
-            "questions": analyst_questions
-        }
-        if mart_summary:
-            metadata["martSummary"] = mart_summary
+    try:
+        supabase = get_supabase_client()
         
-        supabase.table("reports").insert({
-            "workspace_id": state["workspaceId"],
-            "range": state["range"],
-            "report_markdown": analysis_markdown,
-            "metadata": metadata
-        }).execute()
-    
-    # Analysis thread 업데이트
-    supabase.table("analysis_threads").upsert({
-        "workspace_id": state["workspaceId"],
-        "thread_id": state["threadId"],
-        "last_range": state["range"],
-        "last_snapshot_at": datetime.now().isoformat()
-    }, on_conflict="workspace_id,thread_id").execute()
-    
-    # Audit log
-    supabase.table("audit_logs").insert({
-        "user_id": state["userId"],
-        "project_id": state["projectId"],
-        "workspace_id": state["workspaceId"],
-        "action": "agent.report.generate" if state["mode"] == "report" else "agent.chat.message",
-        "data_accessed": state.get("dataAccessed", []),
-        "llm_payload_summary": {
-            "mode": state["mode"],
-            "range": state["range"],
-            "questionsCount": len(analyst_questions),
-            "responseLength": len(analysis_markdown)
-        }
-    }).execute()
-    
-    # LangGraph는 노드가 최소 하나의 필드를 업데이트해야 함
-    return {"dataAccessed": state.get("dataAccessed", [])}
+        # State에서 필요한 데이터 가져오기
+        analysis_markdown = state.get("analysisMarkdown", "")
+        analyst_questions = state.get("analystQuestions", []) or []
+        mart_summary = state.get("martSummary")
+        mode = state.get("mode", "report")
+        user_message = state.get("userMessage")
+        
+        # Chat message 저장 (user message가 있으면)
+        if user_message:
+            try:
+                supabase.table("chat_messages").insert({
+                    "workspace_id": state["workspaceId"],
+                    "thread_id": state["threadId"],
+                    "role": "user",
+                    "content": user_message
+                }).execute()
+        except Exception:
+            pass
+        
+        # Assistant message 저장
+        if analysis_markdown:
+            try:
+                supabase.table("chat_messages").insert({
+                    "workspace_id": state["workspaceId"],
+                    "thread_id": state["threadId"],
+                    "role": "assistant",
+                    "content": analysis_markdown,
+                    "metadata": {"questions": analyst_questions}
+                }).execute()
+        except Exception:
+            pass
+        
+        # Report 모드면 reports 테이블에도 저장
+        if mode == "report" and analysis_markdown:
+            try:
+                metadata = {
+                    "questions": analyst_questions
+                }
+                if mart_summary:
+                    metadata["martSummary"] = mart_summary
+                
+                supabase.table("reports").insert({
+                    "workspace_id": state["workspaceId"],
+                    "range": state["range"],
+                    "report_markdown": analysis_markdown,
+                    "metadata": metadata
+                }).execute()
+        except Exception:
+            pass
+        
+        # Analysis thread 업데이트
+        try:
+            supabase.table("analysis_threads").upsert({
+                "workspace_id": state["workspaceId"],
+                "thread_id": state["threadId"],
+                "last_range": state["range"],
+                "last_snapshot_at": datetime.now().isoformat()
+            }, on_conflict="workspace_id,thread_id").execute()
+        except Exception:
+            pass
+        
+        # Audit log
+        try:
+            supabase.table("audit_logs").insert({
+                "user_id": state["userId"],
+                "project_id": state["projectId"],
+                "workspace_id": state["workspaceId"],
+                "action": "agent.report.generate" if mode == "report" else "agent.chat.message",
+                "data_accessed": state.get("dataAccessed", []),
+                "llm_payload_summary": {
+                    "mode": mode,
+                    "range": state["range"],
+                    "questionsCount": len(analyst_questions),
+                    "responseLength": len(analysis_markdown)
+                }
+            }).execute()
+        except Exception:
+            pass
+        
+        # LangGraph는 노드가 최소 하나의 필드를 업데이트해야 함
+        return {"dataAccessed": state.get("dataAccessed", [])}
+    except Exception as e:
+        return {"dataAccessed": state.get("dataAccessed", []), "error": str(e)}

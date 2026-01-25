@@ -81,15 +81,18 @@ async def analyze(
     from app.langgraph.graph import run_analysis
     
     try:
+        if request.mode == "chat" and not request.user_message:
+            raise HTTPException(status_code=400, detail="user_message is required for chat mode")
+        
         result = await run_analysis({
             "userId": request.user_id,
             "projectId": request.project_id,
             "workspaceId": request.workspace_id,
             "role": request.role,
             "language": request.language,
-            "projectProfile": request.project_profile,
+            "projectProfile": request.project_profile or {},
             "workspacePurpose": request.workspace_purpose,
-            "agentConfig": request.agent_config,
+            "agentConfig": request.agent_config or {},
             "mode": request.mode,
             "range": request.range,
             "userMessage": request.user_message,
@@ -99,23 +102,24 @@ async def analyze(
         if result.get("error"):
             raise HTTPException(status_code=400, detail=result["error"])
         
-        # messages 필드가 남아있으면 제거 (JSON serialization 방지)
         if "messages" in result:
             result = {k: v for k, v in result.items() if k != "messages"}
         
+        analysis_markdown = result.get("analysisMarkdown", "")
+        if not analysis_markdown and request.mode == "chat":
+            analysis_markdown = "죄송합니다. 답변을 생성하는 중 오류가 발생했습니다."
+        
         return AnalyzeResponse(
-            analysis_markdown=result.get("analysisMarkdown", ""),
-            analyst_questions=result.get("analystQuestions", []),
+            analysis_markdown=analysis_markdown,
+            analyst_questions=result.get("analystQuestions", []) or [],
             mart_summary=result.get("martSummary"),
             thread_id=result.get("threadId", request.thread_id),
-            data_accessed=result.get("dataAccessed", [])
+            data_accessed=result.get("dataAccessed", []) or []
         )
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
-        error_detail = f"{str(e)}\n{traceback.format_exc()}"
-        raise HTTPException(status_code=500, detail=error_detail)
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/v1/collect/ga4")
 async def collect_ga4(
