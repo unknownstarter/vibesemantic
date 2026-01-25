@@ -79,28 +79,57 @@ export async function POST(
       }, { status: 400 })
     }
 
-    const result = await callBrainAnalyze({
-      userId: context.userId,
-      projectId: project.id,
-      workspaceId,
-      role,
-      language,
-      projectProfile: (project.profile || {}) as ProjectProfile,
-      workspacePurpose: workspace.purpose as WorkspacePurpose,
-      agentConfig: (workspace.agent_config || {}) as AgentConfig,
-      mode,
-      range,
-      userMessage,
-      threadId,
-    })
+    try {
+      const result = await callBrainAnalyze({
+        userId: context.userId,
+        projectId: project.id,
+        workspaceId,
+        role,
+        language,
+        projectProfile: (project.profile || {}) as ProjectProfile,
+        workspacePurpose: workspace.purpose as WorkspacePurpose,
+        agentConfig: (workspace.agent_config || {}) as AgentConfig,
+        mode,
+        range,
+        userMessage,
+        threadId,
+      })
 
-    return NextResponse.json({
-      analysisMarkdown: result.analysisMarkdown || '',
-      analystQuestions: result.analystQuestions || [],
-      martSummary: result.martSummary, // 차트용 데이터
-      threadId: result.threadId,
-      dataAccessed: result.dataAccessed || [],
-    })
+      return NextResponse.json({
+        analysisMarkdown: result.analysisMarkdown || '',
+        analystQuestions: result.analystQuestions || [],
+        martSummary: result.martSummary,
+        threadId: result.threadId,
+        dataAccessed: result.dataAccessed || [],
+      })
+    } catch (brainError) {
+      // 브레인 API 에러를 명확하게 처리
+      if (brainError instanceof Error) {
+        // 환경 변수 누락
+        if (brainError.message.includes('BRAIN_API_URL') || brainError.message.includes('BRAIN_API_KEY')) {
+          return NextResponse.json({ 
+            error: 'AI 서버 설정이 완료되지 않았습니다. 관리자에게 문의해주세요.' 
+          }, { status: 500 })
+        }
+        // 네트워크 에러
+        if (brainError.message.includes('fetch') || brainError.message.includes('network') || brainError.message.includes('Failed to fetch')) {
+          return NextResponse.json({ 
+            error: 'AI 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.' 
+          }, { status: 503 })
+        }
+        // 타임아웃
+        if (brainError.message.includes('timeout') || brainError.message.includes('AbortError')) {
+          return NextResponse.json({ 
+            error: '요청 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.' 
+          }, { status: 504 })
+        }
+        // 브레인 API 에러 메시지 전달
+        return NextResponse.json({ 
+          error: brainError.message || 'AI 서버에서 오류가 발생했습니다.' 
+        }, { status: 500 })
+      }
+      throw brainError
+    }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : '분석 중 오류가 발생했습니다'
     return NextResponse.json({ error: errorMessage }, { status: 500 })

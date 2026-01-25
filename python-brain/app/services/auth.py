@@ -16,48 +16,54 @@ def verify_project_access(
     Returns:
         (allowed: bool, error: Optional[str])
     """
-    supabase = get_supabase_client()
-    
-    # 프로젝트 멤버십 확인
-    membership = supabase.table("project_members") \
-        .select("role, status") \
-        .eq("project_id", project_id) \
-        .eq("user_id", user_id) \
-        .maybe_single() \
-        .execute()
-    
-    if not membership.data or membership.data.get("status") != "active":
-        return False, "Access denied: Not a project member"
-    
-    # 프로젝트 상태 확인
-    project = supabase.table("projects") \
-        .select("setup_status") \
-        .eq("id", project_id) \
-        .maybe_single() \
-        .execute()
-    
-    # CSV 데이터셋 확인
-    csv_datasets = supabase.table("csv_datasets") \
-        .select("status") \
-        .eq("project_id", project_id) \
-        .in_("status", ["confirmed", "ingested"]) \
-        .execute()
-    
-    has_ga4_ready = project.data and project.data.get("setup_status") in ["ready", "ga4_ready"]
-    has_csv_ready = csv_datasets.data and len(csv_datasets.data) > 0
-    
-    if not has_ga4_ready and not has_csv_ready:
-        return False, "Project not ready: Connect GA4 or upload CSV data first"
-    
-    # 워크스페이스 확인 (있는 경우)
-    if workspace_id:
-        workspace = supabase.table("workspaces") \
-            .select("status") \
-            .eq("id", workspace_id) \
+    try:
+        supabase = get_supabase_client()
+        
+        # 프로젝트 멤버십 확인
+        membership = supabase.table("project_members") \
+            .select("role, status") \
+            .eq("project_id", project_id) \
+            .eq("user_id", user_id) \
             .maybe_single() \
             .execute()
         
-        if not workspace.data:
-            return False, "Workspace not found"
-    
-    return True, None
+        if not membership.data or membership.data.get("status") != "active":
+            return False, f"Access denied: Not a project member (user_id={user_id}, project_id={project_id})"
+        
+        # 프로젝트 상태 확인
+        project = supabase.table("projects") \
+            .select("setup_status") \
+            .eq("id", project_id) \
+            .maybe_single() \
+            .execute()
+        
+        if not project.data:
+            return False, f"Project not found: {project_id}"
+        
+        # CSV 데이터셋 확인
+        csv_datasets = supabase.table("csv_datasets") \
+            .select("status") \
+            .eq("project_id", project_id) \
+            .in_("status", ["confirmed", "ingested"]) \
+            .execute()
+        
+        has_ga4_ready = project.data.get("setup_status") in ["ready", "ga4_ready"]
+        has_csv_ready = csv_datasets.data and len(csv_datasets.data) > 0
+        
+        if not has_ga4_ready and not has_csv_ready:
+            return False, f"Project not ready: setup_status={project.data.get('setup_status')}, has_csv={has_csv_ready}"
+        
+        # 워크스페이스 확인 (있는 경우)
+        if workspace_id:
+            workspace = supabase.table("workspaces") \
+                .select("status") \
+                .eq("id", workspace_id) \
+                .maybe_single() \
+                .execute()
+            
+            if not workspace.data:
+                return False, f"Workspace not found: {workspace_id}"
+        
+        return True, None
+    except Exception as e:
+        return False, f"Error checking access: {str(e)}"

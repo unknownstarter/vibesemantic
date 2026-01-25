@@ -3,14 +3,34 @@ Python Brain API - FastAPI 서버
 LangGraph 엔진, 데이터 수집기, CSV 프로파일러 제공
 """
 
-from fastapi import FastAPI, HTTPException, Header, Depends
+from fastapi import FastAPI, HTTPException, Header, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import Optional
 import os
 import asyncio
+import traceback
+import logging
+
+# 로깅 설정
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Vibe Semantic Brain API", version="1.0.0")
+
+# 전역 예외 핸들러
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    error_detail = f"{str(exc)}\n{traceback.format_exc()}"
+    logger.error(f"Unhandled exception: {error_detail}")
+    # 최대 1000자로 제한
+    if len(error_detail) > 1000:
+        error_detail = error_detail[:1000] + "..."
+    return JSONResponse(
+        status_code=500,
+        content={"detail": error_detail}
+    )
 
 # CORS 설정
 app.add_middleware(
@@ -20,6 +40,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Health check
+@app.get("/health")
+async def health():
+    return {"status": "ok", "service": "brain-api"}
 
 # API Key 인증
 async def verify_api_key(x_api_key: Optional[str] = Header(None)):
@@ -81,9 +106,12 @@ async def analyze(
     from app.langgraph.graph import run_analysis
     
     try:
+        logger.info(f"Analyze request: mode={request.mode}, workspace_id={request.workspace_id}, project_id={request.project_id}")
+        
         if request.mode == "chat" and not request.user_message:
             raise HTTPException(status_code=400, detail="user_message is required for chat mode")
         
+        logger.info("Calling run_analysis...")
         result = await run_analysis({
             "userId": request.user_id,
             "projectId": request.project_id,
@@ -99,16 +127,31 @@ async def analyze(
             "threadId": request.thread_id,
         })
         
-        if result.get("error"):
-            raise HTTPException(status_code=400, detail=result["error"])
+        logger.info(f"run_analysis completed: has_error={bool(result.get('error'))}, has_analysis={bool(result.get('analysisMarkdown'))}")
         
+        # 에러 체크
+        if result.get("error"):
+            error_msg = result["error"]
+            logger.error(f"Analysis error: {error_msg}")
+            if len(error_msg) > 200:
+                error_msg = error_msg[:200] + "..."
+            raise HTTPException(status_code=400, detail=error_msg)
+        
+        # messages 필드 제거 (JSON serialization 방지)
         if "messages" in result:
             result = {k: v for k, v in result.items() if k != "messages"}
         
+        # 필수 필드 검증
         analysis_markdown = result.get("analysisMarkdown", "")
-        if not analysis_markdown and request.mode == "chat":
-            analysis_markdown = "죄송합니다. 답변을 생성하는 중 오류가 발생했습니다."
+        if not analysis_markdown:
+            logger.warning("Empty analysis_markdown")
+            if request.mode == "chat":
+                analysis_markdown = "죄송합니다. 답변을 생성하는 중 오류가 발생했습니다."
+            else:
+                raise HTTPException(status_code=500, detail="Failed to generate analysis")
         
+        logger.info("Returning response")
+        # 응답 생성
         return AnalyzeResponse(
             analysis_markdown=analysis_markdown,
             analyst_questions=result.get("analystQuestions", []) or [],
@@ -116,10 +159,15 @@ async def analyze(
             thread_id=result.get("threadId", request.thread_id),
             data_accessed=result.get("dataAccessed", []) or []
         )
-    except HTTPException:
+    except HTTPException as e:
+        logger.error(f"HTTPException: {e.detail}")
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        error_detail = f"{str(e)}\n{traceback.format_exc()}"
+        logger.error(f"Exception in analyze: {error_detail}")
+        if len(error_detail) > 1000:
+            error_detail = error_detail[:1000] + "..."
+        raise HTTPException(status_code=500, detail=error_detail)
 
 @app.post("/api/v1/collect/ga4")
 async def collect_ga4(

@@ -46,9 +46,7 @@ export async function callBrainAnalyze(
   const brainApiKey = process.env.BRAIN_API_KEY
 
   if (!brainApiUrl || !brainApiKey) {
-    throw new Error(
-      'BRAIN_API_URL and BRAIN_API_KEY must be set in environment variables'
-    )
+    throw new Error('BRAIN_API_URL and BRAIN_API_KEY must be set in environment variables')
   }
 
   // 타임아웃 설정 (5분)
@@ -84,28 +82,52 @@ export async function callBrainAnalyze(
     clearTimeout(timeoutId)
 
     if (!response.ok) {
-      const errorText = await response.text()
-      let errorMessage = `Brain API error: ${response.status}`
+      let errorMessage = `AI 서버 오류 (${response.status})`
       try {
-        const errorJson = JSON.parse(errorText)
-        errorMessage = errorJson.detail || errorJson.error || errorMessage
+        const errorText = await response.text()
+        if (errorText) {
+          try {
+            const errorJson = JSON.parse(errorText)
+            errorMessage = errorJson.detail || errorJson.error || errorMessage
+          } catch {
+            // JSON 파싱 실패 시 텍스트 그대로 사용 (너무 길면 잘라냄)
+            errorMessage = errorText.length > 200 ? errorText.substring(0, 200) + '...' : errorText
+          }
+        }
       } catch {
-        errorMessage = errorText || errorMessage
+        // 에러 텍스트 읽기 실패 시 기본 메시지 사용
       }
       throw new Error(errorMessage)
     }
 
     const data = await response.json()
 
+    // 응답 검증
+    if (!data || typeof data !== 'object') {
+      throw new Error('AI 서버 응답 형식이 올바르지 않습니다.')
+    }
+
     return {
       analysisMarkdown: data.analysis_markdown || '',
-      analystQuestions: data.analyst_questions || [],
+      analystQuestions: Array.isArray(data.analyst_questions) ? data.analyst_questions : [],
       martSummary: data.mart_summary,
       threadId: data.thread_id || request.threadId,
-      dataAccessed: data.data_accessed,
+      dataAccessed: Array.isArray(data.data_accessed) ? data.data_accessed : [],
     }
   } catch (error) {
     clearTimeout(timeoutId)
+    
+    // 네트워크 에러나 타임아웃 에러를 명확하게 처리
+    if (error instanceof Error) {
+      if (error.name === 'AbortError') {
+        throw new Error('요청 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.')
+      }
+      // fetch 에러 (네트워크 문제)
+      if (error.message.includes('fetch') || error.message.includes('Failed to fetch') || error.message.includes('ECONNREFUSED')) {
+        throw new Error('AI 서버에 연결할 수 없습니다. 네트워크 연결을 확인해주세요.')
+      }
+    }
+    
     throw error
   }
 }

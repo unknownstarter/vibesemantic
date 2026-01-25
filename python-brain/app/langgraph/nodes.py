@@ -14,20 +14,24 @@ import re
 # Guard and Route
 def guard_and_route(state: AnalysisState) -> Dict[str, Any]:
     """권한 및 프로젝트 상태 체크"""
-    from app.services.auth import verify_project_access
-    
-    allowed, error = verify_project_access(
-        state["userId"],
-        state["projectId"],
-        state.get("workspaceId")
-    )
-    
-    if not allowed:
-        return {"error": error}
-    
-    # LangGraph는 노드가 최소 하나의 필드를 업데이트해야 함
-    # 에러가 없으면 빈 업데이트 반환 (state 유지)
-    return {"dataAccessed": state.get("dataAccessed", [])}
+    try:
+        from app.services.auth import verify_project_access
+        
+        allowed, error = verify_project_access(
+            state["userId"],
+            state["projectId"],
+            state.get("workspaceId")
+        )
+        
+        if not allowed:
+            return {"error": error or "Access denied"}
+        
+        # LangGraph는 노드가 최소 하나의 필드를 업데이트해야 함
+        return {"dataAccessed": state.get("dataAccessed", [])}
+    except Exception as e:
+        import traceback
+        error_msg = f"Error in guard_and_route: {str(e)}\n{traceback.format_exc()}"
+        return {"error": error_msg[:500]}  # 최대 500자로 제한
 
 # Load Context and Mart Summary
 def load_context_and_mart_summary(state: AnalysisState) -> Dict[str, Any]:

@@ -73,7 +73,10 @@ def create_analysis_graph():
         "load_context",
         lambda state: END if state.get("error") else "generate"
     )
-    workflow.add_edge("generate", "persist")
+    workflow.add_conditional_edges(
+        "generate",
+        lambda state: END if state.get("error") else "persist"
+    )
     workflow.add_edge("persist", END)
     
     return workflow.compile()
@@ -93,6 +96,11 @@ def generate_analysis(state: Dict[str, Any]) -> Dict[str, Any]:
         if mode == "chat" and not user_message:
             return {"error": "User message is required for chat mode"}
         
+        # OpenAI API 키 확인
+        openai_key = os.getenv("OPENAI_API_KEY")
+        if not openai_key:
+            return {"error": "OPENAI_API_KEY not configured"}
+        
         system_prompt = build_system_prompt(
             language=state.get("language", "ko"),
             purpose=state.get("workspacePurpose", "product"),
@@ -109,7 +117,7 @@ def generate_analysis(state: Dict[str, Any]) -> Dict[str, Any]:
         
         model = ChatOpenAI(
             model_name="gpt-4o",
-            openai_api_key=os.getenv("OPENAI_API_KEY"),
+            openai_api_key=openai_key,
             temperature=0.3
         )
         
@@ -157,33 +165,44 @@ def generate_analysis(state: Dict[str, Any]) -> Dict[str, Any]:
             questions = []
             cleaned_markdown = raw_content
         
-        # LangChain 메시지 객체는 JSON serializable하지 않으므로 반환하지 않음
-        # messages 필드는 LangGraph 내부에서만 사용되며, 최종 응답에는 필요 없음
         return {
             "analysisMarkdown": cleaned_markdown or "",
             "analystQuestions": questions or [],
         }
     except Exception as e:
-        return {"error": str(e)}
+        import traceback
+        error_msg = f"Error in generate_analysis: {str(e)}"
+        # traceback은 너무 길 수 있으므로 메시지만
+        return {"error": error_msg[:500]}
 
 async def run_analysis(input: Dict[str, Any]) -> Dict[str, Any]:
     """분석 실행 (Non-streaming)"""
-    graph = create_analysis_graph()
-    
-    initial_state: GraphState = {
-        **input,
-        "dataAccessed": [],
-        "messages": []
-    }
-    
-    result = await graph.ainvoke(initial_state)
-    
-    # LangChain 메시지 객체는 JSON serializable하지 않으므로 제거
-    # 필요한 정보는 이미 analysisMarkdown과 analystQuestions에 포함됨
-    if "messages" in result:
-        del result["messages"]
-    
-    return result
+    try:
+        graph = create_analysis_graph()
+        
+        initial_state: GraphState = {
+            **input,
+            "dataAccessed": [],
+            "messages": []
+        }
+        
+        result = await graph.ainvoke(initial_state)
+        
+        # 에러 체크
+        if result.get("error"):
+            return result
+        
+        # LangChain 메시지 객체는 JSON serializable하지 않으므로 제거
+        if "messages" in result:
+            del result["messages"]
+        
+        # 필수 필드 검증
+        if not result.get("analysisMarkdown") and input.get("mode") == "chat":
+            return {"error": "Failed to generate analysis response"}
+        
+        return result
+    except Exception as e:
+        return {"error": str(e)}
 
 async def run_analysis_stream(input: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
     """분석 실행 (Streaming)"""
