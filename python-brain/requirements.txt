@@ -3,10 +3,12 @@ uvicorn[standard]==0.32.0
 pydantic==2.9.0
 python-dotenv==1.0.1
 supabase==2.10.0
-langchain==0.3.0
-langchain-openai==0.2.0
-langgraph==0.2.0
+langchain==0.3.7
+langchain-core==0.3.7
+langchain-openai==0.2.7
+langgraph==0.2.45
 google-api-python-client==2.150.0
 google-auth==2.35.0
 google-auth-oauthlib==1.2.1
 openai==1.54.0
+typing-extensions>=4.8.0
