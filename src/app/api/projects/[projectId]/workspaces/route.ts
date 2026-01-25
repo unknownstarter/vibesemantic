@@ -48,9 +48,22 @@ export async function POST(
     return NextResponse.json({ error: 'Permission denied' }, { status: 403 })
   }
 
-  // Project가 최소 ga4_ready 상태여야 함
-  if (context.project?.setup_status !== 'ga4_ready' && context.project?.setup_status !== 'ready') {
-    return NextResponse.json({ error: 'Complete GA4 setup first' }, { status: 400 })
+  // Project가 ready 상태이거나 CSV 데이터가 있으면 허용
+  const setupStatus = context.project?.setup_status
+  if (setupStatus !== 'ga4_ready' && setupStatus !== 'ready') {
+    // CSV 데이터가 있는지 확인
+    const supabase = await createClient()
+    const { data: csvDatasets } = await supabase
+      .from('csv_datasets')
+      .select('id')
+      .eq('project_id', projectId)
+      .in('status', ['confirmed', 'ingested'])
+      .limit(1)
+    
+    // CSV 데이터도 없으면 에러
+    if (!csvDatasets || csvDatasets.length === 0) {
+      return NextResponse.json({ error: 'Connect GA4 or upload CSV data first' }, { status: 400 })
+    }
   }
 
   const body = await request.json()

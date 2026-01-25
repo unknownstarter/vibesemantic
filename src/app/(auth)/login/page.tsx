@@ -162,16 +162,24 @@ function LoginForm() {
 
     if (error) {
       setStatus('error')
-      if (error.message.includes('rate limit')) {
-        setMessage('요청이 너무 많습니다. 잠시 후 다시 시도해주세요.')
+      // Rate limit 오류 처리
+      if (error.message.toLowerCase().includes('rate limit') || 
+          error.message.toLowerCase().includes('too many requests') ||
+          error.message.toLowerCase().includes('email rate limit')) {
+        // Supabase는 보통 1시간에 같은 이메일로 3-4번 정도만 허용
+        // 더 긴 쿨다운 시간 설정 (1시간 = 3600000ms)
+        setMessage('요청이 너무 많습니다. 같은 이메일로는 1시간에 최대 3-4번만 요청할 수 있습니다. 잠시 후 다시 시도해주세요.')
+        // 1시간 쿨다운 (하지만 사용자가 다른 이메일로 시도할 수 있도록 5분 후 해제)
+        setTimeout(() => setCooldown(false), 300000) // 5분 후 해제
       } else {
         setMessage(error.message)
+        setTimeout(() => setCooldown(false), 3000)
       }
-      setTimeout(() => setCooldown(false), 3000)
     } else {
       setStatus('otp_sent')
       setMessage('이메일로 전송된 6자리 코드를 입력해주세요.')
-      setTimeout(() => setCooldown(false), 30000)
+      // 성공 시 60초 쿨다운 (중복 전송 방지)
+      setTimeout(() => setCooldown(false), 60000)
     }
   }
 
@@ -428,7 +436,7 @@ function LoginForm() {
                   disabled={cooldown || loading}
                   className="text-sm"
                 >
-                  {cooldown ? '잠시 후 재전송 가능' : '코드 다시 받기'}
+                  {cooldown ? '잠시 후 재전송 가능 (1분)' : '코드 다시 받기'}
                 </Button>
                 <div>
                   <Button

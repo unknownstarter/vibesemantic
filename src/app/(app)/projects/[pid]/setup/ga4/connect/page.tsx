@@ -136,20 +136,29 @@ function GA4ConnectContent() {
             <p className="text-muted mb-6">
               Google 계정으로 로그인하여 GA4 데이터에 접근할 수 있도록 권한을 부여해주세요
             </p>
-            <Button
-              onClick={handleConnect}
-              disabled={loading}
-              className="w-full"
-            >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <Spinner className="h-4 w-4" />
-                  연결 중...
-                </span>
-              ) : (
-                'Google 계정으로 연결'
-              )}
-            </Button>
+            <div className="space-y-3">
+              <Button
+                onClick={handleConnect}
+                disabled={loading}
+                className="w-full"
+              >
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Spinner className="h-4 w-4" />
+                    연결 중...
+                  </span>
+                ) : (
+                  'Google 계정으로 연결'
+                )}
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => router.push(`/projects/${projectId}`)}
+                className="w-full"
+              >
+                다음에 하기
+              </Button>
+            </div>
           </div>
         )}
 

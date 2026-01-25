@@ -9,13 +9,21 @@ const publicPaths = ['/', '/demo', '/login', '/callback', '/callback/error', '/a
 const authOnlyPaths = ['/dashboard', '/projects/new']
 
 export async function updateSession(request: NextRequest) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.error('[Middleware] Supabase environment variables are missing')
+    return NextResponse.next({ request })
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   })
 
   const supabase = createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseAnonKey,
     {
       cookies: {
         getAll() {
@@ -84,9 +92,22 @@ export async function updateSession(request: NextRequest) {
 
     // workspace 관련 경로 체크
     if (pathname.includes('/workspaces')) {
-      // ga4_ready 미만이면 workspace 생성/실행 불가
+      // CSV 데이터가 있으면 ready 상태가 될 수 있으므로, 
+      // ga4_ready 또는 ready 상태이거나 CSV 데이터가 있으면 허용
+      // 실제로는 ready 상태만 체크하면 됨 (CSV 데이터가 있으면 ready 상태가 됨)
       if (setupStatus !== 'ga4_ready' && setupStatus !== 'ready') {
-        return NextResponse.redirect(new URL(`/projects/${projectId}/setup/profile`, request.url))
+        // 프로젝트에 CSV 데이터가 있는지 확인
+        const { data: csvDatasets } = await supabase
+          .from('csv_datasets')
+          .select('id')
+          .eq('project_id', projectId)
+          .in('status', ['confirmed', 'ingested'])
+          .limit(1)
+        
+        // CSV 데이터가 없으면 데이터 소스 설정 페이지로 리다이렉트
+        if (!csvDatasets || csvDatasets.length === 0) {
+          return NextResponse.redirect(new URL(`/projects/${projectId}/setup/sources`, request.url))
+        }
       }
 
       // workspace 상세 페이지 (/workspaces/[wid]/*)

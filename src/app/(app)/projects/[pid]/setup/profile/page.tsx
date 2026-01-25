@@ -100,7 +100,8 @@ export default function ProfileSetupPage() {
 
       if (!res.ok) throw new Error('Failed to save')
 
-      router.push(`/projects/${projectId}/setup/ga4/connect`)
+      // 데이터 소스 선택 페이지로 이동 (GA4 또는 CSV 선택 가능)
+      router.push(`/projects/${projectId}/setup/sources`)
     } catch (err) {
       console.error(err)
       setLoading(false)
