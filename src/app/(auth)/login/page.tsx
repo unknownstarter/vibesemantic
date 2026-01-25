@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useState, Suspense, useRef, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { Button } from '@/shared/ui/Button'
 import { Card } from '@/shared/ui/Card'
 import Link from 'next/link'
@@ -88,62 +88,167 @@ function GoogleIcon() {
 
 function LoginForm() {
   const [email, setEmail] = useState('')
+  const [otp, setOtp] = useState(['', '', '', '', '', ''])
   const [loading, setLoading] = useState(false)
-  const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle')
+  const [verifying, setVerifying] = useState(false)
+  const [status, setStatus] = useState<'idle' | 'otp_sent' | 'success' | 'error'>('idle')
+  const [otpError, setOtpError] = useState('')
   const [message, setMessage] = useState('')
   const [cooldown, setCooldown] = useState(false)
   const [validationError, setValidationError] = useState('')
   const searchParams = useSearchParams()
+  const router = useRouter()
   const redirect = searchParams.get('redirect') || '/dashboard'
+  const otpInputRefs = useRef<(HTMLInputElement | null)[]>([])
 
-  const handleLogin = async (e: React.FormEvent) => {
+  // OTP 입력 핸들러
+  const handleOtpChange = (index: number, value: string) => {
+    // 숫자만 허용
+    if (value && !/^\d$/.test(value)) return
+
+    const newOtp = [...otp]
+    newOtp[index] = value
+    setOtp(newOtp)
+
+    // 다음 입력칸으로 자동 이동
+    if (value && index < 5) {
+      otpInputRefs.current[index + 1]?.focus()
+    }
+  }
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    // 백스페이스로 이전 칸으로 이동
+    if (e.key === 'Backspace' && !otp[index] && index > 0) {
+      otpInputRefs.current[index - 1]?.focus()
+    }
+  }
+
+  const handleOtpPaste = (e: React.ClipboardEvent) => {
     e.preventDefault()
-    
-    // 이미 로딩 중이거나 쿨다운 중이면 무시
+    const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6)
+    if (pastedData.length === 6) {
+      const newOtp = pastedData.split('')
+      setOtp(newOtp)
+      otpInputRefs.current[5]?.focus()
+    }
+  }
+
+  // OTP 전송 (매직링크 대신)
+  const handleSendOtp = async (e: React.FormEvent) => {
+    e.preventDefault()
+
     if (loading || cooldown) return
-    
-    // 이메일 유효성 검사
+
     if (!email || !email.includes('@')) {
       setValidationError('올바른 이메일 주소를 입력해주세요')
       return
     }
-    
+
     setLoading(true)
     setCooldown(true)
     setStatus('idle')
     setMessage('')
     setValidationError('')
 
-    // 즉시 성공 화면으로 전환 (낙관적 업데이트)
-    const submittedEmail = email
-    setStatus('success')
-
-    // 서버 사이드 API Route를 통해 이메일 OTP 전송
-    // 이렇게 하면 PKCE code verifier가 쿠키에 저장되어 다른 브라우저에서도 작동
-    const res = await fetch('/api/auth/send-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        email: submittedEmail,
-        redirect: redirect,
-      }),
+    const supabase = createClient()
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        shouldCreateUser: true,
+      },
     })
-
-    const data = await res.json()
 
     setLoading(false)
 
-    if (!res.ok) {
+    if (error) {
       setStatus('error')
-      setMessage(data.error || '이메일 전송에 실패했습니다.')
-      // 에러 시에만 쿨다운 해제 (재시도 가능)
+      if (error.message.includes('rate limit')) {
+        setMessage('요청이 너무 많습니다. 잠시 후 다시 시도해주세요.')
+      } else {
+        setMessage(error.message)
+      }
       setTimeout(() => setCooldown(false), 3000)
     } else {
-      setMessage('이메일을 확인해주세요. 로그인 링크가 전송되었습니다.')
-      // 성공 시 30초 쿨다운 (중복 전송 방지)
+      setStatus('otp_sent')
+      setMessage('이메일로 전송된 6자리 코드를 입력해주세요.')
       setTimeout(() => setCooldown(false), 30000)
     }
   }
+
+  // OTP 인증
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    const otpCode = otp.join('')
+    if (otpCode.length !== 6) {
+      setOtpError('6자리 코드를 모두 입력해주세요.')
+      return
+    }
+
+    setVerifying(true)
+    setOtpError('')
+
+    const supabase = createClient()
+    const { data, error } = await supabase.auth.verifyOtp({
+      email,
+      token: otpCode,
+      type: 'email',
+    })
+
+    setVerifying(false)
+
+    if (error) {
+      if (error.message.includes('expired')) {
+        setOtpError('코드가 만료되었습니다. 새로운 코드를 요청해주세요.')
+      } else if (error.message.includes('invalid')) {
+        setOtpError('잘못된 코드입니다. 다시 확인해주세요.')
+      } else {
+        setOtpError(error.message)
+      }
+      setOtp(['', '', '', '', '', ''])
+      otpInputRefs.current[0]?.focus()
+    } else if (data.session) {
+      setStatus('success')
+      router.push(redirect)
+    }
+  }
+
+  // OTP가 모두 입력되면 자동 제출
+  useEffect(() => {
+    const otpCode = otp.join('')
+    if (otpCode.length === 6 && status === 'otp_sent' && !verifying) {
+      // 자동 제출
+      const verifyOtp = async () => {
+        setVerifying(true)
+        setOtpError('')
+
+        const supabase = createClient()
+        const { data, error } = await supabase.auth.verifyOtp({
+          email,
+          token: otpCode,
+          type: 'email',
+        })
+
+        setVerifying(false)
+
+        if (error) {
+          if (error.message.includes('expired')) {
+            setOtpError('코드가 만료되었습니다. 새로운 코드를 요청해주세요.')
+          } else if (error.message.includes('invalid')) {
+            setOtpError('잘못된 코드입니다. 다시 확인해주세요.')
+          } else {
+            setOtpError(error.message)
+          }
+          setOtp(['', '', '', '', '', ''])
+          otpInputRefs.current[0]?.focus()
+        } else if (data.session) {
+          setStatus('success')
+          router.push(redirect)
+        }
+      }
+      verifyOtp()
+    }
+  }, [otp, status, verifying, email, redirect, router])
 
   const handleGoogleLogin = async () => {
     try {
@@ -234,41 +339,123 @@ function LoginForm() {
 
         <Card className="p-8">
           {status === 'success' ? (
-            /* 성공 상태 */
+            /* 로그인 성공 - 리다이렉트 중 */
             <div className="text-center py-4">
               <div className="flex justify-center mb-4">
                 <SuccessIcon />
               </div>
               <h2 className="text-lg font-semibold text-foreground mb-2">
-                이메일을 확인해주세요
+                로그인 성공
               </h2>
-              <p className="text-muted text-sm mb-6 leading-relaxed">
-                <span className="text-primary font-medium">{email}</span>으로<br />
-                로그인 링크를 전송했습니다.
+              <p className="text-muted text-sm mb-4">
+                잠시 후 대시보드로 이동합니다...
               </p>
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setStatus('idle')
-                  setEmail('')
-                  setCooldown(false)
-                }}
-                className="text-sm"
-                disabled={loading}
-              >
-                다른 이메일로 로그인
-              </Button>
-              
-              {cooldown && !loading && (
-                <p className="text-xs text-subtle mt-3">
-                  이미 전송됨 · 메일이 오지 않으면 스팸함을 확인하세요
+              <div className="flex justify-center">
+                <Spinner size="sm" />
+              </div>
+            </div>
+          ) : status === 'otp_sent' ? (
+            /* OTP 입력 화면 */
+            <div className="py-2">
+              <div className="text-center mb-6">
+                <h2 className="text-lg font-semibold text-foreground mb-2">
+                  인증 코드 입력
+                </h2>
+                <p className="text-muted text-sm">
+                  <span className="text-primary font-medium">{email}</span>으로<br />
+                  전송된 6자리 코드를 입력해주세요.
                 </p>
+              </div>
+
+              <form onSubmit={handleVerifyOtp} className="space-y-5">
+                {/* OTP 입력 필드 */}
+                <div className="flex justify-center gap-2" onPaste={handleOtpPaste}>
+                  {otp.map((digit, index) => (
+                    <input
+                      key={index}
+                      ref={(el) => { otpInputRefs.current[index] = el }}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={1}
+                      value={digit}
+                      onChange={(e) => handleOtpChange(index, e.target.value)}
+                      onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                      className="w-11 h-14 text-center text-xl font-semibold
+                               bg-surface/50 border border-border/20 rounded-lg
+                               text-foreground focus:outline-none focus:ring-2
+                               focus:ring-primary/40 focus:border-primary/40
+                               transition-all duration-200"
+                      disabled={verifying}
+                      autoFocus={index === 0}
+                    />
+                  ))}
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={verifying || otp.join('').length !== 6}
+                  className="w-full"
+                >
+                  {verifying ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Spinner size="sm" />
+                      확인 중...
+                    </span>
+                  ) : (
+                    '로그인'
+                  )}
+                </Button>
+              </form>
+
+              {/* 에러 메시지 */}
+              {otpError && (
+                <div className="mt-4 flex items-start gap-3 p-3 bg-danger/5 border border-danger/20 rounded-lg">
+                  <ErrorIcon />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-danger">{otpError}</p>
+                  </div>
+                </div>
               )}
+
+              <div className="mt-6 text-center space-y-3">
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    if (!cooldown) {
+                      handleSendOtp({ preventDefault: () => {} } as React.FormEvent)
+                    }
+                  }}
+                  disabled={cooldown || loading}
+                  className="text-sm"
+                >
+                  {cooldown ? '잠시 후 재전송 가능' : '코드 다시 받기'}
+                </Button>
+                <div>
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setStatus('idle')
+                      setEmail('')
+                      setOtp(['', '', '', '', '', ''])
+                      setCooldown(false)
+                      setMessage('')
+                      setOtpError('')
+                    }}
+                    className="text-sm text-subtle"
+                  >
+                    다른 이메일로 로그인
+                  </Button>
+                </div>
+              </div>
+
+              <p className="text-xs text-subtle mt-4 text-center">
+                메일이 오지 않으면 스팸함을 확인하세요
+              </p>
             </div>
           ) : (
-            /* 로그인 폼 */
+            /* 이메일 입력 폼 */
             <>
-              <form onSubmit={handleLogin} className="space-y-5">
+              <form onSubmit={handleSendOtp} className="space-y-5">
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium text-foreground mb-2">
                     이메일
@@ -312,10 +499,8 @@ function LoginForm() {
                       <Spinner size="sm" />
                       전송 중...
                     </span>
-                  ) : cooldown ? (
-                    '전송됨 · 잠시 후 재시도'
                   ) : (
-                    '매직 링크로 로그인'
+                    '이메일로 계속'
                   )}
                 </Button>
               </form>
@@ -368,7 +553,7 @@ function LoginForm() {
         {/* 하단 링크 */}
         <p className="mt-6 text-center text-sm text-subtle">
           아직 계정이 없으신가요?{' '}
-          <span className="text-muted">이메일 입력 후 매직 링크를 받으세요</span>
+          <span className="text-muted">이메일 입력 후 인증 코드를 받으세요</span>
         </p>
 
         {/* 홈으로 돌아가기 */}
