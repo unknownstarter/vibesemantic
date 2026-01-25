@@ -35,7 +35,9 @@ export default function GA4PropertyPage() {
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    fetch(`/api/ga4/properties?projectId=${projectSlug}`)
+    fetch(`/api/ga4/properties?projectId=${projectSlug}`, {
+      credentials: 'include',
+    })
       .then(res => res.json())
       .then(data => {
         setProperties(data.properties || [])
@@ -54,10 +56,14 @@ export default function GA4PropertyPage() {
       const res = await fetch('/api/ga4/properties/select', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ projectId: projectSlug, propertyId: selectedId }),
       })
 
-      if (!res.ok) throw new Error('Failed to select property')
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: 'Unknown error' }))
+        throw new Error(errorData.error || 'Failed to select property')
+      }
 
       router.push(`/projects/${projectSlug}/setup/refresh`)
     } catch (err) {
