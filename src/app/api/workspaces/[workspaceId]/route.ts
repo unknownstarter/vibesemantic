@@ -94,7 +94,6 @@ export async function PATCH(
     return NextResponse.json({ error: 'No update data provided' }, { status: 400 })
   }
 
-  const supabase = await createClient()
   const { data: updatedWorkspace, error: updateError } = await supabase
     .from('workspaces')
     .update(updateData)
@@ -148,7 +147,6 @@ export async function DELETE(
     return NextResponse.json({ error: 'Permission denied' }, { status: 403 })
   }
 
-  const supabase = await createClient()
   const { error: deleteError } = await supabase
     .from('workspaces')
     .delete()
