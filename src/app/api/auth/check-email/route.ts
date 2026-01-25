@@ -36,35 +36,40 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Admin API를 사용하여 사용자 목록 조회 (이메일로 필터링)
-    // 참고: listUsers는 페이지네이션을 지원하지만, 이메일로 필터링은 지원하지 않음
-    // 따라서 모든 사용자를 조회하고 필터링해야 함 (비효율적이지만 현재 Supabase Admin API 제한)
-    const { data: usersData, error } = await supabase.auth.admin.listUsers()
+    // Admin API를 사용하여 이메일로 사용자 조회
+    const normalizedEmail = email.toLowerCase().trim()
+    
+    const { data: userData, error } = await supabase.auth.admin.getUserByEmail(normalizedEmail)
 
     if (error) {
-      console.error('[Check Email] Error listing users:', error)
-      // 에러가 있어도 계속 진행 (보안상 사용자 존재 여부를 노출하지 않음)
+      // 사용자를 찾을 수 없으면 에러가 발생할 수 있음 (정상적인 경우)
+      if (error.message?.includes('not found') || error.message?.includes('User not found')) {
+        return NextResponse.json({
+          exists: false,
+          hasOAuth: false,
+        })
+      }
+      
+      console.error('[Check Email] Error getting user by email:', error)
+      // 다른 에러는 false 반환 (보안상 사용자 존재 여부를 노출하지 않음)
       return NextResponse.json({
         exists: false,
         hasOAuth: false,
       })
     }
 
-    // 해당 이메일로 가입된 사용자 찾기 (대소문자 무시)
-    const normalizedEmail = email.toLowerCase().trim()
-    const user = usersData.users.find(
-      u => u.email?.toLowerCase() === normalizedEmail
-    )
-
-    if (!user) {
+    if (!userData || !userData.user) {
       return NextResponse.json({
         exists: false,
         hasOAuth: false,
       })
     }
+
+    const user = userData.user
 
     // OAuth identity 확인 (Google 등)
     // identities 배열에서 email이 아닌 provider 찾기
+    // Supabase에서 Google OAuth로 가입한 경우 identity.provider는 'google'입니다
     const hasOAuth = user.identities?.some(
       (identity: { provider: string }) => identity.provider !== 'email'
     ) || false
@@ -72,6 +77,14 @@ export async function POST(request: NextRequest) {
     const oauthProviders = user.identities
       ?.filter((identity: { provider: string }) => identity.provider !== 'email')
       .map((identity: { provider: string }) => identity.provider) || []
+
+    // 디버깅을 위한 로그 (프로덕션에서는 제거 가능)
+    console.log('[Check Email] User found:', {
+      email: user.email,
+      identities: user.identities?.map((i: any) => i.provider),
+      hasOAuth,
+      oauthProviders,
+    })
 
     return NextResponse.json({
       exists: true,

@@ -477,7 +477,7 @@ export default function DatasetDetailPage() {
                   </select>
                 ) : (
                   <p className="text-foreground font-medium">
-                    {dataset.source_mappings.date_column || '(미지정)'}
+                    {dataset.source_mappings?.date_column || '(미지정)'}
                   </p>
                 )}
               </div>
@@ -486,12 +486,12 @@ export default function DatasetDetailPage() {
               <div className="p-4 bg-surface-inset rounded-xl">
                 <div className="flex items-center gap-2 mb-2">
                   <p className="text-xs text-muted uppercase tracking-wide">
-                    지표 컬럼 ({isEditing ? editMetricColumns.length : dataset.source_mappings.metric_columns.length}개)
+                    지표 컬럼 ({isEditing ? editMetricColumns.length : (dataset.source_mappings?.metric_columns?.length || 0)}개)
                   </p>
                   <span className="text-xs text-muted/70">• 숫자 데이터 (매출, 세션, 전환율 등)</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {(isEditing ? editMetricColumns : dataset.source_mappings.metric_columns).map((col) => (
+                  {(isEditing ? editMetricColumns : (dataset.source_mappings?.metric_columns || [])).map((col) => (
                     <span 
                       key={col.name} 
                       className={`px-2 py-1 text-sm bg-primary/10 text-primary rounded flex items-center gap-1 ${
@@ -536,12 +536,12 @@ export default function DatasetDetailPage() {
               <div className="p-4 bg-surface-inset rounded-xl">
                 <div className="flex items-center gap-2 mb-2">
                   <p className="text-xs text-muted uppercase tracking-wide">
-                    차원 컬럼 ({isEditing ? editDimensionColumns.length : dataset.source_mappings.dimension_columns.length}개)
+                    차원 컬럼 ({isEditing ? editDimensionColumns.length : (dataset.source_mappings?.dimension_columns?.length || 0)}개)
                   </p>
                   <span className="text-xs text-muted/70">• 그룹화 기준 (채널, 국가, 카테고리 등)</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {(isEditing ? editDimensionColumns : dataset.source_mappings.dimension_columns).map((col) => (
+                  {(isEditing ? editDimensionColumns : (dataset.source_mappings?.dimension_columns || [])).map((col) => (
                     <span 
                       key={col.name} 
                       className={`px-2 py-1 text-sm bg-subtle/30 text-muted rounded flex items-center gap-1 ${
@@ -583,7 +583,7 @@ export default function DatasetDetailPage() {
               </div>
 
               {/* LLM Questions with Quick Reply */}
-              {dataset.source_mappings.llm_questions.length > 0 && !isConfirmed && (
+              {dataset.source_mappings?.llm_questions && dataset.source_mappings.llm_questions.length > 0 && !isConfirmed && (
                 <div className="p-4 bg-warning/10 border border-warning/30 rounded-xl">
                   <p className="text-xs text-warning uppercase tracking-wide mb-2">확인 필요</p>
                   {dataset.source_mappings.llm_questions.map((q) => (
@@ -592,9 +592,9 @@ export default function DatasetDetailPage() {
                       <div className="flex flex-wrap gap-2">
                         {q.quickReplies.map((reply) => {
                           // 이미 추가된 컬럼인지 확인 (편집 모드일 때는 editMetricColumns, 아닐 때는 dataset.source_mappings 사용)
-                          const currentMetrics = isEditing ? editMetricColumns : (dataset.source_mappings.metric_columns || [])
-                          const currentDimensions = isEditing ? editDimensionColumns : (dataset.source_mappings.dimension_columns || [])
-                          const currentDateColumn = isEditing ? editDateColumn : dataset.source_mappings.date_column
+                          const currentMetrics = isEditing ? editMetricColumns : (dataset.source_mappings?.metric_columns || [])
+                          const currentDimensions = isEditing ? editDimensionColumns : (dataset.source_mappings?.dimension_columns || [])
+                          const currentDateColumn = isEditing ? editDateColumn : (dataset.source_mappings?.date_column || null)
                           
                           const isAdded = 
                             (reply.action === 'add_metric' && currentMetrics.some(m => m.name === reply.value)) ||

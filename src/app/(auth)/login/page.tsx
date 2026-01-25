@@ -214,6 +214,13 @@ function LoginForm() {
         setMessage('요청이 너무 많습니다. 같은 이메일로는 1시간에 최대 3-4번만 요청할 수 있습니다. 잠시 후 다시 시도해주세요.')
         // 1시간 쿨다운 (하지만 사용자가 다른 이메일로 시도할 수 있도록 5분 후 해제)
         setTimeout(() => setCooldown(false), 300000) // 5분 후 해제
+      } else if (error.message.toLowerCase().includes('email') && 
+                 (error.message.toLowerCase().includes('already') || 
+                  error.message.toLowerCase().includes('exists') ||
+                  error.message.toLowerCase().includes('provider'))) {
+        // 이미 다른 provider로 가입된 계정인 경우
+        setMessage('이 이메일 주소는 Google 로그인으로 가입되어 있습니다. Google 로그인 버튼을 사용해주세요.')
+        setTimeout(() => setCooldown(false), 5000)
       } else {
         setMessage(error.message)
         setTimeout(() => setCooldown(false), 3000)

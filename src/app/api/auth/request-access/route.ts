@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Send notification to admin via Google Sheets
+    let sheetsError: Error | null = null
     try {
       await appendToSheet({
         type: 'access_request',
@@ -55,14 +56,26 @@ export async function POST(request: NextRequest) {
         requestedAt: new Date().toISOString(),
         message: `사용자 ${userEmail}이(가) 프로젝트 생성/접근 권한을 요청했습니다.`,
       })
-    } catch (sheetsError) {
-      console.error('Failed to send access request notification:', sheetsError)
-      // Continue even if Google Sheets fails
+      console.log('[Access Request] Successfully sent to Google Sheets:', { userEmail, userId: user.id })
+    } catch (error) {
+      sheetsError = error instanceof Error ? error : new Error(String(error))
+      console.error('[Access Request] Failed to send to Google Sheets:', {
+        error: sheetsError.message,
+        stack: sheetsError.stack,
+        userEmail,
+        userId: user.id,
+        webAppUrl: process.env.GOOGLE_SHEETS_WEB_APP_URL ? 'SET' : 'NOT SET',
+      })
+      // Continue even if Google Sheets fails (user profile is already updated)
     }
 
     return NextResponse.json({ 
       success: true, 
-      message: '권한 요청이 접수되었습니다. 관리자 승인 후 사용 가능합니다.' 
+      message: '권한 요청이 접수되었습니다. 관리자 승인 후 사용 가능합니다.',
+      sheetsError: sheetsError ? {
+        message: sheetsError.message,
+        // 사용자에게는 상세 에러를 노출하지 않음 (보안)
+      } : null,
     })
   } catch (error) {
     console.error('Access request error:', error)
