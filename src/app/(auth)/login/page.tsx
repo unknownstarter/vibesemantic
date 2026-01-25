@@ -92,6 +92,7 @@ function LoginForm() {
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle')
   const [message, setMessage] = useState('')
   const [cooldown, setCooldown] = useState(false)
+  const [validationError, setValidationError] = useState('')
   const searchParams = useSearchParams()
   const redirect = searchParams.get('redirect') || '/dashboard'
 
@@ -101,10 +102,17 @@ function LoginForm() {
     // 이미 로딩 중이거나 쿨다운 중이면 무시
     if (loading || cooldown) return
     
+    // 이메일 유효성 검사
+    if (!email || !email.includes('@')) {
+      setValidationError('올바른 이메일 주소를 입력해주세요')
+      return
+    }
+    
     setLoading(true)
     setCooldown(true)
     setStatus('idle')
     setMessage('')
+    setValidationError('')
 
     // 즉시 성공 화면으로 전환 (낙관적 업데이트)
     const submittedEmail = email
@@ -133,13 +141,43 @@ function LoginForm() {
   }
 
   const handleGoogleLogin = async () => {
-    const supabase = createClient()
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/callback?redirect=${encodeURIComponent(redirect)}`,
-      },
-    })
+    try {
+      setLoading(true)
+      setStatus('idle')
+      setMessage('')
+      
+      const supabase = createClient()
+      
+      // 프로덕션 환경에서 올바른 리다이렉트 URL 생성
+      const origin = typeof window !== 'undefined' ? window.location.origin : ''
+      const callbackUrl = `${origin}/callback?redirect=${encodeURIComponent(redirect)}`
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: callbackUrl,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        },
+      })
+      
+      if (error) {
+        console.error('Google OAuth error:', error)
+        setStatus('error')
+        setMessage(error.message || 'Google 로그인에 실패했습니다')
+        setLoading(false)
+      } else if (data?.url) {
+        // OAuth URL로 리다이렉트
+        window.location.href = data.url
+      }
+    } catch (err) {
+      console.error('Google login error:', err)
+      setStatus('error')
+      setMessage(err instanceof Error ? err.message : 'Google 로그인 중 오류가 발생했습니다')
+      setLoading(false)
+    }
   }
 
   return (
@@ -205,14 +243,29 @@ function LoginForm() {
                     id="email"
                     type="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="w-full px-4 py-3 bg-surface/50 border border-border/20 rounded-lg 
+                    onChange={(e) => {
+                      setEmail(e.target.value)
+                      if (validationError) setValidationError('')
+                    }}
+                    onInvalid={(e) => {
+                      e.preventDefault()
+                      setValidationError('올바른 이메일 주소를 입력해주세요')
+                    }}
+                    className={`w-full px-4 py-3 bg-surface/50 border rounded-lg 
                              text-foreground placeholder:text-subtle
                              focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40
-                             transition-all duration-200"
+                             transition-all duration-200
+                             ${validationError ? 'border-danger/40 focus:border-danger/60 focus:ring-danger/20' : 'border-border/20'}`}
                     placeholder="your@email.com"
                   />
+                  {validationError && (
+                    <p className="mt-1.5 text-xs text-danger/80 flex items-center gap-1.5">
+                      <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      {validationError}
+                    </p>
+                  )}
                 </div>
 
                 <Button
@@ -248,12 +301,20 @@ function LoginForm() {
                 type="button"
                 variant="secondary"
                 onClick={handleGoogleLogin}
+                disabled={loading}
                 className="w-full"
               >
-                <span className="flex items-center justify-center gap-3">
-                  <GoogleIcon />
-                  Google로 로그인
-                </span>
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Spinner size="sm" />
+                    연결 중...
+                  </span>
+                ) : (
+                  <span className="flex items-center justify-center gap-3">
+                    <GoogleIcon />
+                    Google로 로그인
+                  </span>
+                )}
               </Button>
 
               {/* 에러 메시지 */}

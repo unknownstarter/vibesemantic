@@ -82,3 +82,20 @@ body::before {
   animation: fadeIn 0.2s ease-out;
 }
 
+/* 브라우저 기본 validation 메시지 숨기기 */
+input:invalid,
+textarea:invalid {
+  box-shadow: none;
+}
+
+input:invalid::-webkit-validation-bubble,
+input:invalid::-webkit-validation-bubble-message,
+input:invalid::-webkit-validation-bubble-icon {
+  display: none;
+}
+
+/* 커스텀 validation 스타일 (미니멀) */
+input:invalid:not(:focus):not(:placeholder-shown) {
+  border-color: rgb(var(--color-danger) / 0.4);
+}
+
