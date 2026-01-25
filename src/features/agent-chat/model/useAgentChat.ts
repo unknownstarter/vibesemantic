@@ -234,7 +234,10 @@ export function useAgentChat({ workspaceId, range: externalRange = '7d', enabled
         role: 'assistant',
         content: data.analysisMarkdown,
         created_at: new Date().toISOString(),
-        metadata: { questions: data.analystQuestions },
+        metadata: { 
+          questions: data.analystQuestions,
+          martSummary: data.martSummary 
+        },
       }
       setMessages((prev) => [...prev, assistantMsg])
     } catch (err) {

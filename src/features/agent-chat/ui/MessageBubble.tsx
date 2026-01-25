@@ -3,11 +3,15 @@
 import { useState, memo } from 'react'
 import { motion } from 'framer-motion'
 import { formatMarkdown } from '../lib/formatMarkdown'
+import { ReportCharts } from './ReportCharts'
+import type { MartSummary } from '@/lib/langgraph/types'
+import type { Json } from '@/types/database'
 
 interface MessageBubbleProps {
   role: 'user' | 'assistant'
   content: string
   timestamp?: string
+  metadata?: Json | null
 }
 
 // Avatar Icons
@@ -32,9 +36,14 @@ function AIAvatar() {
 }
 
 // Memoized to prevent re-renders
-export const MessageBubble = memo(function MessageBubble({ role, content, timestamp }: MessageBubbleProps) {
+export const MessageBubble = memo(function MessageBubble({ role, content, timestamp, metadata }: MessageBubbleProps) {
   const [copied, setCopied] = useState(false)
   const isUser = role === 'user'
+  
+  // metadata에서 martSummary 추출
+  const martSummary = metadata && typeof metadata === 'object' && 'martSummary' in metadata
+    ? (metadata as { martSummary?: MartSummary }).martSummary
+    : null
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(content)
@@ -71,16 +80,23 @@ export const MessageBubble = memo(function MessageBubble({ role, content, timest
           {isUser ? (
             <p className="text-sm leading-relaxed whitespace-pre-wrap">{content}</p>
           ) : (
-            <div 
-              className="prose prose-invert prose-sm max-w-none
-                prose-headings:text-foreground prose-headings:font-semibold prose-headings:mt-4 prose-headings:mb-2
-                prose-p:text-muted prose-p:leading-relaxed prose-p:my-2
-                prose-strong:text-foreground prose-strong:font-semibold
-                prose-li:text-muted prose-li:my-1
-                prose-code:text-accent prose-code:bg-surface prose-code:px-1 prose-code:rounded
-                prose-a:text-primary prose-a:no-underline hover:prose-a:underline"
-              dangerouslySetInnerHTML={{ __html: formatMarkdown(content) }}
-            />
+            <>
+              <div 
+                className="prose prose-invert prose-sm max-w-none
+                  prose-headings:text-foreground prose-headings:font-semibold prose-headings:mt-4 prose-headings:mb-2
+                  prose-p:text-muted prose-p:leading-relaxed prose-p:my-2
+                  prose-strong:text-foreground prose-strong:font-semibold
+                  prose-li:text-muted prose-li:my-1
+                  prose-code:text-accent prose-code:bg-surface prose-code:px-1 prose-code:rounded
+                  prose-a:text-primary prose-a:no-underline hover:prose-a:underline"
+                dangerouslySetInnerHTML={{ __html: formatMarkdown(content) }}
+              />
+              {martSummary && (
+                <div className="mt-4 pt-4 border-t border-border/10">
+                  <ReportCharts martSummary={martSummary} />
+                </div>
+              )}
+            </>
           )}
 
           {/* Copy Button (Assistant only) */}

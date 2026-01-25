@@ -212,7 +212,10 @@ export default function AgentPage() {
         role: 'assistant',
         content: data.analysisMarkdown,
         created_at: new Date().toISOString(),
-        metadata: { questions: data.analystQuestions },
+        metadata: { 
+          questions: data.analystQuestions,
+          martSummary: data.martSummary 
+        },
       }
       setMessages(prev => [...prev, assistantMsg])
     } catch (err) {
@@ -477,6 +480,7 @@ export default function AgentPage() {
                   role={msg.role}
                   content={msg.content}
                   timestamp={msg.created_at || undefined}
+                  metadata={msg.metadata}
                 />
               ))}
               

@@ -240,6 +240,7 @@ export function useSendChatMessageMutation() {
       return {
         analysisMarkdown: data.analysisMarkdown || data.analysis_markdown || '',
         analystQuestions: data.analystQuestions || data.analyst_questions || [],
+        martSummary: data.martSummary || data.mart_summary || null,
         threadId: data.threadId || data.thread_id || threadId,
       }
     },

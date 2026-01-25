@@ -324,6 +324,7 @@ export function AgentSlideOver({
                         role={msg.role} 
                         content={msg.content} 
                         timestamp={msg.created_at || undefined}
+                        metadata={msg.metadata}
                       />
                     ))}
                     {chatLoading && <TypingIndicator />}
