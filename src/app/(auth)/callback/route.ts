@@ -42,18 +42,30 @@ export async function GET(request: NextRequest) {
       }
     )
 
-    const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
+    // 이메일 OTP의 경우 PKCE를 사용하지 않으므로 exchangeCodeForSession 사용
+    // PKCE를 사용하는 경우에는 자동으로 code verifier를 쿠키에서 찾음
+    const { data: sessionData, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
     
     if (exchangeError) {
       console.error('[Callback] Session exchange error:', {
         message: exchangeError.message,
         status: exchangeError.status,
         name: exchangeError.name,
+        code: code.substring(0, 10) + '...', // 코드 일부만 로그
       })
       const errorUrl = new URL('/callback/error', origin)
       errorUrl.searchParams.set('error', 'session_error')
       errorUrl.searchParams.set('error_code', 'exchange_failed')
       errorUrl.searchParams.set('error_description', exchangeError.message)
+      return NextResponse.redirect(errorUrl)
+    }
+
+    if (!sessionData.session) {
+      console.error('[Callback] No session returned after exchange')
+      const errorUrl = new URL('/callback/error', origin)
+      errorUrl.searchParams.set('error', 'session_error')
+      errorUrl.searchParams.set('error_code', 'no_session')
+      errorUrl.searchParams.set('error_description', 'Session was not created after code exchange')
       return NextResponse.redirect(errorUrl)
     }
 

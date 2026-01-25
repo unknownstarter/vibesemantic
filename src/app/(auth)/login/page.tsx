@@ -123,6 +123,8 @@ function LoginForm() {
       email: submittedEmail,
       options: {
         emailRedirectTo: `${window.location.origin}/callback?redirect=${encodeURIComponent(redirect)}`,
+        // PKCE를 사용하지 않도록 설정 (이메일 링크는 다른 브라우저에서 열 수 있으므로)
+        flowType: 'email',
       },
     })
 
