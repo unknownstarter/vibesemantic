@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import type { Database } from '@/types/database'
 
 // 인증이 필요 없는 공개 경로
-const publicPaths = ['/', '/demo', '/login', '/callback', '/callback/error', '/api/ga4/oauth/callback']
+const publicPaths = ['/', '/demo', '/login', '/callback', '/callback/error', '/api/ga4/oauth/callback', '/api/auth/signout']
 
 // 인증 필요하지만 특정 상태 체크 불필요한 경로
 const authOnlyPaths = ['/dashboard', '/projects/new']

@@ -66,8 +66,32 @@ https://www.vibesemantic.xyz/api/ga4/oauth/callback
 - ✅ 재배포 후에도 문제가 있으면 Vercel 로그 확인
 
 ### "redirect_uri_mismatch" 오류
-- ✅ `GOOGLE_REDIRECT_URI`가 `https://www.vibesemantic.xyz/api/ga4/oauth/callback`로 설정되어 있는지 확인
-- ✅ Google Cloud Console의 승인된 리디렉션 URI에도 동일한 URL이 등록되어 있는지 확인
+
+이 오류는 **Google Cloud Console에 등록된 리다이렉트 URI와 실제 요청 URI가 일치하지 않을 때** 발생합니다.
+
+**즉시 확인해야 할 사항:**
+
+1. **Vercel 환경 변수 확인**:
+   - `GOOGLE_REDIRECT_URI`가 정확히 `https://www.vibesemantic.xyz/api/ga4/oauth/callback`로 설정되어 있는지 확인
+   - **주의**: `http://`가 아닌 `https://`인지 확인
+   - **주의**: `vibesemantic.xyz`가 아닌 `www.vibesemantic.xyz`인지 확인
+   - **주의**: 마지막에 `/`가 없는지 확인
+
+2. **Google Cloud Console 확인** (가장 중요!):
+   - [Google Cloud Console](https://console.cloud.google.com/apis/credentials) 접속
+   - OAuth 2.0 클라이언트 ID 선택
+   - **승인된 리디렉션 URI** 섹션에서 다음 URI가 **정확히** 등록되어 있는지 확인:
+     ```
+     https://www.vibesemantic.xyz/api/ga4/oauth/callback
+     ```
+   - 만약 `https://vibesemantic.xyz/api/ga4/oauth/callback`만 있다면, **`www` 버전도 추가**해야 합니다
+   - 두 개 모두 등록해도 됩니다:
+     - `https://vibesemantic.xyz/api/ga4/oauth/callback` (기존)
+     - `https://www.vibesemantic.xyz/api/ga4/oauth/callback` (추가 필요)
+
+3. **재배포**:
+   - 환경 변수를 수정했다면 Vercel에서 재배포 필요
+   - Google Cloud Console만 수정했다면 재배포 불필요 (즉시 적용됨)
 
 ### 환경 변수 확인 방법
 Vercel 대시보드에서:

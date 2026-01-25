@@ -32,14 +32,13 @@ export function getOAuth2Client() {
     )
   }
   
-  // Debug log (프로덕션에서는 민감한 정보 로그 제한)
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[GA4 OAuth] Environment check:', {
-      clientId: clientId ? `${clientId.substring(0, 20)}...` : 'MISSING',
-      clientSecret: clientSecret ? 'SET' : 'MISSING',
-      redirectUri: redirectUri || 'MISSING',
-    })
-  }
+  // Debug log (프로덕션에서도 리다이렉트 URI는 로그 출력 - 디버깅용)
+  console.log('[GA4 OAuth] Environment check:', {
+    clientId: clientId ? `${clientId.substring(0, 20)}...` : 'MISSING',
+    clientSecret: clientSecret ? 'SET' : 'MISSING',
+    redirectUri: redirectUri || 'MISSING',
+    nodeEnv: process.env.NODE_ENV,
+  })
   
   return new google.auth.OAuth2(clientId, clientSecret, redirectUri)
 }

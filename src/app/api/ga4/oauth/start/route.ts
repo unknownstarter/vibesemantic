@@ -21,6 +21,15 @@ export async function GET(request: NextRequest) {
 
   try {
     const authUrl = getAuthUrl(projectId)
+    
+    // 디버깅: 생성된 auth URL에서 리다이렉트 URI 추출
+    const urlObj = new URL(authUrl)
+    const redirectUriParam = urlObj.searchParams.get('redirect_uri')
+    console.log('[GA4 OAuth Start] Generated auth URL:', {
+      redirectUri: redirectUriParam,
+      fullUrl: authUrl.substring(0, 100) + '...',
+    })
+    
     return NextResponse.json({ authUrl })
   } catch (error) {
     console.error('[GA4 OAuth Start] Error:', error)
