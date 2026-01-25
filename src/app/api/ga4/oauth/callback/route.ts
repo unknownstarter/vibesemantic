@@ -10,6 +10,8 @@ export async function GET(request: NextRequest) {
   const state = request.nextUrl.searchParams.get('state') // projectId
   const error = request.nextUrl.searchParams.get('error')
 
+  const supabase = await createClient()
+
   // Get project slug for error redirects (before we have projectId)
   let projectSlugForError = state
   if (state) {
@@ -35,7 +37,6 @@ export async function GET(request: NextRequest) {
 
   // state contains actual project ID (UUID) from OAuth start
   const projectId = state
-  const supabase = await createClient()
 
   // 인증 확인
   const { data: { user } } = await supabase.auth.getUser()

@@ -68,7 +68,7 @@ export async function POST(
     // 백그라운드에서 리포트 생성 (비동기, 에러 무시)
     import('@/lib/api/workspaces').then(({ generateInitialReport }) => {
       generateInitialReport({
-        projectId: context.projectId,
+        projectId: context.projectId!,
         workspaceId: firstWorkspace.id,
         userId: context.userId,
         range,
