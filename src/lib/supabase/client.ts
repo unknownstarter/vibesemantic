@@ -11,5 +11,8 @@ export function createClient() {
     )
   }
 
+  // createBrowserClient는 기본적으로 localStorage를 사용하지만,
+  // 이메일 OTP는 서버 사이드 API Route를 통해 처리하므로
+  // PKCE code verifier가 쿠키에 저장됨
   return createBrowserClient<Database>(supabaseUrl, supabaseAnonKey)
 }

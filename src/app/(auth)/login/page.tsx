@@ -118,19 +118,24 @@ function LoginForm() {
     const submittedEmail = email
     setStatus('success')
 
-    const supabase = createClient()
-    const { error } = await supabase.auth.signInWithOtp({
-      email: submittedEmail,
-      options: {
-        emailRedirectTo: `${window.location.origin}/callback?redirect=${encodeURIComponent(redirect)}`,
-      },
+    // 서버 사이드 API Route를 통해 이메일 OTP 전송
+    // 이렇게 하면 PKCE code verifier가 쿠키에 저장되어 다른 브라우저에서도 작동
+    const res = await fetch('/api/auth/send-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        email: submittedEmail,
+        redirect: redirect,
+      }),
     })
+
+    const data = await res.json()
 
     setLoading(false)
 
-    if (error) {
+    if (!res.ok) {
       setStatus('error')
-      setMessage(error.message)
+      setMessage(data.error || '이메일 전송에 실패했습니다.')
       // 에러 시에만 쿨다운 해제 (재시도 가능)
       setTimeout(() => setCooldown(false), 3000)
     } else {
