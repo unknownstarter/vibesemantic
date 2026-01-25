@@ -155,11 +155,40 @@ function LoginForm() {
     }
 
     setLoading(true)
-    setCooldown(true)
     setStatus('idle')
     setMessage('')
     setValidationError('')
     setOtpError('') // OTP 에러도 초기화
+
+    // 먼저 해당 이메일로 OAuth 계정이 있는지 확인
+    try {
+      const checkResponse = await fetch('/api/auth/check-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+
+      if (checkResponse.ok) {
+        const checkData = await checkResponse.json()
+        
+        // OAuth 계정이 있으면 알림 표시
+        if (checkData.exists && checkData.hasOAuth) {
+          setLoading(false)
+          setStatus('error')
+          setMessage(
+            '이 이메일 주소는 Google 로그인으로 가입되어 있습니다. Google 로그인 버튼을 사용해주세요.'
+          )
+          setCooldown(true)
+          setTimeout(() => setCooldown(false), 5000)
+          return
+        }
+      }
+    } catch (checkError) {
+      // 체크 실패해도 계속 진행 (OTP 전송 시도)
+      console.error('[Login] Failed to check email:', checkError)
+    }
+
+    setCooldown(true)
 
     const supabase = createClient()
     // emailRedirectTo를 명시적으로 제거하여 OTP 코드만 전송되도록 함
