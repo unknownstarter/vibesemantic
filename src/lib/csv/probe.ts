@@ -8,6 +8,7 @@ import { ChatOpenAI } from '@langchain/openai'
 import { maskSensitiveData, getDetailedColumnAnalysis, type ColumnAnalysis } from './parser'
 import type { MetricColumn, DimensionColumn, LLMQuestion, ProjectProfile, WorkspacePurpose } from '@/types/database'
 import { getIndustryKPIs, matchGoalsToKPIs } from '@/lib/templates/industry-kpis'
+import { analyzeDataPatterns } from './data-pattern-analyzer'
 
 export interface ProbeResult {
   dateColumn: string | null
@@ -67,11 +68,13 @@ function buildEnrichedPrompt(
   columnAnalysis: Record<string, ColumnAnalysis>,
   language: 'ko' | 'en',
   projectProfile?: ProjectProfile,
-  workspacePurposes?: WorkspacePurpose[]
+  workspacePurposes?: WorkspacePurpose[],
+  dataPatternAnalyses?: Record<string, ReturnType<typeof analyzeDataPatterns>>
 ): string {
-  // Format column analysis for LLM
+  // Format column analysis for LLM (with data pattern analysis)
   const columnDescriptions = headers.map(h => {
     const analysis = columnAnalysis[h]
+    const patternAnalysis = dataPatternAnalyses?.[h]
     const typeLabel = {
       date: '📅 DATE',
       number: '📊 NUMBER',
@@ -84,17 +87,33 @@ function buildEnrichedPrompt(
 
     let description = `- "${h}": ${typeLabel} (confidence: ${(analysis.confidence * 100).toFixed(0)}%)`
     
+    // Add data pattern insights
+    if (patternAnalysis) {
+      const patterns: string[] = []
+      if (patternAnalysis.isEventName) patterns.push('이벤트 이름 패턴 감지')
+      if (patternAnalysis.isEventCount) patterns.push('이벤트 수 패턴 감지')
+      if (patternAnalysis.isUserCount) patterns.push('사용자 수 패턴 감지')
+      if (patternAnalysis.isRevenue) patterns.push('수익 패턴 감지')
+      if (patternAnalysis.isEventsPerUser) patterns.push('사용자당 이벤트 수 패턴 감지')
+      if (patternAnalysis.needsConfirmation) patterns.push('⚠️ 확인 필요')
+      
+      if (patterns.length > 0) {
+        description += `\n  데이터 패턴: ${patterns.join(', ')}`
+        description += `\n  제안: ${patternAnalysis.suggestedType}${patternAnalysis.suggestedAggregation ? ` (${patternAnalysis.suggestedAggregation})` : ''} (신뢰도: ${(patternAnalysis.confidence * 100).toFixed(0)}%)`
+      }
+    }
+    
     if (analysis.sampleValues.length > 0) {
-      description += `\n  Examples: ${analysis.sampleValues.slice(0, 3).map(v => `"${v}"`).join(', ')}`
+      description += `\n  실제 값 예시: ${analysis.sampleValues.slice(0, 5).map(v => `"${v}"`).join(', ')}`
     }
     
     if (analysis.stats) {
       const stats = analysis.stats
       if (stats.min !== undefined) {
-        description += `\n  Range: ${stats.min.toFixed(2)} ~ ${stats.max?.toFixed(2)}, Avg: ${stats.avg?.toFixed(2)}`
+        description += `\n  범위: ${stats.min.toFixed(2)} ~ ${stats.max?.toFixed(2)}, 평균: ${stats.avg?.toFixed(2)}`
       }
       if (stats.uniqueRatio !== undefined) {
-        description += `, Unique: ${(stats.uniqueRatio * 100).toFixed(0)}%`
+        description += `, 고유값 비율: ${(stats.uniqueRatio * 100).toFixed(0)}%`
       }
     }
     
@@ -156,6 +175,8 @@ ${tableRows}
 === YOUR TASK ===
 Based on the analysis above${projectProfile ? ' and the project context' : ''}, categorize EVERY column:
 
+**IMPORTANT**: 데이터 패턴 분석 결과를 우선적으로 신뢰하세요! 실제 데이터 값이 헤더 이름보다 더 정확한 지표입니다.
+
 1. **DATE column** (optional, can be null): Time-series key for aggregation
    - Look for: 📅 DATE type, or columns with "date", "날짜", "일자", "period" in name
    - **CRITICAL**: If NO date column exists in the CSV (like event aggregate data, summary reports), you MUST return null (JSON null value, not string "null")
@@ -163,6 +184,7 @@ Based on the analysis above${projectProfile ? ' and the project context' : ''}, 
    - Date information might be in the filename, title, or metadata - but if it's not in a column, set dateColumn to null
 
 2. **METRIC columns** (numeric measures to analyze):
+   - **CRITICAL**: 데이터 패턴 분석에서 "이벤트 수 패턴", "사용자 수 패턴", "수익 패턴", "사용자당 이벤트 수 패턴"이 감지된 컬럼은 무조건 metric으로 분류하세요!
    - Include: 📊 NUMBER, 💰 CURRENCY, 📈 PERCENTAGE types
    - These are KPIs like revenue, users, sessions, eCPM, ARPDAU, retention rate, etc.
    - **CRITICAL**: Event-related metrics MUST be included:
@@ -174,16 +196,21 @@ Based on the analysis above${projectProfile ? ' and the project context' : ''}, 
    - Exclude: 🔑 ID type columns
    - For metrics with names containing "rate", "ratio", "%", "avg", "당", "per" → use aggregation: "avg"
    - For counts, sums, totals, "수", "총" → use aggregation: "sum"
+   - 데이터 패턴 분석에서 제안된 aggregation을 우선 사용하세요
 ${projectProfile ? '   - PRIORITIZE columns that match the recommended KPIs for this industry\n' : ''}
 3. **DIMENSION columns** (categorical for grouping):
+   - **CRITICAL**: 데이터 패턴 분석에서 "이벤트 이름 패턴"이 감지된 컬럼은 무조건 dimension으로 분류하세요!
    - Include: 📝 TEXT type with reasonable uniqueness (< 90%)
    - Examples: country, channel, segment, category, platform
    - **CRITICAL**: "이벤트 이름" (event name), "event name", "event_name" → dimension (categorical identifier)
+   - 실제 값이 "view_section", "user_engagement", "page_view" 같은 이벤트 이름 패턴이면 dimension
    - Exclude: High-uniqueness text (likely descriptions or IDs)
 
 CRITICAL:
 - Column names in output MUST exactly match input headers (case-sensitive!)
 - Every non-ID column should be categorized as either metric OR dimension
+- **데이터 패턴 분석 결과를 반드시 우선적으로 신뢰하세요!** 실제 데이터 값이 헤더 이름보다 더 정확합니다.
+- 데이터 패턴에서 "이벤트 이름 패턴", "이벤트 수 패턴" 등이 감지된 경우, 그 결과를 무조건 따르세요.
 - ${language === 'ko' ? 'Use Korean for displayName' : 'Use English for displayName'}
 
 OUTPUT FORMAT (JSON only, no markdown):
@@ -314,10 +341,27 @@ export async function probeSchema(
     console.log(`[Probe] "${col}": ${analysis.type} (${(analysis.confidence * 100).toFixed(0)}%) | samples: ${analysis.sampleValues.slice(0, 2).join(', ')}`)
   })
 
+  // Step 1.5: Analyze actual data patterns (not just headers)
+  console.log('[Probe] === DATA PATTERN ANALYSIS ===')
+  const dataPatternAnalyses: Record<string, ReturnType<typeof analyzeDataPatterns>> = {}
+  const columnsNeedingConfirmation: string[] = []
+  
+  headers.forEach((header, colIndex) => {
+    const patternAnalysis = analyzeDataPatterns(header, colIndex, allRows, columnAnalysis[header])
+    dataPatternAnalyses[header] = patternAnalysis
+    
+    if (patternAnalysis.needsConfirmation) {
+      columnsNeedingConfirmation.push(header)
+      console.log(`[Probe] "${header}": Needs confirmation (confidence: ${(patternAnalysis.confidence * 100).toFixed(0)}%)`)
+    } else {
+      console.log(`[Probe] "${header}": ${patternAnalysis.suggestedType} (${(patternAnalysis.confidence * 100).toFixed(0)}%) - ${patternAnalysis.isEventName ? 'Event Name' : patternAnalysis.isEventCount ? 'Event Count' : patternAnalysis.isUserCount ? 'User Count' : patternAnalysis.isRevenue ? 'Revenue' : patternAnalysis.isEventsPerUser ? 'Events Per User' : patternAnalysis.suggestedType}`)
+    }
+  })
+
   // Step 2: Build enriched prompt with project context and workspace purposes
   // Use full data for analysis, but mask sensitive data for LLM
   const maskedRows = maskSensitiveData(allRows)
-  const userPrompt = buildEnrichedPrompt(headers, maskedRows, columnAnalysis, language, projectProfile, workspacePurposes)
+  const userPrompt = buildEnrichedPrompt(headers, maskedRows, columnAnalysis, language, projectProfile, workspacePurposes, dataPatternAnalyses)
 
   // Step 3: Call LLM
   const model = new ChatOpenAI({
@@ -384,37 +428,63 @@ export async function probeSchema(
     const detectedMetricNames = new Set((result.metricColumns || []).map(m => m.name))
     const autoDetectedMetrics: typeof result.metricColumns = []
     
-    headers.forEach(header => {
+    // 데이터 패턴 기반 자동 감지 (실제 데이터 값 분석)
+    headers.forEach((header, colIndex) => {
       // 이미 metric으로 분류되었거나 date 컬럼이면 스킵
       if (detectedMetricNames.has(header) || header === result.dateColumn) {
         return
       }
       
       const analysis = columnAnalysis[header]
-      // numeric 타입 컬럼이지만 metric으로 분류되지 않은 경우 자동 추가
-      // ID 타입은 제외 (uniqueRatio가 높은 숫자 컬럼)
+      const patternAnalysis = dataPatternAnalyses[header]
+      
+      if (!patternAnalysis) return
+      
+      // 데이터 패턴 분석 결과를 우선 사용
+      if (patternAnalysis.isEventName) {
+        // 이벤트 이름은 dimension으로 처리 (아래 dimension 로직에서 처리)
+        return
+      }
+      
+      if (patternAnalysis.isEventCount || patternAnalysis.isUserCount || patternAnalysis.isRevenue || patternAnalysis.isEventsPerUser) {
+        // 데이터 패턴이 명확한 경우 무조건 metric으로 추가
+        autoDetectedMetrics.push({
+          name: header,
+          displayName: header,
+          type: (patternAnalysis.isRevenue || analysis.type === 'currency' ? 'currency' : 
+                 analysis.type === 'percentage' ? 'percentage' : 'number') as 'number' | 'currency' | 'percentage',
+          aggregation: patternAnalysis.suggestedAggregation || 'sum',
+        })
+        return
+      }
+      
+      // 패턴이 명확하지 않지만 numeric 타입인 경우
+      if (patternAnalysis.isMetric && !patternAnalysis.needsConfirmation) {
+        autoDetectedMetrics.push({
+          name: header,
+          displayName: header,
+          type: (analysis.type === 'currency' ? 'currency' : 
+                 analysis.type === 'percentage' ? 'percentage' : 'number') as 'number' | 'currency' | 'percentage',
+          aggregation: patternAnalysis.suggestedAggregation || 'sum',
+        })
+        return
+      }
+      
+      // numeric 타입이지만 패턴 분석이 없거나 불확실한 경우
       if (analysis && ['number', 'currency', 'percentage'].includes(analysis.type)) {
-        // ID 타입은 제외 (높은 uniqueness는 ID일 가능성)
+        // ID 타입은 제외
         if (analysis.type === 'id' || (analysis.stats?.uniqueRatio && analysis.stats.uniqueRatio > 0.9)) {
           return
         }
         
-        // Enhanced detection for Korean and English metric names
-        const headerLower = header.toLowerCase()
+        // 패턴 분석이 불확실하면 헤더 이름 기반으로 판단
         const isRate = /rate|ratio|avg|percentage|%|retention|conversion|ctr|cpc|당|per/i.test(header) ||
           header.includes('당') || header.includes('per')
         const isCount = /count|수|총|total|sum/i.test(header) ||
           header.includes('수') || header.includes('총')
         const isRevenue = /revenue|수익|매출|profit|이익/i.test(header)
-        // Explicitly detect event metrics: "이벤트 수", "events per user", etc.
-        const isEventMetric = /이벤트.*수|event.*count|event_count|events/i.test(header)
-        // Explicitly detect user metrics: "총 사용자", "total users", "active users", etc.
-        const isUserMetric = /총.*사용자|total.*user|active.*user|사용자.*수/i.test(header)
-        // Explicitly detect "활성 사용자당 이벤트 수" pattern
-        const isEventsPerUser = /활성.*사용자당.*이벤트|events.*per.*user|events.*per.*active/i.test(header)
         
-        // Determine aggregation: rate/ratio metrics use avg, counts use sum
-        const aggregation = (isRate || isEventsPerUser || analysis.type === 'percentage' || header.includes('당')) 
+        const aggregation = (isRate || analysis.type === 'percentage' || header.includes('당')) 
           ? 'avg' as const 
           : 'sum' as const
         
@@ -440,42 +510,77 @@ export async function probeSchema(
       ? autoDetectedMetrics 
       : [...(result.metricColumns || []), ...autoDetectedMetrics]
     
-    // For dimensions, if LLM failed, use auto-detection
-    // Also ensure "이벤트 이름" is always detected as dimension
-    const eventNameHeaders = headers.filter(h => 
-      /이벤트.*이름|event.*name|event_name/i.test(h)
-    )
+    // For dimensions, 데이터 패턴 기반 자동 감지
+    const autoDetectedDimensions: typeof result.dimensionColumns = []
+    const uncertainColumns: string[] = []
+    
+    headers.forEach((header, colIndex) => {
+      // 이미 metric이나 date 컬럼이면 스킵
+      if (allMetricColumns.some(m => m.name === header) || header === result.dateColumn) {
+        return
+      }
+      
+      const analysis = columnAnalysis[header]
+      const patternAnalysis = dataPatternAnalyses[header]
+      
+      // 데이터 패턴 분석 결과를 우선 사용
+      if (patternAnalysis) {
+        if (patternAnalysis.isEventName) {
+          // 이벤트 이름 패턴이 감지된 경우 무조건 dimension
+          autoDetectedDimensions.push({
+            name: header,
+            displayName: header,
+            type: 'string' as const,
+          })
+          return
+        }
+        
+        if (patternAnalysis.isDimension && !patternAnalysis.needsConfirmation) {
+          // dimension 패턴이 명확한 경우
+          autoDetectedDimensions.push({
+            name: header,
+            displayName: header,
+            type: 'string' as const,
+          })
+          return
+        }
+        
+        if (patternAnalysis.needsConfirmation) {
+          // 불확실한 경우 확인 필요 목록에 추가
+          uncertainColumns.push(header)
+        }
+      }
+      
+      // 패턴 분석이 없거나 불확실한 경우 타입 기반으로 판단
+      if (analysis && analysis.type === 'string') {
+        const uniqueRatio = analysis.stats?.uniqueRatio || 0
+        // uniqueness가 90% 미만이면 dimension (너무 높으면 ID일 가능성)
+        if (uniqueRatio < 0.9 && uniqueRatio > 0.1) {
+          autoDetectedDimensions.push({
+            name: header,
+            displayName: header,
+            type: 'string' as const,
+          })
+        } else if (uniqueRatio >= 0.9) {
+          // 너무 unique하면 확인 필요
+          uncertainColumns.push(header)
+        }
+      }
+    })
     
     const allDimensionColumns = useAutoDetectionOnly
-      ? headers
-          .filter(h => {
-            if (allMetricColumns.some(m => m.name === h)) return false
-            if (h === result.dateColumn) return false
-            const analysis = columnAnalysis[h]
-            // Always include event name columns as dimensions
-            if (eventNameHeaders.includes(h)) return true
-            return analysis && analysis.type === 'string' && (analysis.stats?.uniqueRatio || 0) < 0.9
-          })
-          .map(h => ({
-            name: h,
-            displayName: h,
-            type: 'string' as const,
-          }))
+      ? autoDetectedDimensions
       : (() => {
           const llmDimensions = result.dimensionColumns || []
-          // Ensure event name columns are included even if LLM missed them
-          const missingEventNames = eventNameHeaders.filter(
-            h => !llmDimensions.some(d => d.name === h) && 
-                 !allMetricColumns.some(m => m.name === h) &&
-                 h !== result.dateColumn
+          // LLM이 놓친 dimension 추가 (특히 "이벤트 이름")
+          const missingDimensions = autoDetectedDimensions.filter(
+            d => !llmDimensions.some(ld => ld.name === d.name) &&
+                 !allMetricColumns.some(m => m.name === d.name) &&
+                 d.name !== result.dateColumn
           )
           return [
             ...llmDimensions,
-            ...missingEventNames.map(h => ({
-              name: h,
-              displayName: h,
-              type: 'string' as const,
-            }))
+            ...missingDimensions
           ]
         })()
     
@@ -485,13 +590,125 @@ export async function probeSchema(
       allAggregationRules[m.name] = m.aggregation
     })
     
+    // 최종 검증: 데이터 패턴 기반으로 누락된 컬럼 확인
+    const missingMetrics: string[] = []
+    const missingDimensions: string[] = []
+    
+    headers.forEach((h, colIndex) => {
+      if (h === result.dateColumn) return
+      if (allMetricColumns.some(m => m.name === h)) return
+      if (allDimensionColumns.some(d => d.name === h)) return
+      
+      const patternAnalysis = dataPatternAnalyses[h]
+      const analysis = columnAnalysis[h]
+      
+      // 데이터 패턴 분석 결과를 우선 사용
+      if (patternAnalysis) {
+        if (patternAnalysis.isEventName && !patternAnalysis.needsConfirmation) {
+          missingDimensions.push(h)
+          return
+        }
+        
+        if ((patternAnalysis.isEventCount || patternAnalysis.isUserCount || 
+             patternAnalysis.isRevenue || patternAnalysis.isEventsPerUser || 
+             patternAnalysis.isMetric) && !patternAnalysis.needsConfirmation) {
+          missingMetrics.push(h)
+          return
+        }
+      }
+      
+      // 패턴 분석이 없거나 불확실한 경우 타입 기반으로 판단
+      if (analysis && ['number', 'currency', 'percentage'].includes(analysis.type)) {
+        if (analysis.type !== 'id' && (!analysis.stats?.uniqueRatio || analysis.stats.uniqueRatio < 0.9)) {
+          missingMetrics.push(h)
+        }
+      } else if (analysis && analysis.type === 'string') {
+        const uniqueRatio = analysis.stats?.uniqueRatio || 0
+        if (uniqueRatio > 0.1 && uniqueRatio < 0.9) {
+          missingDimensions.push(h)
+        }
+      }
+    })
+    
+    // 누락된 metric 컬럼 자동 추가
+    if (missingMetrics.length > 0) {
+      console.log(`[Probe] Adding missing metrics based on data patterns: ${missingMetrics.join(', ')}`)
+      missingMetrics.forEach(h => {
+        const analysis = columnAnalysis[h]
+        const patternAnalysis = dataPatternAnalyses[h]
+        const isRate = /rate|ratio|avg|percentage|%|당|per/i.test(h) || h.includes('당')
+        allMetricColumns.push({
+          name: h,
+          displayName: h,
+          type: (analysis.type === 'currency' ? 'currency' : 
+                 analysis.type === 'percentage' ? 'percentage' : 'number') as 'number' | 'currency' | 'percentage',
+          aggregation: patternAnalysis?.suggestedAggregation || (isRate || analysis.type === 'percentage' ? 'avg' : 'sum') as 'sum' | 'avg',
+        })
+        allAggregationRules[h] = patternAnalysis?.suggestedAggregation || (isRate || analysis.type === 'percentage' ? 'avg' : 'sum')
+      })
+    }
+    
+    // 누락된 dimension 컬럼 자동 추가
+    if (missingDimensions.length > 0) {
+      console.log(`[Probe] Adding missing dimensions based on data patterns: ${missingDimensions.join(', ')}`)
+      missingDimensions.forEach(h => {
+        allDimensionColumns.push({
+          name: h,
+          displayName: h,
+          type: 'string' as const,
+        })
+      })
+    }
+    
+    // 불확실한 컬럼에 대한 질문 생성 (사용자가 수동으로 확인할 수 있도록)
+    const llmQuestions: LLMQuestion[] = [...(result.llmQuestions || [])]
+    
+    if (uncertainColumns.length > 0) {
+      const uncertainMetrics = uncertainColumns.filter(h => {
+        const analysis = columnAnalysis[h]
+        return analysis && ['number', 'currency', 'percentage'].includes(analysis.type)
+      })
+      const uncertainDimensions = uncertainColumns.filter(h => {
+        const analysis = columnAnalysis[h]
+        return analysis && analysis.type === 'string'
+      })
+      
+      if (uncertainMetrics.length > 0) {
+        llmQuestions.push({
+          id: 'uncertain_metrics',
+          question: language === 'ko' 
+            ? `다음 컬럼들이 지표(metric)로 분류되었지만 확인이 필요합니다: ${uncertainMetrics.join(', ')}. 실제 데이터 값을 확인하여 지표로 사용할지 결정해주세요.`
+            : `The following columns were classified as metrics but need confirmation: ${uncertainMetrics.join(', ')}. Please review the actual data values to confirm.`,
+          quickReplies: uncertainMetrics.slice(0, 8).map(h => ({
+            label: h,
+            value: h,
+            action: 'confirm_metric' as const,
+          })),
+        })
+      }
+      
+      if (uncertainDimensions.length > 0) {
+        llmQuestions.push({
+          id: 'uncertain_dimensions',
+          question: language === 'ko'
+            ? `다음 컬럼들이 차원(dimension)으로 분류되었지만 확인이 필요합니다: ${uncertainDimensions.join(', ')}. 실제 데이터 값을 확인하여 차원으로 사용할지 결정해주세요.`
+            : `The following columns were classified as dimensions but need confirmation: ${uncertainDimensions.join(', ')}. Please review the actual data values to confirm.`,
+          quickReplies: uncertainDimensions.slice(0, 8).map(h => ({
+            label: h,
+            value: h,
+            action: 'confirm_dimension' as const,
+          })),
+        })
+      }
+    }
+    
     // Validate and ensure arrays
     return {
       dateColumn: result.dateColumn || null,
       metricColumns: allMetricColumns,
       dimensionColumns: allDimensionColumns,
       aggregationRules: allAggregationRules,
-      llmQuestions: result.llmQuestions || [],
+      llmQuestions: llmQuestions, // Include questions for uncertain columns
     }
   } catch (error) {
     console.error('[Probe] LLM error:', error)
@@ -535,34 +752,106 @@ function fallbackProbe(
   console.log('[Probe] === FALLBACK MODE ===')
 
   // Find date column
-  const dateColumn = headers.find(h => columnAnalysis[h].type === 'date') || null
+  const dateColumn = headers.find(h => columnAnalysis[h]?.type === 'date') || null
 
   // Metric columns: all numeric types except ID
-  const metricColumns: MetricColumn[] = headers
-    .filter(h => {
-      const type = columnAnalysis[h].type
-      return ['number', 'currency', 'percentage'].includes(type)
-    })
-    .map(h => {
-      const analysis = columnAnalysis[h]
-      const isRate = /rate|ratio|avg|percentage|%|retention|conversion|ctr|cpc/i.test(h)
+  // 명시적 패턴 매칭 우선
+  const metricColumns: MetricColumn[] = []
+  const processedHeaders = new Set<string>()
+  
+  headers.forEach(h => {
+    if (h === dateColumn) return
+    
+    const analysis = columnAnalysis[h]
+    if (!analysis) return
+    
+    // 명시적 패턴 매칭
+    const trimmed = h.trim()
+    
+    // "이벤트 수" - 무조건 metric (sum)
+    if (/^이벤트\s*수$|^event\s*count$/i.test(trimmed)) {
+      metricColumns.push({
+        name: h,
+        displayName: h,
+        type: 'number',
+        aggregation: 'sum',
+      })
+      processedHeaders.add(h)
+      return
+    }
+    
+    // "총 사용자" - 무조건 metric (sum)
+    if (/^총\s*사용자$|^total\s*users?$/i.test(trimmed)) {
+      metricColumns.push({
+        name: h,
+        displayName: h,
+        type: 'number',
+        aggregation: 'sum',
+      })
+      processedHeaders.add(h)
+      return
+    }
+    
+    // "활성 사용자당 이벤트 수" - 무조건 metric (avg)
+    if (/활성.*사용자당.*이벤트.*수|events?\s*per\s*(active\s*)?user/i.test(h)) {
+      metricColumns.push({
+        name: h,
+        displayName: h,
+        type: 'number',
+        aggregation: 'avg',
+      })
+      processedHeaders.add(h)
+      return
+    }
+    
+    // "총수익" - 무조건 metric (sum, currency)
+    if (/^총\s*수익$|^total\s*revenue$/i.test(trimmed)) {
+      metricColumns.push({
+        name: h,
+        displayName: h,
+        type: 'currency',
+        aggregation: 'sum',
+      })
+      processedHeaders.add(h)
+      return
+    }
+    
+    // 일반 numeric 타입
+    if (['number', 'currency', 'percentage'].includes(analysis.type)) {
+      if (analysis.type === 'id' || (analysis.stats?.uniqueRatio && analysis.stats.uniqueRatio > 0.9)) {
+        return // ID 타입 제외
+      }
       
-      return {
+      const isRate = /rate|ratio|avg|percentage|%|retention|conversion|ctr|cpc|당|per/i.test(h) ||
+        h.includes('당') || h.includes('per')
+      
+      metricColumns.push({
         name: h,
         displayName: h,
         type: (analysis.type === 'currency' ? 'currency' : 
                analysis.type === 'percentage' ? 'percentage' : 'number') as 'number' | 'currency' | 'percentage',
         aggregation: (isRate || analysis.type === 'percentage' ? 'avg' : 'sum') as 'sum' | 'avg',
-      }
-    })
+      })
+      processedHeaders.add(h)
+    }
+  })
 
   // Dimension columns: string type with reasonable uniqueness
+  // "이벤트 이름"은 무조건 dimension
   const dimensionColumns: DimensionColumn[] = headers
     .filter(h => {
       if (h === dateColumn) return false
-      if (metricColumns.some(m => m.name === h)) return false
+      if (processedHeaders.has(h)) return false
       
       const analysis = columnAnalysis[h]
+      if (!analysis) return false
+      
+      // "이벤트 이름"은 무조건 dimension
+      const trimmed = h.trim()
+      if (/^이벤트\s*이름$|^event\s*name$|^event_name$/i.test(trimmed)) {
+        return true
+      }
+      
       if (analysis.type === 'id') return false
       if (analysis.type !== 'string') return false
       
