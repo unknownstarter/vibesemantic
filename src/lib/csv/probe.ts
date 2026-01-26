@@ -219,16 +219,77 @@ DIMENSION IDENTIFICATION TIPS:
 
 OUTPUT: Return ONLY valid JSON, no explanation.`
 
+/**
+ * Enhanced column analysis using Pandas (optional, for better accuracy)
+ */
+async function getPandasColumnAnalysis(
+  fileContent: string,
+  maxRows: number = 10000
+): Promise<Record<string, ColumnAnalysis> | null> {
+  const brainApiUrl = process.env.BRAIN_API_URL
+  const brainApiKey = process.env.BRAIN_API_KEY
+
+  if (!brainApiUrl || !brainApiKey) {
+    return null // Fallback to TypeScript analysis
+  }
+
+  try {
+    // Encode file content as base64
+    const base64Content = Buffer.from(fileContent, 'utf-8').toString('base64')
+
+    const response = await fetch(`${brainApiUrl}/api/v1/profiler/csv`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': brainApiKey,
+      },
+      body: JSON.stringify({
+        file_content: base64Content,
+        max_rows: maxRows,
+        language: 'ko',
+      }),
+    })
+
+    if (!response.ok) {
+      console.warn('[Probe] Pandas profiler failed, using TypeScript analysis')
+      return null
+    }
+
+    const data = await response.json()
+    return data.column_analysis as Record<string, ColumnAnalysis>
+  } catch (error) {
+    console.warn('[Probe] Pandas profiler error, using TypeScript analysis:', error)
+    return null
+  }
+}
+
 export async function probeSchema(
   headers: string[],
   allRows: string[][], // Changed from sampleRows to allRows - analyze full dataset
   language: 'ko' | 'en' = 'ko',
   projectProfile?: ProjectProfile,
-  workspacePurposes?: WorkspacePurpose[]
+  workspacePurposes?: WorkspacePurpose[],
+  fileContent?: string // Optional: full CSV content for Pandas profiling
 ): Promise<ProbeResult> {
-  // Step 1: Deep analyze all columns using FULL dataset (not just sample)
-  // This gives us accurate statistics, distributions, and patterns
-  const columnAnalysis = getDetailedColumnAnalysis(headers, allRows)
+  // Step 1: Try Pandas analysis first (if file content provided and file is large enough)
+  // Use Pandas for files with > 1000 rows or when explicitly requested
+  let columnAnalysis: Record<string, ColumnAnalysis>
+  
+  if (fileContent && allRows.length > 1000) {
+    console.log('[Probe] Using Pandas for enhanced column analysis (large file)')
+    const pandasAnalysis = await getPandasColumnAnalysis(fileContent, allRows.length)
+    if (pandasAnalysis) {
+      columnAnalysis = pandasAnalysis
+      console.log('[Probe] Pandas analysis completed')
+    } else {
+      // Fallback to TypeScript
+      console.log('[Probe] Pandas failed, using TypeScript analysis')
+      columnAnalysis = getDetailedColumnAnalysis(headers, allRows)
+    }
+  } else {
+    // Use TypeScript for small files (faster)
+    columnAnalysis = getDetailedColumnAnalysis(headers, allRows)
+  }
 
   console.log('[Probe] === COLUMN ANALYSIS ===')
   console.log(`[Probe] Analyzing ${allRows.length} rows (full dataset)`)

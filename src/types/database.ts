@@ -79,6 +79,7 @@ export type Database = {
           status: Database["public"]["Enums"]["csv_file_status"]
           is_active: boolean
           uploaded_by: string
+          ingestion_method: string | null
           created_at: string | null
           updated_at: string | null
         }
@@ -97,6 +98,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["csv_file_status"]
           is_active?: boolean
           uploaded_by: string
+          ingestion_method?: string | null
           created_at?: string | null
           updated_at?: string | null
         }
@@ -115,6 +117,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["csv_file_status"]
           is_active?: boolean
           uploaded_by?: string
+          ingestion_method?: string | null
           created_at?: string | null
           updated_at?: string | null
         }

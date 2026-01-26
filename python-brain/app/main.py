@@ -84,14 +84,20 @@ class GA4CollectRequest(BaseModel):
 class CSVCollectRequest(BaseModel):
     project_id: str
     dataset_id: str
+    file_id: str
+    storage_path: str
+    headers: list[str]
     mapping: dict
-    date_range: dict
+    date_range: Optional[dict] = None
 
 class CSVProfilerRequest(BaseModel):
-    headers: list[str]
-    sample_rows: list[list[str]]
+    file_content: Optional[str] = None  # Base64 encoded CSV content
+    storage_path: Optional[str] = None  # Supabase Storage path (alternative to file_content)
+    headers: Optional[list[str]] = None  # Optional: pre-parsed headers
+    sample_rows: Optional[list[list[str]]] = None  # Optional: pre-parsed sample rows
     language: str = "ko"
     project_profile: Optional[dict] = None
+    max_rows: int = 10000  # Maximum rows to analyze
 
 # API 엔드포인트
 @app.post("/api/v1/analyze", response_model=AnalyzeResponse)
@@ -186,10 +192,41 @@ async def collect_csv(
     api_key: str = Depends(verify_api_key)
 ):
     """
-    CSV 데이터 수집
+    CSV 데이터 수집 (Pandas 기반)
     """
-    # TODO: CSV 수집기 포팅
-    raise HTTPException(status_code=501, detail="Not implemented yet")
+    from app.services.csv_ingest import ingest_csv_file
+    from app.services.supabase import get_supabase_client
+    
+    try:
+        logger.info(f"CSV ingestion request: file_id={request.file_id}, project_id={request.project_id}")
+        
+        supabase = get_supabase_client()
+        
+        result = ingest_csv_file(
+            supabase=supabase,
+            project_id=request.project_id,
+            dataset_id=request.dataset_id,
+            file_id=request.file_id,
+            storage_path=request.storage_path,
+            headers=request.headers,
+            mapping=request.mapping,
+            date_range_filter=request.date_range
+        )
+        
+        return {
+            "total_rows": result["total_rows"],
+            "processed_rows": result["processed_rows"],
+            "inserted_records": result["inserted_records"],
+            "errors": result["errors"],
+            "processing_time_ms": result["processing_time_ms"]
+        }
+        
+    except Exception as e:
+        error_detail = f"{str(e)}\n{traceback.format_exc()}"
+        logger.error(f"Exception in collect_csv: {error_detail}")
+        if len(error_detail) > 1000:
+            error_detail = error_detail[:1000] + "..."
+        raise HTTPException(status_code=500, detail=error_detail)
 
 @app.post("/api/v1/profiler/csv")
 async def profiler_csv(
@@ -197,10 +234,66 @@ async def profiler_csv(
     api_key: str = Depends(verify_api_key)
 ):
     """
-    CSV 스키마 프로파일링
+    CSV 스키마 프로파일링 (Pandas 기반)
+    Enhanced column analysis for better schema detection
     """
-    # TODO: CSV 프로파일러 포팅
-    raise HTTPException(status_code=501, detail="Not implemented yet")
+    from app.services.csv_profiler import (
+        profile_csv_with_pandas,
+        convert_pandas_profile_to_column_analysis
+    )
+    from app.services.supabase import get_supabase_client
+    import base64
+    
+    try:
+        logger.info(f"CSV profiling request: has_file_content={request.file_content is not None}, has_storage_path={request.storage_path is not None}")
+        
+        file_content_bytes: bytes
+        
+        # Get file content
+        if request.file_content:
+            # Decode base64
+            try:
+                file_content_bytes = base64.b64decode(request.file_content)
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Invalid base64 file content: {str(e)}")
+        elif request.storage_path:
+            # Download from Supabase Storage
+            supabase = get_supabase_client()
+            try:
+                response = supabase.storage.from_("csv-uploads").download(request.storage_path)
+                if not response:
+                    raise HTTPException(status_code=404, detail=f"File not found in storage: {request.storage_path}")
+                file_content_bytes = response
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to download file from storage: {str(e)}")
+        else:
+            raise HTTPException(status_code=400, detail="Either file_content or storage_path must be provided")
+        
+        # Profile with Pandas
+        pandas_profile = profile_csv_with_pandas(
+            file_content_bytes,
+            max_rows=request.max_rows
+        )
+        
+        # Convert to ColumnAnalysis format (for compatibility)
+        column_analysis = convert_pandas_profile_to_column_analysis(pandas_profile)
+        
+        return {
+            "total_rows": pandas_profile["total_rows"],
+            "total_columns": pandas_profile["total_columns"],
+            "encoding": pandas_profile["encoding"],
+            "column_analysis": column_analysis,
+            "pandas_profile": pandas_profile  # Full profile for advanced use
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_detail = f"{str(e)}\n{traceback.format_exc()}"
+        logger.error(f"Exception in profiler_csv: {error_detail}")
+        if len(error_detail) > 1000:
+            error_detail = error_detail[:1000] + "..."
+        raise HTTPException(status_code=500, detail=error_detail)
 
 @app.get("/health")
 async def health():

@@ -1,10 +1,11 @@
 /**
  * CSV Ingest utilities
  * Transforms CSV data according to mapping and loads into mart table
+ * Supports both TypeScript (small files) and Pandas (large files) ingestion
  */
 
 import { SupabaseClient } from '@supabase/supabase-js'
-import type { Database, MetricColumn } from '@/types/database'
+import type { Database, Json, MetricColumn } from '@/types/database'
 import { parseCsvFull } from './parser'
 
 export interface IngestResult {
@@ -23,7 +24,67 @@ export interface SourceMapping {
 }
 
 /**
+ * Ingest CSV file via Python Brain API (Pandas)
+ */
+async function ingestViaPandasAPI(
+  file: { id: string; storage_path: string; original_filename: string; headers: string[] },
+  projectId: string,
+  datasetId: string,
+  mapping: SourceMapping,
+  dateRangeFilter?: { startDate: Date; endDate: Date }
+): Promise<IngestResult> {
+  const brainApiUrl = process.env.BRAIN_API_URL
+  const brainApiKey = process.env.BRAIN_API_KEY
+
+  if (!brainApiUrl || !brainApiKey) {
+    throw new Error('BRAIN_API_URL and BRAIN_API_KEY must be set for Pandas ingestion')
+  }
+
+  const dateRange = dateRangeFilter ? {
+    start: dateRangeFilter.startDate.toISOString().split('T')[0],
+    end: dateRangeFilter.endDate.toISOString().split('T')[0],
+  } : undefined
+
+  const response = await fetch(`${brainApiUrl}/api/v1/collect/csv`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-API-Key': brainApiKey,
+    },
+    body: JSON.stringify({
+      project_id: projectId,
+      dataset_id: datasetId,
+      file_id: file.id,
+      storage_path: file.storage_path,
+      headers: file.headers,
+      mapping: {
+        id: mapping.id,
+        date_column: mapping.date_column,
+        metric_columns: mapping.metric_columns,
+        dimension_columns: mapping.dimension_columns,
+        aggregation_rules: mapping.aggregation_rules,
+      },
+      date_range: dateRange,
+    }),
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`Pandas API error (${response.status}): ${errorText}`)
+  }
+
+  const data = await response.json()
+  return {
+    totalRows: data.total_rows || 0,
+    processedRows: data.processed_rows || 0,
+    insertedRecords: data.inserted_records || 0,
+    errors: data.errors || [],
+  }
+}
+
+/**
  * Ingest CSV files from a dataset into mart_csv_daily_metrics
+ * Uses hybrid approach: TypeScript for small files, Pandas for large files
  */
 export async function ingestDataset(
   supabase: SupabaseClient<Database>,
@@ -42,7 +103,7 @@ export async function ingestDataset(
   // Get all active files in dataset
   const { data: files, error: filesError } = await supabase
     .from('csv_files')
-    .select('id, storage_path, original_filename')
+    .select('id, storage_path, original_filename, file_size_bytes, headers')
     .eq('dataset_id', datasetId)
     .eq('is_active', true)
 
@@ -51,47 +112,152 @@ export async function ingestDataset(
     return result
   }
 
+  // File size threshold for Pandas (10MB)
+  const PANDAS_THRESHOLD_MB = 10
+
   for (const file of files) {
+    const fileSizeMB = (file.file_size_bytes || 0) / (1024 * 1024)
+    const usePandas = fileSizeMB >= PANDAS_THRESHOLD_MB
+
     try {
-      // Download file from storage
-      const { data: fileData, error: downloadError } = await supabase.storage
-        .from('csv-uploads')
-        .download(file.storage_path)
-
-      if (downloadError || !fileData) {
-        result.errors.push(`Failed to download file ${file.original_filename}: ${downloadError?.message}`)
-        continue
-      }
-
-      // Parse CSV content - use parseCsvFull for complete data
-      const content = await fileData.text()
-      const parseResult = parseCsvFull(content)
-      
-      if (parseResult.headers.length === 0) {
-        result.errors.push(`File ${file.original_filename}: No valid headers found. The CSV may be malformed or contain only separator lines.`)
-        continue
-      }
-
-      result.totalRows += parseResult.totalRows
-
-      // Process rows according to mapping
-      let records: MartRecord[]
-      try {
-        records = transformToMartRecords(
-          parseResult.headers,
-          parseResult.rows,
-          mapping,
+      if (usePandas) {
+        // Use Pandas API for large files
+        console.log(`[Ingest] Using Pandas for large file: ${file.original_filename} (${fileSizeMB.toFixed(2)}MB)`)
+        const pandasResult = await ingestViaPandasAPI(
+          {
+            id: file.id,
+            storage_path: file.storage_path,
+            original_filename: file.original_filename,
+            headers: (file.headers as string[]) || [],
+          },
           projectId,
           datasetId,
+          mapping,
           dateRangeFilter
         )
-      } catch (transformError) {
-        result.errors.push(
-          `File ${file.original_filename}: ${transformError instanceof Error ? transformError.message : 'Failed to transform records'}`
+
+        result.totalRows += pandasResult.totalRows
+        result.processedRows += pandasResult.processedRows
+        result.insertedRecords += pandasResult.insertedRecords
+        result.errors.push(...pandasResult.errors)
+
+        // Update ingestion_method in database
+        await supabase
+          .from('csv_files')
+          .update({ ingestion_method: 'pandas' })
+          .eq('id', file.id)
+      } else {
+        // Use TypeScript for small files (existing logic)
+        console.log(`[Ingest] Using TypeScript for small file: ${file.original_filename} (${fileSizeMB.toFixed(2)}MB)`)
+        const tsResult = await ingestViaTypeScript(
+          supabase,
+          file,
+          projectId,
+          datasetId,
+          mapping,
+          dateRangeFilter
         )
-        console.error(`[Ingest] Transform error for ${file.original_filename}:`, transformError)
-        continue
+
+        result.totalRows += tsResult.totalRows
+        result.processedRows += tsResult.processedRows
+        result.insertedRecords += tsResult.insertedRecords
+        result.errors.push(...tsResult.errors)
+
+        // Update ingestion_method in database
+        await supabase
+          .from('csv_files')
+          .update({ ingestion_method: 'typescript' })
+          .eq('id', file.id)
       }
+    } catch (error) {
+      const errorMsg = `Error processing ${file.original_filename}: ${error instanceof Error ? error.message : 'Unknown error'}`
+      result.errors.push(errorMsg)
+      console.error(`[Ingest] ${errorMsg}`, error)
+
+      // Fallback to TypeScript if Pandas fails
+      if (usePandas) {
+        console.log(`[Ingest] Pandas failed, falling back to TypeScript for ${file.original_filename}`)
+        try {
+          const tsResult = await ingestViaTypeScript(
+            supabase,
+            file,
+            projectId,
+            datasetId,
+            mapping,
+            dateRangeFilter
+          )
+          result.totalRows += tsResult.totalRows
+          result.processedRows += tsResult.processedRows
+          result.insertedRecords += tsResult.insertedRecords
+          result.errors.push(...tsResult.errors)
+        } catch (fallbackError) {
+          result.errors.push(`Fallback to TypeScript also failed: ${fallbackError instanceof Error ? fallbackError.message : 'Unknown error'}`)
+        }
+      }
+    }
+  }
+
+  return result
+}
+
+/**
+ * Ingest CSV file via TypeScript (original implementation)
+ */
+async function ingestViaTypeScript(
+  supabase: SupabaseClient<Database>,
+  file: { id: string; storage_path: string; original_filename: string },
+  projectId: string,
+  datasetId: string,
+  mapping: SourceMapping,
+  dateRangeFilter?: { startDate: Date; endDate: Date }
+): Promise<IngestResult> {
+  const result: IngestResult = {
+    totalRows: 0,
+    processedRows: 0,
+    insertedRecords: 0,
+    errors: [],
+  }
+
+  try {
+    // Download file from storage
+    const { data: fileData, error: downloadError } = await supabase.storage
+      .from('csv-uploads')
+      .download(file.storage_path)
+
+    if (downloadError || !fileData) {
+      result.errors.push(`Failed to download file ${file.original_filename}: ${downloadError?.message}`)
+      return result
+    }
+
+    // Parse CSV content - use parseCsvFull for complete data
+    const content = await fileData.text()
+    const parseResult = parseCsvFull(content)
+    
+    if (parseResult.headers.length === 0) {
+      result.errors.push(`File ${file.original_filename}: No valid headers found. The CSV may be malformed or contain only separator lines.`)
+      return result
+    }
+
+    result.totalRows += parseResult.totalRows
+
+    // Process rows according to mapping
+    let records: MartRecord[]
+    try {
+      records = transformToMartRecords(
+        parseResult.headers,
+        parseResult.rows,
+        mapping,
+        projectId,
+        datasetId,
+        dateRangeFilter
+      )
+    } catch (transformError) {
+      result.errors.push(
+        `File ${file.original_filename}: ${transformError instanceof Error ? transformError.message : 'Failed to transform records'}`
+      )
+      console.error(`[Ingest] Transform error for ${file.original_filename}:`, transformError)
+      return result
+    }
 
       // Batch upsert to mart table
       if (records.length > 0) {
@@ -106,7 +272,23 @@ export async function ingestDataset(
             })
 
           if (upsertError) {
-            result.errors.push(`Batch insert error: ${upsertError.message}`)
+            const errorMsg = `Batch insert error: ${upsertError.message}`
+            result.errors.push(errorMsg)
+            console.error(`[Ingest] ${errorMsg}`)
+            console.error(`[Ingest] Failed batch sample (first record):`, batch[0])
+            // Log more details for debugging
+            if (batch.length > 0) {
+              console.error(`[Ingest] Sample record structure:`, {
+                project_id: batch[0].project_id,
+                dataset_id: batch[0].dataset_id,
+                date: batch[0].date,
+                date_type: typeof batch[0].date,
+                metric_name: batch[0].metric_name,
+                metric_value: batch[0].metric_value,
+                dimensions_type: typeof batch[0].dimensions,
+                raw_data_type: typeof batch[0].raw_data,
+              })
+            }
           } else {
             result.insertedRecords += batch.length
           }
@@ -117,9 +299,8 @@ export async function ingestDataset(
     } catch (error) {
       result.errors.push(`Error processing ${file.original_filename}: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
-  }
 
-  return result
+    return result
 }
 
 /**
@@ -135,9 +316,9 @@ interface MartRecord {
   dimension_key: string | null
   dimension_value: string | null
   // New: all dimensions as JSONB
-  dimensions: Record<string, string>
+  dimensions: Record<string, string> | null
   // New: preserve original row data
-  raw_data?: Record<string, string | number | null>
+  raw_data?: Record<string, unknown> | null
 }
 
 /**
@@ -198,15 +379,13 @@ function transformToMartRecords(
     }))
     .filter(d => d.index >= 0) // Filter out any invalid indices
 
-  // If no date column, try to extract date from filename or use 'aggregate' placeholder
+  // If no date column, use a valid date placeholder (today's date)
   // Date column is NOT required - aggregate data without time dimension is valid
-  let defaultDate: string | null = null
-  if (!mapping.date_column) {
-    // Try to extract date from filename if available (passed via context)
-    // For now, use 'aggregate' as placeholder for data without date dimension
-    // This allows the data to be stored and queried without requiring a date
-    defaultDate = 'aggregate'
-  }
+  // But database DATE column requires a valid date, so we use today's date as placeholder
+  // This allows aggregate data to be stored and queried
+  const defaultDate = !mapping.date_column 
+    ? new Date().toISOString().split('T')[0] // YYYY-MM-DD format for DATE column
+    : null
 
   for (const row of rows) {
     // Parse date
@@ -214,15 +393,18 @@ function transformToMartRecords(
     if (dateColIndex >= 0 && row[dateColIndex]) {
       dateStr = normalizeDate(row[dateColIndex])
     } else if (defaultDate) {
-      // No date column - use placeholder for aggregate data
+      // No date column - use today's date as placeholder for aggregate data
+      // This is a valid DATE value that allows the data to be stored
       dateStr = defaultDate
     } else {
-      // Should not happen, but fallback
-      dateStr = 'aggregate'
+      // Should not happen, but fallback to today
+      dateStr = new Date().toISOString().split('T')[0]
     }
 
-    // Apply date filter if provided (skip for aggregate data without date)
-    if (dateRangeFilter && dateStr !== 'aggregate') {
+    // Apply date filter if provided
+    // Note: For aggregate data without date column, we use today's date as placeholder
+    // So date filtering will still apply, but that's OK - we want to include aggregate data
+    if (dateRangeFilter) {
       try {
         const date = new Date(dateStr)
         if (date < dateRangeFilter.startDate || date > dateRangeFilter.endDate) {
@@ -230,6 +412,7 @@ function transformToMartRecords(
         }
       } catch {
         // Invalid date format - skip filtering for this row
+        console.warn(`[Ingest] Invalid date format: ${dateStr}, skipping filter`)
       }
     }
 
@@ -269,9 +452,9 @@ function transformToMartRecords(
         // Legacy single dimension
         dimension_key: primaryDimKey,
         dimension_value: primaryDimValue,
-        // New multi-dimension support
-        dimensions,
-        raw_data: rawData,
+        // New multi-dimension support - ensure non-empty object or null
+        dimensions: Object.keys(dimensions).length > 0 ? dimensions : null,
+        raw_data: Object.keys(rawData).length > 0 ? rawData : null,
       })
     }
   }

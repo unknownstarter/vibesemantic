@@ -122,6 +122,22 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     .eq('id', datasetId)
 
   try {
+    // Get full CSV content for Pandas profiling (if available)
+    let fullCsvContent: string | undefined
+    if (shouldAnalyzeFull && file.storage_path) {
+      try {
+        const { data: fileData, error: downloadError } = await supabase.storage
+          .from('csv-uploads')
+          .download(file.storage_path)
+
+        if (!downloadError && fileData) {
+          fullCsvContent = await fileData.text()
+        }
+      } catch (error) {
+        console.warn('[Probe] Failed to load full file for Pandas profiling:', error)
+      }
+    }
+
     // Run LLM probe with project context and dataset purpose
     // The dataset purpose determines which metrics are prioritized
     const probeResult = await probeSchema(
@@ -129,7 +145,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       fullRows, // Use full data analysis instead of just sample
       language, 
       projectProfile ?? undefined,
-      [datasetPurpose] // Pass dataset's purpose for context-aware recommendations
+      [datasetPurpose], // Pass dataset's purpose for context-aware recommendations
+      fullCsvContent // Optional: full CSV content for Pandas profiling
     )
 
     // Create or update source_mappings
