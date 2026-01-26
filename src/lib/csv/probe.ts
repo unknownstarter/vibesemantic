@@ -225,7 +225,13 @@ export async function probeSchema(
       
       const analysis = columnAnalysis[header]
       // numeric 타입 컬럼이지만 metric으로 분류되지 않은 경우 자동 추가
+      // ID 타입은 제외 (uniqueRatio가 높은 숫자 컬럼)
       if (analysis && ['number', 'currency', 'percentage'].includes(analysis.type)) {
+        // ID 타입은 제외 (높은 uniqueness는 ID일 가능성)
+        if (analysis.type === 'id' || (analysis.stats?.uniqueRatio && analysis.stats.uniqueRatio > 0.9)) {
+          return
+        }
+        
         const isRate = /rate|ratio|avg|percentage|%|retention|conversion|ctr|cpc/i.test(header)
         autoDetectedMetrics.push({
           name: header,
@@ -262,7 +268,30 @@ export async function probeSchema(
     console.error('[Probe] LLM error:', error)
     
     // Fallback: use column analysis directly
-    return fallbackProbe(headers, columnAnalysis, language)
+    const fallbackResult = fallbackProbe(headers, columnAnalysis, language)
+    
+    // If fallback also fails to detect metrics, add helpful question
+    if (fallbackResult.metricColumns.length === 0) {
+      fallbackResult.llmQuestions.push({
+        id: 'no_metrics_detected',
+        question: language === 'ko' 
+          ? '지표(숫자) 컬럼을 자동으로 감지하지 못했습니다. CSV 파일의 헤더를 확인하고 분석하고 싶은 숫자 컬럼을 선택해주세요.'
+          : 'No metric columns detected. Please check CSV headers and select numeric columns to analyze.',
+        quickReplies: headers
+          .filter(h => {
+            const analysis = columnAnalysis[h]
+            return analysis && ['number', 'currency', 'percentage'].includes(analysis.type)
+          })
+          .slice(0, 8)
+          .map(h => ({
+            label: h,
+            value: h,
+            action: 'add_metric' as const,
+          })),
+      })
+    }
+    
+    return fallbackResult
   }
 }
 
@@ -328,16 +357,31 @@ function fallbackProbe(
   const llmQuestions: LLMQuestion[] = []
   
   if (metricColumns.length === 0) {
+    // Find potential numeric columns that weren't detected
+    const potentialMetrics = headers.filter(h => {
+      const analysis = columnAnalysis[h]
+      if (!analysis) return false
+      // Check if it looks numeric but wasn't classified as such
+      const sampleValues = analysis.sampleValues || []
+      const hasNumericValues = sampleValues.some(v => {
+        const cleaned = v.replace(/[$€¥₩£,\s%]/g, '')
+        return !isNaN(parseFloat(cleaned)) && cleaned !== ''
+      })
+      return hasNumericValues && analysis.type !== 'id'
+    })
+    
     llmQuestions.push({
       id: 'no_metrics',
       question: language === 'ko' 
-        ? '지표(숫자) 컬럼을 자동으로 감지하지 못했습니다. 분석하고 싶은 숫자 컬럼을 선택해주세요.'
-        : 'No metric columns detected. Please select numeric columns to analyze.',
-      quickReplies: headers.slice(0, 8).map(h => ({
-        label: h,
-        value: h,
-        action: 'add_metric' as const,
-      })),
+        ? '지표(숫자) 컬럼을 자동으로 감지하지 못했습니다. CSV 파일의 헤더를 확인하고 분석하고 싶은 숫자 컬럼을 선택해주세요.'
+        : 'No metric columns detected. Please check CSV headers and select numeric columns to analyze.',
+      quickReplies: (potentialMetrics.length > 0 ? potentialMetrics : headers)
+        .slice(0, 8)
+        .map(h => ({
+          label: h,
+          value: h,
+          action: 'add_metric' as const,
+        })),
     })
   }
 

@@ -18,21 +18,64 @@ export interface CsvMetadata {
 }
 
 /**
+ * Check if a line is a separator line (all dashes, underscores, or similar)
+ */
+function isSeparatorLine(line: string): boolean {
+  const trimmed = line.trim()
+  if (trimmed.length === 0) return true
+  
+  // Check if line consists only of separators (dashes, underscores, equals, spaces)
+  const separatorPattern = /^[\s\-_=]+$/
+  return separatorPattern.test(trimmed)
+}
+
+/**
+ * Find the actual header row (skip separator lines and empty lines)
+ */
+function findHeaderRow(lines: string[]): number {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim()
+    if (line.length === 0) continue
+    if (isSeparatorLine(line)) continue
+    
+    const parsed = parseCsvLine(line)
+    // Header should have at least one non-empty column
+    if (parsed.length > 0 && parsed.some(col => col.trim().length > 0)) {
+      return i
+    }
+  }
+  return 0 // Fallback to first line
+}
+
+/**
  * Parse CSV content and extract all data
  * Use for ingestion where all rows are needed
  */
 export function parseCsvFull(content: string): CsvParseResult {
-  const lines = content.split(/\r?\n/).filter(line => line.trim())
+  const lines = content.split(/\r?\n/).filter(line => line.trim().length > 0)
   
   if (lines.length === 0) {
     return { headers: [], rows: [], totalRows: 0, columnCount: 0 }
   }
 
-  const headers = parseCsvLine(lines[0])
+  // Find actual header row (skip separator lines)
+  const headerRowIndex = findHeaderRow(lines)
+  const headers = parseCsvLine(lines[headerRowIndex]).filter(h => h.trim().length > 0)
+  
+  if (headers.length === 0) {
+    console.warn('[CSV Parser] No valid headers found')
+    return { headers: [], rows: [], totalRows: 0, columnCount: 0 }
+  }
+
   const rows: string[][] = []
   
-  for (let i = 1; i < lines.length; i++) {
-    const row = parseCsvLine(lines[i])
+  // Process data rows (skip header and any separator lines)
+  for (let i = headerRowIndex + 1; i < lines.length; i++) {
+    const line = lines[i].trim()
+    if (line.length === 0) continue
+    if (isSeparatorLine(line)) continue // Skip separator lines
+    
+    const row = parseCsvLine(line)
     if (row.length > 0) {
       rows.push(row)
     }
@@ -51,21 +94,35 @@ export function parseCsvFull(content: string): CsvParseResult {
  * Use for upload/probe where only sample is needed (memory efficient)
  */
 export function parseCsvMetadata(content: string, sampleSize = 20): CsvMetadata {
-  const lines = content.split(/\r?\n/).filter(line => line.trim())
+  const lines = content.split(/\r?\n/).filter(line => line.trim().length > 0)
   
   if (lines.length === 0) {
     return { headers: [], sampleRows: [], totalRows: 0, columnCount: 0 }
   }
 
-  const headers = parseCsvLine(lines[0])
+  // Find actual header row (skip separator lines)
+  const headerRowIndex = findHeaderRow(lines)
+  const headers = parseCsvLine(lines[headerRowIndex]).filter(h => h.trim().length > 0)
+  
+  if (headers.length === 0) {
+    console.warn('[CSV Parser] No valid headers found in metadata')
+    return { headers: [], sampleRows: [], totalRows: 0, columnCount: 0 }
+  }
+
   const sampleRows: string[][] = []
   
-  // Only parse sample rows for metadata
-  const dataLineCount = lines.length - 1
-  for (let i = 1; i <= Math.min(sampleSize, dataLineCount); i++) {
-    const row = parseCsvLine(lines[i])
+  // Only parse sample rows for metadata (skip separator lines)
+  const dataLineCount = lines.length - headerRowIndex - 1
+  let parsedCount = 0
+  for (let i = headerRowIndex + 1; i < lines.length && parsedCount < sampleSize; i++) {
+    const line = lines[i].trim()
+    if (line.length === 0) continue
+    if (isSeparatorLine(line)) continue // Skip separator lines
+    
+    const row = parseCsvLine(line)
     if (row.length > 0) {
       sampleRows.push(row)
+      parsedCount++
     }
   }
 

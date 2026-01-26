@@ -66,17 +66,32 @@ export async function ingestDataset(
       // Parse CSV content - use parseCsvFull for complete data
       const content = await fileData.text()
       const parseResult = parseCsvFull(content)
+      
+      if (parseResult.headers.length === 0) {
+        result.errors.push(`File ${file.original_filename}: No valid headers found. The CSV may be malformed or contain only separator lines.`)
+        continue
+      }
+
       result.totalRows += parseResult.totalRows
 
       // Process rows according to mapping
-      const records = transformToMartRecords(
-        parseResult.headers,
-        parseResult.rows,
-        mapping,
-        projectId,
-        datasetId,
-        dateRangeFilter
-      )
+      let records: MartRecord[]
+      try {
+        records = transformToMartRecords(
+          parseResult.headers,
+          parseResult.rows,
+          mapping,
+          projectId,
+          datasetId,
+          dateRangeFilter
+        )
+      } catch (transformError) {
+        result.errors.push(
+          `File ${file.original_filename}: ${transformError instanceof Error ? transformError.message : 'Failed to transform records'}`
+        )
+        console.error(`[Ingest] Transform error for ${file.original_filename}:`, transformError)
+        continue
+      }
 
       // Batch upsert to mart table
       if (records.length > 0) {
@@ -139,19 +154,49 @@ function transformToMartRecords(
 ): MartRecord[] {
   const records: MartRecord[] = []
 
+  // Validate column mappings exist in headers
+  const missingColumns: string[] = []
+  
+  if (mapping.date_column && headers.indexOf(mapping.date_column) === -1) {
+    missingColumns.push(`date_column: "${mapping.date_column}"`)
+  }
+
+  mapping.metric_columns.forEach(m => {
+    if (headers.indexOf(m.name) === -1) {
+      missingColumns.push(`metric: "${m.name}"`)
+    }
+  })
+
+  mapping.dimension_columns.forEach(d => {
+    if (headers.indexOf(d.name) === -1) {
+      missingColumns.push(`dimension: "${d.name}"`)
+    }
+  })
+
+  if (missingColumns.length > 0) {
+    throw new Error(
+      `Column mapping mismatch. The following columns are not found in CSV headers: ${missingColumns.join(', ')}. ` +
+      `Available headers: ${headers.join(', ')}`
+    )
+  }
+
   const dateColIndex = mapping.date_column
     ? headers.indexOf(mapping.date_column)
     : -1
 
-  const metricIndices = mapping.metric_columns.map(m => ({
-    ...m,
-    index: headers.indexOf(m.name),
-  }))
+  const metricIndices = mapping.metric_columns
+    .map(m => ({
+      ...m,
+      index: headers.indexOf(m.name),
+    }))
+    .filter(m => m.index >= 0) // Filter out any invalid indices (shouldn't happen after validation)
 
-  const dimensionIndices = mapping.dimension_columns.map(d => ({
-    ...d,
-    index: headers.indexOf(d.name),
-  }))
+  const dimensionIndices = mapping.dimension_columns
+    .map(d => ({
+      ...d,
+      index: headers.indexOf(d.name),
+    }))
+    .filter(d => d.index >= 0) // Filter out any invalid indices
 
   for (const row of rows) {
     // Parse date
