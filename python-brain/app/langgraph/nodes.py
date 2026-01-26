@@ -102,23 +102,36 @@ def load_context_and_mart_summary(state: AnalysisState) -> Dict[str, Any]:
                 .execute()
             return result.data or []
         
+        def fetch_events():
+            result = supabase.table("mart_events") \
+                .select("*") \
+                .eq("project_id", state["projectId"]) \
+                .eq("source", "ga4") \
+                .gte("date", start_str) \
+                .lte("date", end_str) \
+                .order("date") \
+                .execute()
+            return result.data or []
+        
         # 병렬 실행
-        with ThreadPoolExecutor(max_workers=5) as executor:
+        with ThreadPoolExecutor(max_workers=6) as executor:
             futures = [
                 executor.submit(fetch_ga4_metrics),
                 executor.submit(fetch_kpis),
                 executor.submit(fetch_channels),
                 executor.submit(fetch_pages),
-                executor.submit(fetch_csv_metrics)
+                executor.submit(fetch_csv_metrics),
+                executor.submit(fetch_events)
             ]
-            ga4_metrics, kpis, channels, pages, csv_metrics = [f.result() for f in futures]
+            ga4_metrics, kpis, channels, pages, csv_metrics, events = [f.result() for f in futures]
         
         data_accessed.extend([
             "mart_ga4_metrics",
             "mart_ga4_daily_kpis",
             "mart_ga4_channel_daily",
             "mart_ga4_top_pages_daily",
-            "mart_csv_daily_metrics"
+            "mart_csv_daily_metrics",
+            "mart_events"
         ])
         
         # GA4 Metrics 집계 (새 유연한 테이블 우선)
@@ -362,6 +375,27 @@ def load_context_and_mart_summary(state: AnalysisState) -> Dict[str, Any]:
         except Exception:
             pass
         
+        # Statistical Analysis
+        statistical_analysis = None
+        try:
+            from app.langgraph.statistical_analysis import perform_statistical_analysis
+            
+            statistical_analysis = perform_statistical_analysis(
+                kpis_data=kpis,
+                events_data=events,
+                daily_trends=daily_trend,
+                channels_data=channels
+            )
+        except Exception as e:
+            # 통계 분석 실패해도 리포트 생성은 계속
+            print(f"[Statistical Analysis] Error: {str(e)}")
+            statistical_analysis = {
+                "metric_correlations": [],
+                "event_kpi_relationships": [],
+                "causality_hints": [],
+                "summary": "Statistical analysis unavailable"
+            }
+        
         mart_summary: MartSummary = {
             "period": {
                 "start": start_str,
@@ -382,7 +416,8 @@ def load_context_and_mart_summary(state: AnalysisState) -> Dict[str, Any]:
             "csvMetrics": csv_metrics_summary if csv_metrics_summary else None,
             "integratedTrend": integrated_trend,
             "dataSources": data_sources,
-            "metricDefinitions": metric_definitions
+            "metricDefinitions": metric_definitions,
+            "statisticalAnalysis": statistical_analysis
         }
         
         # 채팅 모드일 때 이전 대화 메시지 로드

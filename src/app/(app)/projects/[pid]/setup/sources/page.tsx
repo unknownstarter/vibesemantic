@@ -7,7 +7,7 @@ import { Button } from '@/shared/ui/Button'
 import { Spinner } from '@/shared/ui/Spinner'
 import { GA4Icon, CsvIcon, PlusIcon, CheckIcon } from '@/shared/ui/Icons'
 import { CSV_DATASET_STATUS } from '@/entities/csv/constants'
-import type { CsvDataset } from '@/types/database'
+import type { CsvDataset, WorkspacePurpose } from '@/types/database'
 
 interface DatasetWithFiles extends CsvDataset {
   csv_files?: Array<{ id: string; original_filename: string; status: string; is_active: boolean }>
@@ -30,6 +30,7 @@ export default function SourcesPage() {
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [newDatasetName, setNewDatasetName] = useState('')
+  const [newDatasetPurpose, setNewDatasetPurpose] = useState<WorkspacePurpose>('product')
   const [showCreateForm, setShowCreateForm] = useState(false)
 
   // Fetch data sources
@@ -55,7 +56,10 @@ export default function SourcesPage() {
       const res = await fetch(`/api/projects/${projectSlug}/csv/datasets`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newDatasetName.trim() }),
+        body: JSON.stringify({ 
+          name: newDatasetName.trim(),
+          purpose: newDatasetPurpose,
+        }),
       })
 
       if (res.ok) {
@@ -217,10 +221,40 @@ export default function SourcesPage() {
                   className="w-full px-4 py-2 bg-surface border border-border/10 rounded-lg 
                            text-foreground placeholder:text-subtle
                            focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40
-                           transition-all duration-200"
+                           transition-all duration-200 mb-4"
                   autoFocus
                 />
-                <div className="flex gap-2 mt-4">
+                
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  분석 목적 <span className="text-muted text-xs">(이 데이터를 어떤 목적으로 분석할까요?)</span>
+                </label>
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  {[
+                    { value: 'product' as WorkspacePurpose, label: '프로덕트', icon: '📦', desc: '사용자 행동 분석' },
+                    { value: 'marketing' as WorkspacePurpose, label: '마케팅', icon: '📢', desc: '채널 성과 분석' },
+                    { value: 'biz' as WorkspacePurpose, label: '비즈니스', icon: '📊', desc: '비즈니스 KPI' },
+                    { value: 'sales' as WorkspacePurpose, label: '세일즈', icon: '💼', desc: '리드/전환 분석' },
+                  ].map((p) => (
+                    <button
+                      key={p.value}
+                      type="button"
+                      onClick={() => setNewDatasetPurpose(p.value)}
+                      className={`p-3 rounded-lg border-2 transition-all text-left ${
+                        newDatasetPurpose === p.value
+                          ? 'border-primary bg-primary/10'
+                          : 'border-border/10 bg-surface hover:border-border/30'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-lg">{p.icon}</span>
+                        <span className="font-medium text-foreground">{p.label}</span>
+                      </div>
+                      <p className="text-xs text-muted">{p.desc}</p>
+                    </button>
+                  ))}
+                </div>
+                
+                <div className="flex gap-2">
                   <Button
                     onClick={handleCreateDataset}
                     disabled={!newDatasetName.trim() || creating}
@@ -233,6 +267,7 @@ export default function SourcesPage() {
                     onClick={() => {
                       setShowCreateForm(false)
                       setNewDatasetName('')
+                      setNewDatasetPurpose('product')
                     }}
                   >
                     취소

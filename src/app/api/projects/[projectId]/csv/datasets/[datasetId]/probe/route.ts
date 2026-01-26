@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { requireAuth, requireProjectMember, canEdit } from '@/lib/supabase/auth-helpers'
 import { probeSchema } from '@/lib/csv/probe'
-import type { Json, ProjectProfile } from '@/types/database'
+import type { Json, ProjectProfile, WorkspacePurpose } from '@/types/database'
 
 type RouteParams = { params: Promise<{ projectId: string; datasetId: string }> }
 
@@ -32,10 +32,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
   const supabase = createServiceClient()
 
-  // Get dataset
+  // Get dataset with purpose
   const { data: dataset, error: datasetError } = await supabase
     .from('csv_datasets')
-    .select('id, status')
+    .select('id, status, purpose')
     .eq('id', datasetId)
     .eq('project_id', projectId)
     .single()
@@ -44,10 +44,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: 'Dataset not found' }, { status: 404 })
   }
 
-  // Get file to probe (specific or first active file)
+  // Use dataset's purpose (single purpose for this specific data source)
+  const datasetPurpose = (dataset.purpose as WorkspacePurpose | null) || 'product'
+
+  // Get file to probe (specific or first active file) - need storage_path for full analysis
   let fileQuery = supabase
     .from('csv_files')
-    .select('id, headers, sample_rows')
+    .select('id, headers, sample_rows, storage_path, row_count')
     .eq('dataset_id', datasetId)
     .eq('is_active', true)
 
@@ -80,6 +83,38 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
   const projectProfile = project?.profile as ProjectProfile | null
 
+  // Use dataset's purpose (this is the key: each data source has its own purpose)
+  // This allows the same CSV to be interpreted differently based on why it was added
+
+  // Download full file for comprehensive analysis (if not too large)
+  let fullRows: string[][] = []
+  const rowCount = file.row_count as number || 0
+  const shouldAnalyzeFull = rowCount > 0 && rowCount <= 10000 // Analyze full file if <= 10k rows
+
+  if (shouldAnalyzeFull && file.storage_path) {
+    try {
+      const { data: fileData, error: downloadError } = await supabase.storage
+        .from('csv-uploads')
+        .download(file.storage_path)
+
+      if (!downloadError && fileData) {
+        const { parseCsvFull } = await import('@/lib/csv/parser')
+        const content = await fileData.text()
+        const parseResult = parseCsvFull(content)
+        fullRows = parseResult.rows
+        console.log(`[Probe] Analyzing full file: ${fullRows.length} rows`)
+      }
+    } catch (error) {
+      console.warn('[Probe] Failed to load full file, using sample:', error)
+      // Fallback to sample rows
+      fullRows = sampleRows
+    }
+  } else {
+    // Use sample rows for large files
+    fullRows = sampleRows
+    console.log(`[Probe] Using sample rows (${sampleRows.length} rows) - file has ${rowCount} total rows`)
+  }
+
   // Update dataset status to probing
   await supabase
     .from('csv_datasets')
@@ -87,8 +122,15 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     .eq('id', datasetId)
 
   try {
-    // Run LLM probe with project context
-    const probeResult = await probeSchema(headers, sampleRows, language, projectProfile ?? undefined)
+    // Run LLM probe with project context and dataset purpose
+    // The dataset purpose determines which metrics are prioritized
+    const probeResult = await probeSchema(
+      headers, 
+      fullRows, // Use full data analysis instead of just sample
+      language, 
+      projectProfile ?? undefined,
+      [datasetPurpose] // Pass dataset's purpose for context-aware recommendations
+    )
 
     // Create or update source_mappings
     const mappingData = {

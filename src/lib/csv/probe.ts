@@ -6,7 +6,7 @@
 
 import { ChatOpenAI } from '@langchain/openai'
 import { maskSensitiveData, getDetailedColumnAnalysis, type ColumnAnalysis } from './parser'
-import type { MetricColumn, DimensionColumn, LLMQuestion, ProjectProfile } from '@/types/database'
+import type { MetricColumn, DimensionColumn, LLMQuestion, ProjectProfile, WorkspacePurpose } from '@/types/database'
 import { getIndustryKPIs, matchGoalsToKPIs } from '@/lib/templates/industry-kpis'
 
 export interface ProbeResult {
@@ -18,15 +18,56 @@ export interface ProbeResult {
 }
 
 /**
+ * Get purpose-specific metric priorities
+ */
+function getPurposeMetricPriorities(purposes: WorkspacePurpose[]): string {
+  const purposeFocus: Record<WorkspacePurpose, string[]> = {
+    product: [
+      '사용자 행동 지표: DAU, MAU, 세션, 페이지뷰, 참여율, 이탈률',
+      '기능 사용률: 클릭, 스크롤, 이벤트 발생 횟수',
+      '사용자 여정: 전환율, 이탈 포인트, 재방문율',
+    ],
+    marketing: [
+      '채널 성과: 세션, 사용자, 전환율, ROI',
+      '캠페인 효율: 클릭률(CTR), 전환율(CVR), 비용당 전환',
+      '트래픽 품질: 참여율, 이탈률, 세션 시간',
+    ],
+    biz: [
+      '비즈니스 KPI: 매출, 수익, ARPU, ARPDAU, LTV',
+      '성장 지표: 사용자 증가율, 매출 성장률, 전환율',
+      '핵심 지표: DAU/MAU, 리텐션, 과금률',
+    ],
+    sales: [
+      '리드 생성: 리드 수, 리드 품질 점수',
+      '전환 지표: 리드→고객 전환율, 전환 시간',
+      '영업 효율: 리드당 비용, 고객 획득 비용(CAC)',
+    ],
+  }
+
+  const relevantFocuses = purposes.map(p => purposeFocus[p] || []).flat()
+  if (relevantFocuses.length === 0) return ''
+
+  return `
+=== 분석 목적별 우선순위 ===
+이 프로젝트는 다음 목적으로 데이터를 분석합니다: ${purposes.join(', ')}
+다음 유형의 지표를 우선적으로 식별하세요:
+${relevantFocuses.map((focus, i) => `${i + 1}. ${focus}`).join('\n')}
+
+중요: 컬럼 이름이나 의미가 위 우선순위와 일치하면 높은 확신으로 metric으로 분류하세요.
+`
+}
+
+/**
  * Build context-rich prompt for LLM with detailed column analysis
- * Optionally includes project context for better KPI prioritization
+ * Optionally includes project context and workspace purposes for better KPI prioritization
  */
 function buildEnrichedPrompt(
   headers: string[],
-  sampleRows: string[][],
+  allRows: string[][], // Changed from sampleRows to allRows for full analysis
   columnAnalysis: Record<string, ColumnAnalysis>,
   language: 'ko' | 'en',
-  projectProfile?: ProjectProfile
+  projectProfile?: ProjectProfile,
+  workspacePurposes?: WorkspacePurpose[]
 ): string {
   // Format column analysis for LLM
   const columnDescriptions = headers.map(h => {
@@ -60,11 +101,17 @@ function buildEnrichedPrompt(
     return description
   }).join('\n')
 
-  // Format sample data as readable table
+  // Format sample data as readable table (show more rows if we have full data)
   const tableHeader = headers.join(' | ')
-  const tableRows = sampleRows.slice(0, 5).map(row => 
+  const displayRows = allRows.length > 20 ? allRows.slice(0, 10) : allRows.slice(0, 5) // Show more if full data available
+  const tableRows = displayRows.map(row => 
     row.map(cell => cell.length > 15 ? cell.slice(0, 12) + '...' : cell).join(' | ')
   ).join('\n')
+
+  // Add data volume info
+  const dataVolumeInfo = allRows.length > 20 
+    ? `\n전체 데이터: ${allRows.length}행 (위는 샘플 ${displayRows.length}행)`
+    : `\n데이터: ${allRows.length}행`
 
   // Build project context section if profile is available
   let projectContext = ''
@@ -89,9 +136,15 @@ If a column name matches or is similar to a recommended KPI, mark it with higher
 `
   }
 
+  // Add workspace purpose context
+  const purposeContext = workspacePurposes && workspacePurposes.length > 0
+    ? getPurposeMetricPriorities(workspacePurposes)
+    : ''
+
   return `=== CSV COLUMN ANALYSIS ===
 Total columns: ${headers.length}
-${projectContext}
+${dataVolumeInfo}
+${projectContext}${purposeContext}
 DETECTED COLUMN TYPES:
 ${columnDescriptions}
 
@@ -164,24 +217,31 @@ OUTPUT: Return ONLY valid JSON, no explanation.`
 
 export async function probeSchema(
   headers: string[],
-  sampleRows: string[][],
+  allRows: string[][], // Changed from sampleRows to allRows - analyze full dataset
   language: 'ko' | 'en' = 'ko',
-  projectProfile?: ProjectProfile
+  projectProfile?: ProjectProfile,
+  workspacePurposes?: WorkspacePurpose[]
 ): Promise<ProbeResult> {
-  // Step 1: Deep analyze all columns
-  const columnAnalysis = getDetailedColumnAnalysis(headers, sampleRows)
+  // Step 1: Deep analyze all columns using FULL dataset (not just sample)
+  // This gives us accurate statistics, distributions, and patterns
+  const columnAnalysis = getDetailedColumnAnalysis(headers, allRows)
 
   console.log('[Probe] === COLUMN ANALYSIS ===')
+  console.log(`[Probe] Analyzing ${allRows.length} rows (full dataset)`)
   if (projectProfile) {
     console.log(`[Probe] Project context: ${projectProfile.serviceName} (${projectProfile.industry})`)
+  }
+  if (workspacePurposes && workspacePurposes.length > 0) {
+    console.log(`[Probe] Workspace purposes: ${workspacePurposes.join(', ')}`)
   }
   Object.entries(columnAnalysis).forEach(([col, analysis]) => {
     console.log(`[Probe] "${col}": ${analysis.type} (${(analysis.confidence * 100).toFixed(0)}%) | samples: ${analysis.sampleValues.slice(0, 2).join(', ')}`)
   })
 
-  // Step 2: Build enriched prompt with project context
-  const maskedRows = maskSensitiveData(sampleRows)
-  const userPrompt = buildEnrichedPrompt(headers, maskedRows, columnAnalysis, language, projectProfile)
+  // Step 2: Build enriched prompt with project context and workspace purposes
+  // Use full data for analysis, but mask sensitive data for LLM
+  const maskedRows = maskSensitiveData(allRows)
+  const userPrompt = buildEnrichedPrompt(headers, maskedRows, columnAnalysis, language, projectProfile, workspacePurposes)
 
   // Step 3: Call LLM
   const model = new ChatOpenAI({

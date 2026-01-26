@@ -228,6 +228,7 @@ export async function getGA4Analytics(
   }
 
   // 5. Event Data (optional, with rate limiting)
+  // Include common dimensions for better data mart structure
   if (options?.includeEvents) {
     const eventsResponse = await executeGA4Request(() =>
       analyticsData.properties.runReport({
@@ -237,6 +238,11 @@ export async function getGA4Analytics(
           dimensions: [
             { name: 'date' },
             { name: 'eventName' },
+            { name: 'country' },
+            { name: 'city' },
+            { name: 'deviceCategory' },
+            { name: 'platform' },
+            { name: 'sessionDefaultChannelGroup' },
           ],
           metrics: [
             { name: 'eventCount' },
@@ -297,12 +303,14 @@ export async function getGA4RetentionMetrics(
 }
 
 // Event 데이터만 별도로 조회 (비동기 수집용)
+// Now includes common dimensions for better data mart structure
 export async function getGA4EventData(
   projectId: string,
   propertyId: string,
   startDate: string,
   endDate: string,
-  eventNames?: string[]
+  eventNames?: string[],
+  includeDimensions: boolean = true
 ) {
   const credentials = await getValidCredentials(projectId)
   if (!credentials) throw new Error('No valid GA4 credentials')
@@ -327,15 +335,32 @@ export async function getGA4EventData(
       }
     : undefined
 
+  // Include common dimensions for better data mart structure
+  // Note: pagePath and pageTitle are only available for page_view events,
+  // so we exclude them from general event queries to avoid API errors
+  const dimensions = includeDimensions
+    ? [
+        { name: 'date' },
+        { name: 'eventName' },
+        { name: 'country' },
+        { name: 'city' },
+        { name: 'deviceCategory' },
+        { name: 'platform' },
+        { name: 'sessionDefaultChannelGroup' },
+        // pagePath and pageTitle are event-specific and may cause errors
+        // They should be queried separately for page_view events only
+      ]
+    : [
+        { name: 'date' },
+        { name: 'eventName' },
+      ]
+
   const response = await executeGA4Request(() =>
     analyticsData.properties.runReport({
       property: `properties/${propertyId}`,
       requestBody: {
         dateRanges: [{ startDate, endDate }],
-        dimensions: [
-          { name: 'date' },
-          { name: 'eventName' },
-        ],
+        dimensions,
         metrics: [
           { name: 'eventCount' },
           { name: 'totalUsers' },
@@ -500,18 +525,45 @@ export async function refreshMartData(
     }
 
     // 4. Event Data upsert (if enabled)
+    // Now includes dimensions for better data mart structure
     if (data.events?.rows && eventsEnabled) {
-      const eventRows = data.events.rows.map(row => ({
-        project_id: projectId,
-        source: 'ga4',
-        date: formatGA4Date(row.dimensionValues![0].value!),
-        event_name: row.dimensionValues![1].value || 'unknown',
-        event_count: parseInt(row.metricValues![0].value || '0'),
-        unique_users: parseInt(row.metricValues![1].value || '0'),
-        events_per_user: parseFloat(row.metricValues![2].value || '0'),
-        dimensions: {},
-        event_params: {},
-      }))
+      const eventRows = data.events.rows.map(row => {
+        const dimensionValues = row.dimensionValues || []
+        const date = formatGA4Date(dimensionValues[0]?.value || '')
+        const eventName = dimensionValues[1]?.value || 'unknown'
+
+        // Build dimensions object from available dimension values
+        // Dimensions order from getGA4Analytics (includeEvents=true):
+        // date, eventName, country, deviceCategory, platform, sessionDefaultChannelGroup
+        // Note: getGA4Analytics uses different dimension set than getGA4EventData
+        const dimensions: Record<string, string> = {}
+        if (dimensionValues.length > 2) {
+          const dimensionNames = ['country', 'deviceCategory', 'platform', 'channel']
+          dimensionValues.slice(2).forEach((dim, idx) => {
+            if (dim?.value && dimensionNames[idx]) {
+              // Map sessionDefaultChannelGroup to 'channel' for consistency
+              const key = idx === 3 ? 'channel' : dimensionNames[idx]
+              dimensions[key] = dim.value
+            }
+          })
+        }
+
+        // Event params would need BigQuery export for accurate detection
+        // For now, we'll infer from event schemas if available
+        const eventParams: Record<string, unknown> = {}
+
+        return {
+          project_id: projectId,
+          source: 'ga4',
+          date,
+          event_name: eventName,
+          event_count: parseInt(row.metricValues![0].value || '0'),
+          unique_users: parseInt(row.metricValues![1].value || '0'),
+          events_per_user: parseFloat(row.metricValues![2].value || '0'),
+          dimensions,
+          event_params: eventParams,
+        }
+      })
 
       await supabase
         .from('mart_events')
@@ -584,17 +636,41 @@ export async function refreshEventDataAsync(
     )
 
     if (eventsData.rows) {
-      const eventRows = eventsData.rows.map(row => ({
-        project_id: projectId,
-        source: 'ga4',
-        date: formatGA4Date(row.dimensionValues![0].value!),
-        event_name: row.dimensionValues![1].value || 'unknown',
-        event_count: parseInt(row.metricValues![0].value || '0'),
-        unique_users: parseInt(row.metricValues![1].value || '0'),
-        events_per_user: parseFloat(row.metricValues![2].value || '0'),
-        dimensions: {},
-        event_params: {},
-      }))
+      const eventRows = eventsData.rows.map(row => {
+        const dimensionValues = row.dimensionValues || []
+        const date = formatGA4Date(dimensionValues[0]?.value || '')
+        const eventName = dimensionValues[1]?.value || 'unknown'
+
+        // Build dimensions object from available dimension values
+        // Dimensions order depends on includeDimensions flag:
+        // If true: date, eventName, country, city, deviceCategory, platform, channel
+        // If false: date, eventName
+        const dimensions: Record<string, string> = {}
+        if (dimensionValues.length > 2) {
+          // Map dimensions based on actual structure from getGA4EventData
+          const dimensionNames = ['country', 'city', 'deviceCategory', 'platform', 'channel']
+          dimensionValues.slice(2).forEach((dim, idx) => {
+            if (dim?.value && dimensionNames[idx]) {
+              dimensions[dimensionNames[idx]] = dim.value
+            }
+          })
+        }
+
+        // Event params would need BigQuery export for accurate detection
+        const eventParams: Record<string, unknown> = {}
+
+        return {
+          project_id: projectId,
+          source: 'ga4',
+          date,
+          event_name: eventName,
+          event_count: parseInt(row.metricValues![0].value || '0'),
+          unique_users: parseInt(row.metricValues![1].value || '0'),
+          events_per_user: parseFloat(row.metricValues![2].value || '0'),
+          dimensions,
+          event_params: eventParams,
+        }
+      })
 
       await supabase
         .from('mart_events')

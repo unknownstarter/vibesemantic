@@ -47,6 +47,7 @@ class MartSummary(TypedDict, total=False):
     integratedTrend: Optional[list[dict]]
     dataSources: dict
     metricDefinitions: Optional[list[dict]]
+    statisticalAnalysis: Optional[dict]
 
 # Analysis State
 class AnalysisState(TypedDict, total=False):

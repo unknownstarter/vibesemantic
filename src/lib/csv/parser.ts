@@ -18,29 +18,45 @@ export interface CsvMetadata {
 }
 
 /**
+ * Check if a line is a comment line (starts with #)
+ */
+function isCommentLine(line: string): boolean {
+  const trimmed = line.trim()
+  return trimmed.startsWith('#')
+}
+
+/**
  * Check if a line is a separator line (all dashes, underscores, or similar)
  */
 function isSeparatorLine(line: string): boolean {
   const trimmed = line.trim()
   if (trimmed.length === 0) return true
   
-  // Check if line consists only of separators (dashes, underscores, equals, spaces)
-  const separatorPattern = /^[\s\-_=]+$/
+  // Check if line consists only of separators (dashes, underscores, equals, spaces, #)
+  const separatorPattern = /^[\s\-_=#]+$/
   return separatorPattern.test(trimmed)
 }
 
 /**
- * Find the actual header row (skip separator lines and empty lines)
+ * Find the actual header row (skip comment lines, separator lines, and empty lines)
  */
 function findHeaderRow(lines: string[]): number {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim()
     if (line.length === 0) continue
-    if (isSeparatorLine(line)) continue
+    if (isCommentLine(line)) continue // Skip comment lines
+    if (isSeparatorLine(line)) continue // Skip separator lines
     
     const parsed = parseCsvLine(line)
     // Header should have at least one non-empty column
-    if (parsed.length > 0 && parsed.some(col => col.trim().length > 0)) {
+    // Also check that it doesn't look like a comment (all columns starting with #)
+    const hasValidColumns = parsed.length > 0 && 
+      parsed.some(col => {
+        const trimmedCol = col.trim()
+        return trimmedCol.length > 0 && !trimmedCol.startsWith('#')
+      })
+    
+    if (hasValidColumns) {
       return i
     }
   }
@@ -69,10 +85,11 @@ export function parseCsvFull(content: string): CsvParseResult {
 
   const rows: string[][] = []
   
-  // Process data rows (skip header and any separator lines)
+  // Process data rows (skip header, comment lines, and separator lines)
   for (let i = headerRowIndex + 1; i < lines.length; i++) {
     const line = lines[i].trim()
     if (line.length === 0) continue
+    if (isCommentLine(line)) continue // Skip comment lines
     if (isSeparatorLine(line)) continue // Skip separator lines
     
     const row = parseCsvLine(line)
@@ -111,12 +128,13 @@ export function parseCsvMetadata(content: string, sampleSize = 20): CsvMetadata 
 
   const sampleRows: string[][] = []
   
-  // Only parse sample rows for metadata (skip separator lines)
+  // Only parse sample rows for metadata (skip comment lines and separator lines)
   const dataLineCount = lines.length - headerRowIndex - 1
   let parsedCount = 0
   for (let i = headerRowIndex + 1; i < lines.length && parsedCount < sampleSize; i++) {
     const line = lines[i].trim()
     if (line.length === 0) continue
+    if (isCommentLine(line)) continue // Skip comment lines
     if (isSeparatorLine(line)) continue // Skip separator lines
     
     const row = parseCsvLine(line)

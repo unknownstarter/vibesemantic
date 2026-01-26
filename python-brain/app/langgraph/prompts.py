@@ -98,6 +98,13 @@ def build_system_prompt(
 - 불확실한 내용은 "데이터로 확인 필요"라고 명시합니다
 - dataSources.integrated가 true이면 GA4와 CSV 데이터 통합 분석
 - metricDefinitions가 제공되면 해당 메트릭 정의를 우선적으로 활용
+- statisticalAnalysis가 제공되면 통계적 상관관계와 인과관계 힌트를 활용하여 더 깊이 있는 분석 제공
+
+## 통계 분석 활용 가이드
+- statisticalAnalysis.metric_correlations: 지표 간 상관관계 분석 결과
+- statisticalAnalysis.event_kpi_relationships: 이벤트와 KPI 간 관계 분석
+- statisticalAnalysis.causality_hints: 잠재적 인과관계 힌트 (실험적 검증 필요)
+- 상관관계는 인과관계를 의미하지 않으므로, 통계적 힌트를 제시할 때는 "상관관계가 발견되었으나 인과관계는 실험으로 검증 필요"라고 명시
 
 ## 언어 일관성
 - {'한국어' if language == 'ko' else 'English'}로만 응답"""
@@ -111,6 +118,12 @@ def build_system_prompt(
 
 #### Key Insights
 - 2~3개의 핵심 발견사항 (bullet point)
+- 통계적 분석 결과에서 발견된 주요 상관관계나 패턴 포함
+
+#### Statistical Findings
+- 지표 간 상관관계 요약 (statisticalAnalysis 활용)
+- 이벤트와 KPI 간 관계 분석 결과
+- 잠재적 인과관계 힌트 (실험적 검증 필요 명시)
 
 #### Critical Issues
 - 즉시 주의가 필요한 문제점 (있는 경우만)
@@ -120,6 +133,7 @@ def build_system_prompt(
 - **Impact**: 예상 효과
 - **Cost**: 필요 리소스/비용
 - **Duration**: 예상 소요 기간
+- 통계적 분석 결과를 바탕으로 한 액션 우선순위 제시
 
 #### Analyst Questions
 (질문만 간단히 작성 - Quick Reply는 시스템이 자동 생성)
@@ -230,16 +244,85 @@ def build_user_prompt(
         if mart_summary.get("dataSources", {}).get("integrated"):
             integrated_note = "특히 GA4와 CSV 데이터 간의 상관관계와 통합 인사이트에 주목하세요."
         
+        # 통계 분석 섹션 추가
+        statistical_section = ""
+        statistical_analysis = mart_summary.get("statisticalAnalysis")
+        if statistical_analysis:
+            stat_summary = statistical_analysis.get("summary", "")
+            metric_corrs = statistical_analysis.get("metric_correlations", [])
+            event_relationships = statistical_analysis.get("event_kpi_relationships", [])
+            causality_hints = statistical_analysis.get("causality_hints", [])
+            
+            if stat_summary or metric_corrs or event_relationships:
+                statistical_section = f"""
+## 통계적 분석 결과
+{stat_summary}
+
+"""
+                if metric_corrs:
+                    top_corrs = metric_corrs[:3]
+                    statistical_section += "### 주요 지표 상관관계\n"
+                    for corr in top_corrs:
+                        metric1 = corr.get("metric1", "")
+                        metric2 = corr.get("metric2", "")
+                        corr_data = corr.get("correlation", {})
+                        coefficient = corr_data.get("coefficient")
+                        if coefficient is None:
+                            continue
+                        strength = corr_data.get("strength", "")
+                        significant = corr_data.get("significant", False)
+                        statistical_section += f"- {metric1} ↔ {metric2}: {strength} 상관관계 (r={coefficient:.3f}, {'유의함' if significant else '유의하지 않음'})\n"
+                    statistical_section += "\n"
+                
+                if event_relationships:
+                    top_rels = event_relationships[:3]
+                    statistical_section += "### 이벤트-KPI 관계\n"
+                    for rel in top_rels:
+                        event_name = rel.get("event_name", "")
+                        kpi_metric = rel.get("kpi_metric", "")
+                        corr_data = rel.get("correlation", {})
+                        coefficient = corr_data.get("coefficient")
+                        if coefficient is None:
+                            continue
+                        strength = corr_data.get("strength", "")
+                        significant = corr_data.get("significant", False)
+                        statistical_section += f"- {event_name} ↔ {kpi_metric}: {strength} 상관관계 (r={coefficient:.3f}, {'유의함' if significant else '유의하지 않음'})\n"
+                    statistical_section += "\n"
+                
+                if causality_hints:
+                    statistical_section += "### 잠재적 인과관계 힌트\n"
+                    statistical_section += "⚠️ 주의: 상관관계는 인과관계를 의미하지 않습니다. 아래 힌트는 통계적 패턴이며, 실제 인과관계는 A/B 테스트나 실험으로 검증해야 합니다.\n\n"
+                    for hint in causality_hints[:3]:
+                        metric1 = hint.get("metric1", "")
+                        metric2 = hint.get("metric2", "")
+                        statistical_section += f"- {metric1} → {metric2} 가능성 (검증 필요)\n"
+                    statistical_section += "\n"
+        
         return f"""## 분석 데이터 ({start_date} ~ {end_date}, {days}일)
 {data_sources_desc}
 
 ```json
 {summary_json}
 ```
-
-위 데이터를 기반으로 종합 분석 리포트를 작성해주세요.
+{statistical_section}
+위 데이터와 통계적 분석 결과를 기반으로 종합 분석 리포트를 작성해주세요.
 {integrated_note}
+- 통계적 분석 결과를 활용하여 지표 간 관계, 이벤트의 영향 등을 깊이 있게 분석하세요.
+- 상관관계 발견 시 인과관계 여부를 명확히 구분하여 설명하세요.
 응답 포맷을 반드시 준수하세요."""
+    
+    # 통계 분석 섹션 추가 (채팅 모드)
+    statistical_section = ""
+    statistical_analysis = mart_summary.get("statisticalAnalysis")
+    if statistical_analysis:
+        stat_summary = statistical_analysis.get("summary", "")
+        if stat_summary and stat_summary != "No significant statistical patterns found":
+            statistical_section = f"""
+## 통계적 분석 결과 (참고용)
+{stat_summary}
+
+통계적 분석 결과를 활용하여 질문에 답변할 때 지표 간 관계나 이벤트의 영향을 고려하세요.
+"""
     
     return f"""## 분석 데이터 ({start_date} ~ {end_date})
 {data_sources_desc}
@@ -247,13 +330,15 @@ def build_user_prompt(
 ```json
 {summary_json}
 ```
-
+{statistical_section}
 ## 사용자 질문
 **"{user_message}"**
 
 ### 답변 작성 지시사항
 
 위 질문에 대해 **마크다운 형식**으로 답변하세요. 리포트처럼 보기 좋게 구조화하되, 질문에 대한 핵심 답변만 제공하세요.
+- 통계적 분석 결과(statisticalAnalysis)가 있으면 이를 활용하여 더 깊이 있는 분석을 제공하세요.
+- 상관관계나 인과관계를 언급할 때는 통계적 근거를 제시하세요.
 
 **답변 형식 예시:**
 

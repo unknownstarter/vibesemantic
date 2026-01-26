@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getAuthContext, canEdit } from '@/lib/supabase/auth-helpers'
 import { createAuditLog, AuditActions } from '@/lib/audit'
+import type { ProjectProfile } from '@/types/database'
 
 export async function POST(request: NextRequest) {
   const body = await request.json()
@@ -91,11 +92,50 @@ export async function POST(request: NextRequest) {
     llmPayloadSummary: { propertyId },
   })
 
-  // Property 선택 후 데이터 새로고침 및 첫 리포트 생성 (백그라운드, 비동기)
+  // Get project profile and workspace purposes for event schema detection
+  const { data: projectWithProfile } = await supabase
+    .from('projects')
+    .select('profile')
+    .eq('id', context.projectId)
+    .single()
+
+  const projectProfile = projectWithProfile?.profile as ProjectProfile | null
+
+  // Get workspace purposes to determine analysis context
+  const { data: workspaces } = await supabase
+    .from('workspaces')
+    .select('purpose')
+    .eq('project_id', context.projectId)
+    .eq('status', 'ready')
+
+  const workspacePurposes = workspaces?.map(w => w.purpose) || []
+  // Default to 'product' if no workspaces exist
+  const primaryPurpose = (workspacePurposes[0] as 'product' | 'marketing' | 'biz' | 'sales') || 'product'
+
+  // Property 선택 후 이벤트 스키마 감지 및 데이터 새로고침 (백그라운드, 비동기)
   if (wasProfileReady) {
     // 백그라운드에서 실행 (응답을 블로킹하지 않음)
     Promise.all([
+      // 1. 이벤트 스키마 감지 및 저장
+      import('@/lib/ga4/schema-detection').then(async ({ detectEventSchemas, saveEventSchemas }) => {
+        try {
+          console.log(`[PropertySelect] Detecting event schemas for property ${propertyId} with purpose: ${primaryPurpose}`)
+          const schemas = await detectEventSchemas(
+            context.projectId!,
+            propertyId,
+            primaryPurpose,
+            projectProfile || undefined
+          )
+          await saveEventSchemas(context.projectId!, propertyId, schemas)
+          console.log(`[PropertySelect] Saved ${schemas.length} event schemas`)
+        } catch (err) {
+          console.error('[PropertySelect] Event schema detection failed:', err)
+          // Don't block the flow if schema detection fails
+        }
+      }),
+      // 2. 데이터 새로고침
       import('@/lib/ga4/api').then(({ refreshMartData }) => refreshMartData(context.projectId!, '7d')),
+      // 3. 워크스페이스 조회
       supabase
         .from('workspaces')
         .select('id')
@@ -105,7 +145,7 @@ export async function POST(request: NextRequest) {
         .limit(1)
         .single(),
     ])
-      .then(async ([refreshResult, workspaceResult]) => {
+      .then(async ([, refreshResult, workspaceResult]) => {
         if (refreshResult.success && workspaceResult.data) {
           // 데이터 새로고침 성공 + 워크스페이스 존재 시 리포트 생성
           const { generateInitialReport } = await import('@/lib/api/workspaces')

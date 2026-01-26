@@ -59,11 +59,15 @@ export async function POST(
   const projectId = membership.projectId
 
   const body = await request.json()
-  const { name } = body
+  const { name, purpose } = body
 
   if (!name || typeof name !== 'string' || !name.trim()) {
     return NextResponse.json({ error: 'Dataset name is required' }, { status: 400 })
   }
+
+  // Validate purpose if provided
+  const validPurposes = ['product', 'marketing', 'biz', 'sales']
+  const datasetPurpose = purpose && validPurposes.includes(purpose) ? purpose : 'product'
 
   const supabase = createServiceClient()
 
@@ -72,6 +76,7 @@ export async function POST(
     .insert({
       project_id: projectId,
       name: name.trim(),
+      purpose: datasetPurpose,
       status: 'draft',
       created_by: auth.user!.id,
     })
