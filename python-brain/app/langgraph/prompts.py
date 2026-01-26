@@ -113,34 +113,33 @@ def build_system_prompt(
     if mode == "report":
         return f"""{base_context}
 
-## 응답 포맷 (리포트 모드 - 고정 포맷 필수)
-반드시 아래 섹션을 포함하세요:
+## 응답 포맷 (리포트 모드 - 자연스러운 문단 형식)
 
-#### Key Insights
-- 2~3개의 핵심 발견사항 (bullet point)
-- 통계적 분석 결과에서 발견된 주요 상관관계나 패턴 포함
+리포트는 **자연스러운 문단 형식**으로 작성하되, 다음 내용을 포함하세요:
 
-#### Statistical Findings
-- 지표 간 상관관계 요약 (statisticalAnalysis 활용)
-- 이벤트와 KPI 간 관계 분석 결과
-- 잠재적 인과관계 힌트 (실험적 검증 필요 명시)
+### 리포트 구조
+1. **요약**: 전체 기간의 핵심 지표 요약 (2-3문장, 자연스러운 문단)
+2. **주요 발견사항**: 중요한 인사이트 3-5개 (자연스러운 문단으로 설명)
+3. **상세 분석**: 
+   - KPI 트렌드 분석 (질문과 관련된 경우만)
+   - 채널별 성과 분석 (질문이 채널 관련인 경우만)
+   - 페이지별 성과 분석 (질문이 페이지 관련인 경우만)
+   - CSV 메트릭 분석 (질문이 CSV 관련인 경우만)
+   - 통합 인사이트 (GA4 + CSV, 둘 다 있고 관련된 경우만)
+4. **통계적 분석**: 상관관계, 인과관계 힌트 (있는 경우, 유의미한 결과만)
+5. **제안**: 실행 가능한 액션 아이템 3-5개
 
-#### Critical Issues
-- 즉시 주의가 필요한 문제점 (있는 경우만)
+### 작성 규칙
+- **자연스러운 문단 형식**으로 작성 (과도한 구조화 금지)
+- 마크다운 헤더(`##`)와 굵은 글씨(`**`) 활용
+- 구체적인 수치 인용 (예: "**총 세션 1,234회**", "**Organic Search 45%**")
+- 추세 설명 시 변화율 포함 (예: "지난주 대비 **15% 증가**")
+- **통계적 분석 결과가 있으면 반드시 포함** (상관관계, 인과관계 힌트)
+- 상관관계 발견 시 "상관관계가 발견되었으나 인과관계는 실험으로 검증 필요" 명시
+- **관련 없는 데이터는 절대 포함하지 마세요** (예: GA4 질문에 CSV 데이터 사용 금지)
+- 불필요한 JSON 구조나 메타 설명 금지
 
-#### Recommended Actions
-각 액션에 다음을 포함:
-- **Impact**: 예상 효과
-- **Cost**: 필요 리소스/비용
-- **Duration**: 예상 소요 기간
-- 통계적 분석 결과를 바탕으로 한 액션 우선순위 제시
-
-#### Analyst Questions
-(질문만 간단히 작성 - Quick Reply는 시스템이 자동 생성)
-1. [질문 1]?
-2. [질문 2]?
-
-### 질문 생성 규칙
+### Analyst Questions 생성
 - 질문은 반드시 "?" 로 끝나는 완전한 문장
 - 분석 컨텍스트(추세/채널/페이지) 인용 필수
 - Quick Reply, next_params 작성 금지 (시스템이 자동 생성)"""
@@ -298,18 +297,45 @@ def build_user_prompt(
                         statistical_section += f"- {metric1} → {metric2} 가능성 (검증 필요)\n"
                     statistical_section += "\n"
         
-        return f"""## 분석 데이터 ({start_date} ~ {end_date}, {days}일)
-{data_sources_desc}
-
-```json
-{summary_json}
-```
+        # 데이터 소스 요약 (간결하게)
+        data_sources_list = []
+        if mart_summary.get("dataSources", {}).get("ga4", {}).get("available"):
+            data_sources_list.append("GA4")
+        if mart_summary.get("dataSources", {}).get("csv", {}).get("available"):
+            data_sources_list.append("CSV")
+        data_sources_str = " + ".join(data_sources_list) if data_sources_list else "데이터 없음"
+        
+        # 통계 분석이 있고 유의미한 결과가 있을 때만 포함
+        statistical_instruction = ""
+        if statistical_section and statistical_section.strip():
+            statistical_instruction = f"""
 {statistical_section}
-위 데이터와 통계적 분석 결과를 기반으로 종합 분석 리포트를 작성해주세요.
-{integrated_note}
-- 통계적 분석 결과를 활용하여 지표 간 관계, 이벤트의 영향 등을 깊이 있게 분석하세요.
-- 상관관계 발견 시 인과관계 여부를 명확히 구분하여 설명하세요.
-응답 포맷을 반드시 준수하세요."""
+
+**통계 분석 활용:**
+- 위 통계적 분석 결과를 반드시 리포트에 포함하세요.
+- 상관관계 발견 시 "상관관계가 발견되었으나 인과관계는 실험으로 검증 필요"라고 명시하세요.
+- 통계적 근거를 제시하여 분석의 깊이를 더하세요.
+"""
+        
+        return f"""## 분석 데이터 ({start_date} ~ {end_date}, {days}일)
+데이터 소스: {data_sources_str}
+
+**중요**: 위 데이터 중 질문과 관련된 부분만 사용하세요. 관련 없는 데이터는 무시하세요.
+{statistical_instruction}
+위 데이터와 통계적 분석 결과를 기반으로 **자연스럽고 읽기 쉬운** 종합 분석 리포트를 작성해주세요.
+
+**작성 지침:**
+1. 자연스러운 문단 형식으로 작성 (과도한 구조화 금지)
+2. 중요한 수치는 `**굵은 글씨**`로 강조
+3. 데이터 소스는 자연스럽게 언급 (과도한 강조 금지)
+4. 관련 없는 데이터는 절대 포함하지 마세요
+5. 통계적 분석 결과가 있으면 반드시 활용하세요
+
+**응답 형식:**
+- 자연스러운 문단 형식
+- 섹션 구분은 `##` (h2) 사용
+- 중요한 수치는 `**굵은 글씨**` 사용
+- 불필요한 JSON 구조나 메타 설명 금지"""
     
     # 통계 분석 섹션 추가 (채팅 모드)
     statistical_section = ""
@@ -324,52 +350,134 @@ def build_user_prompt(
 통계적 분석 결과를 활용하여 질문에 답변할 때 지표 간 관계나 이벤트의 영향을 고려하세요.
 """
     
-    return f"""## 분석 데이터 ({start_date} ~ {end_date})
-{data_sources_desc}
-
-```json
-{summary_json}
-```
+    # 통계 분석이 있고 유의미한 결과가 있을 때만 포함
+    statistical_instruction = ""
+    if statistical_section and statistical_section.strip():
+        statistical_instruction = f"""
 {statistical_section}
+
+**통계 분석 활용:**
+- 위 통계적 분석 결과를 답변에 반드시 포함하세요.
+- 상관관계나 인과관계 언급 시 통계적 근거를 제시하세요.
+"""
+    
+    return f"""## 분석 데이터 ({start_date} ~ {end_date})
+데이터 소스: {data_sources_desc}
+
+**중요**: 위 데이터 중 질문과 직접 관련된 부분만 사용하세요. 관련 없는 데이터는 무시하세요.
+{statistical_instruction}
 ## 사용자 질문
 **"{user_message}"**
 
 ### 답변 작성 지시사항
 
-위 질문에 대해 **마크다운 형식**으로 답변하세요. 리포트처럼 보기 좋게 구조화하되, 질문에 대한 핵심 답변만 제공하세요.
-- 통계적 분석 결과(statisticalAnalysis)가 있으면 이를 활용하여 더 깊이 있는 분석을 제공하세요.
-- 상관관계나 인과관계를 언급할 때는 통계적 근거를 제시하세요.
+위 질문에 대해 **자연스럽고 읽기 쉬운** 마크다운 형식으로 답변하세요.
 
-**답변 형식 예시:**
+**핵심 규칙:**
+1. 질문과 관련된 데이터만 사용 (예: GA4 질문에는 CSV 데이터 사용 금지)
+2. 통계적 분석 결과가 있으면 반드시 활용
+3. 자연스러운 문단 형식으로 작성 (과도한 구조화 금지)
+4. 중요한 수치는 `**굵은 글씨**`로 강조
 
-```markdown
-#### 답변
-최근 기간(2026-01-18 ~ 2026-01-25) 동안 **신규 유입자는 0명**입니다. (GA4 데이터 기준)
+**답변 형식 (예시):**
 
-#### 주요 데이터
-- **총 세션**: 4회
-- **총 활성 사용자**: 3명
-- **신규 사용자**: 0명
-- 데이터 소스: GA4
+최근 기간 동안 **신규 유입자는 0명**입니다. 총 세션은 4회, 활성 사용자는 3명으로 기록되었습니다.
 
-#### 인사이트
-- 신규 사용자 유입이 없는 상태입니다. 기존 사용자만 재방문하고 있습니다.
-- 세션 수가 적어 테스트 단계로 보입니다.
+**주요 지표:**
+- 총 세션: **4회**
+- 활성 사용자: **3명**  
+- 신규 사용자: **0명**
 
-#### 제안
-- 채널별 유입 분석을 통해 신규 사용자 유입 경로를 확인해보세요.
-- 다른 기간과 비교하여 유입 패턴 변화를 확인해보세요.
-```
+신규 사용자 유입이 없는 상태로, 기존 사용자만 재방문하고 있습니다. 세션 수가 적어 서비스 초기 단계로 보입니다.
 
-**중요 규칙:**
-- "질문 이해", "관련 데이터 추출" 같은 메타 설명 금지
-- 번호 목록으로 구조를 설명하는 형태 금지 (예: "1. 질문 이해: ...")
-- 리포트 전체를 반복하지 말고, 질문에 대한 핵심 답변만 제공
-- 마크다운 헤더(`####`), 굵은 글씨(`**`), bullet point(`-`)를 활용하여 가독성 높게 작성
-- 구체적인 수치를 **굵은 글씨**로 강조"""
+**제안:**
+- 채널별 유입 분석을 통해 신규 사용자 유입 경로 확인
+- 다른 기간과 비교하여 유입 패턴 변화 분석
+
+**금지 사항:**
+- "질문 이해", "관련 데이터 추출" 같은 메타 설명
+- 번호 목록으로 구조 설명 (예: "1. 질문 이해: ...")
+- 관련 없는 데이터 나열
+- 과도한 구조화 (자연스러운 문단 선호)"""
+
+def filter_relevant_data_for_question(
+    mart_summary: MartSummary,
+    user_message: Optional[str]
+) -> Dict[str, Any]:
+    """
+    Filter mart_summary to include only data relevant to the question
+    
+    Args:
+        mart_summary: Full mart summary
+        user_message: User's question
+        
+    Returns:
+        Filtered summary with only relevant data
+    """
+    if not user_message:
+        return mart_summary
+    
+    user_lower = user_message.lower()
+    filtered = {}
+    
+    # Check if question mentions CSV-related terms
+    csv_keywords = ["csv", "매출", "revenue", "수익", "profit", "주문", "order", "구매", "purchase", "외부"]
+    mentions_csv = any(kw in user_lower for kw in csv_keywords)
+    
+    # Check if question mentions GA4-related terms
+    ga4_keywords = ["ga4", "analytics", "세션", "session", "유입", "acquisition", "채널", "channel"]
+    mentions_ga4 = any(kw in user_lower for kw in ga4_keywords)
+    
+    # If question mentions CSV but not GA4, exclude GA4 data
+    if mentions_csv and not mentions_ga4:
+        # Keep only CSV-related data
+        filtered = {
+            "period": mart_summary.get("period"),
+            "csvMetrics": mart_summary.get("csvMetrics"),
+            "dataSources": {
+                "csv": mart_summary.get("dataSources", {}).get("csv", {}),
+                "ga4": {"available": False},
+                "integrated": False,
+            },
+            "statisticalAnalysis": mart_summary.get("statisticalAnalysis"),
+        }
+    # If question mentions GA4 but not CSV, exclude CSV data
+    elif mentions_ga4 and not mentions_csv:
+        # Keep only GA4-related data
+        filtered = {
+            "period": mart_summary.get("period"),
+            "kpis": mart_summary.get("kpis"),
+            "topChannels": mart_summary.get("topChannels"),
+            "topPages": mart_summary.get("topPages"),
+            "dailyTrend": mart_summary.get("dailyTrend"),
+            "dataSources": {
+                "ga4": mart_summary.get("dataSources", {}).get("ga4", {}),
+                "csv": {"available": False},
+                "integrated": False,
+            },
+            "statisticalAnalysis": mart_summary.get("statisticalAnalysis"),
+        }
+    else:
+        # Keep all data (question mentions both or neither)
+        filtered = mart_summary
+    
+    return filtered
+
 
 def get_data_sources_description(mart_summary: MartSummary) -> str:
-    """데이터 소스 설명 생성"""
+    """데이터 소스 설명 생성 (간결하게)"""
+    data_sources = mart_summary.get("dataSources", {})
+    sources = []
+    
+    if data_sources.get("ga4", {}).get("available"):
+        sources.append("GA4")
+    if data_sources.get("csv", {}).get("available"):
+        sources.append("CSV")
+    
+    if not sources:
+        return "데이터 소스: 없음"
+    
+    return f"데이터 소스: {' + '.join(sources)}"
     ds = mart_summary.get("dataSources")
     if not ds:
         return ""

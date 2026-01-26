@@ -165,9 +165,14 @@ Based on the analysis above${projectProfile ? ' and the project context' : ''}, 
 2. **METRIC columns** (numeric measures to analyze):
    - Include: 📊 NUMBER, 💰 CURRENCY, 📈 PERCENTAGE types
    - These are KPIs like revenue, users, sessions, eCPM, ARPDAU, retention rate, etc.
+   - **CRITICAL**: Event-related metrics MUST be included:
+     * 이벤트 수, event count, event_count, events → metric (sum)
+     * 총 사용자, total users, active users, 활성 사용자, 사용자 수 → metric (sum)
+     * 활성 사용자당 이벤트 수, events per user, events per active user → metric (avg)
+     * 총수익, total revenue, revenue, 수익, 매출 → metric (sum)
    - Exclude: 🔑 ID type columns
-   - For metrics with names containing "rate", "ratio", "%", "avg" → use aggregation: "avg"
-   - For counts, sums, totals → use aggregation: "sum"
+   - For metrics with names containing "rate", "ratio", "%", "avg", "당", "per" → use aggregation: "avg"
+   - For counts, sums, totals, "수", "총" → use aggregation: "sum"
 ${projectProfile ? '   - PRIORITIZE columns that match the recommended KPIs for this industry\n' : ''}
 3. **DIMENSION columns** (categorical for grouping):
    - Include: 📝 TEXT type with reasonable uniqueness (< 90%)
@@ -207,9 +212,13 @@ IMPORTANT RULES:
 
 METRIC IDENTIFICATION TIPS:
 - KPI names: eCPM, ARPDAU, ARPU, LTV, DAU, MAU, retention, conversion, CTR, CPC, CPM, etc.
-- Financial: revenue, cost, spend, profit, ROAS, etc.
+- Financial: revenue, cost, spend, profit, ROAS, 수익, 매출, 비용, etc.
 - Engagement: sessions, pageviews, time_spent, bounce_rate, etc.
+- Event metrics: 이벤트 수, event count, event_count, events, etc.
+- User metrics: 총 사용자, total users, active users, 활성 사용자, 사용자 수, etc.
+- Calculated metrics: 활성 사용자당 이벤트 수, events per user, rate, ratio, avg, etc.
 - Any percentage or rate is likely a metric
+- **CRITICAL**: If a column name contains numbers, counts, totals, or rates in Korean or English, it's almost certainly a metric
 
 DIMENSION IDENTIFICATION TIPS:
 - Segmentation: user_type, segment, cohort, tier, etc.
@@ -353,13 +362,15 @@ export async function probeSchema(
       }
     })
     
-    if (invalidColumns.length > 0) {
-      console.error(`[Probe] Invalid column names from LLM: ${invalidColumns.join(', ')}`)
-      console.error(`[Probe] Available headers: ${headers.join(', ')}`)
-      throw new Error(
-        `LLM returned invalid column names that don't match CSV headers: ${invalidColumns.join(', ')}. ` +
-        `Available headers: ${headers.join(', ')}`
-      )
+    // Validate LLM output: ensure all column names match exactly
+    const allHeadersSet = new Set(headers)
+    const invalidMetrics = (result.metricColumns || []).filter(m => !allHeadersSet.has(m.name))
+    const invalidDimensions = (result.dimensionColumns || []).filter(d => !allHeadersSet.has(d.name))
+    
+    if (invalidMetrics.length > 0 || invalidDimensions.length > 0) {
+      console.error(`[Probe] LLM column name mismatch:\n${invalidMetrics.map(m => `Metric: "${m.name}"`).join(', ')}\n${invalidDimensions.map(d => `Dimension: "${d.name}"`).join(', ')}\n\nActual headers: ${headers.join(', ')}`)
+      // Don't throw error - fallback to auto-detection instead
+      console.log('[Probe] Falling back to auto-detection for all columns')
     }
     
     console.log('[Probe] === LLM RESULT ===')
@@ -386,13 +397,27 @@ export async function probeSchema(
           return
         }
         
-        const isRate = /rate|ratio|avg|percentage|%|retention|conversion|ctr|cpc/i.test(header)
+        // Enhanced detection for Korean and English metric names
+        const headerLower = header.toLowerCase()
+        const isRate = /rate|ratio|avg|percentage|%|retention|conversion|ctr|cpc|당|per/i.test(header) ||
+          header.includes('당') || header.includes('per')
+        const isCount = /count|수|총|total|sum/i.test(header) ||
+          header.includes('수') || header.includes('총')
+        const isRevenue = /revenue|수익|매출|profit|이익/i.test(header)
+        const isEventMetric = /event|이벤트/i.test(header) && (isCount || isRate)
+        const isUserMetric = /user|사용자/i.test(header) && (isCount || isRate)
+        
+        // Determine aggregation: rate/ratio metrics use avg, counts use sum
+        const aggregation = (isRate || analysis.type === 'percentage' || header.includes('당')) 
+          ? 'avg' as const 
+          : 'sum' as const
+        
         autoDetectedMetrics.push({
           name: header,
           displayName: header,
-          type: (analysis.type === 'currency' ? 'currency' : 
+          type: (isRevenue || analysis.type === 'currency' ? 'currency' : 
                  analysis.type === 'percentage' ? 'percentage' : 'number') as 'number' | 'currency' | 'percentage',
-          aggregation: (isRate || analysis.type === 'percentage' ? 'avg' : 'sum') as 'sum' | 'avg',
+          aggregation,
         })
       }
     })
@@ -402,7 +427,28 @@ export async function probeSchema(
       console.log(`[Probe] Auto-detected ${autoDetectedMetrics.length} additional metric columns: ${autoDetectedMetrics.map(m => m.name).join(', ')}`)
     }
     
-    const allMetricColumns = [...(result.metricColumns || []), ...autoDetectedMetrics]
+    // If LLM returned invalid column names, use auto-detection only
+    const useAutoDetectionOnly = invalidMetrics.length > 0 || invalidDimensions.length > 0
+    
+    const allMetricColumns = useAutoDetectionOnly 
+      ? autoDetectedMetrics 
+      : [...(result.metricColumns || []), ...autoDetectedMetrics]
+    
+    // For dimensions, if LLM failed, use auto-detection
+    const allDimensionColumns = useAutoDetectionOnly
+      ? headers
+          .filter(h => {
+            if (allMetricColumns.some(m => m.name === h)) return false
+            if (h === result.dateColumn) return false
+            const analysis = columnAnalysis[h]
+            return analysis && analysis.type === 'string' && (analysis.stats?.uniqueRatio || 0) < 0.9
+          })
+          .map(h => ({
+            name: h,
+            displayName: h,
+            type: 'string' as const,
+          }))
+      : [...(result.dimensionColumns || []),]
     
     // aggregationRules 업데이트 (자동 감지된 metric 포함)
     const allAggregationRules = { ...(result.aggregationRules || {}) }
@@ -414,7 +460,7 @@ export async function probeSchema(
     return {
       dateColumn: result.dateColumn || null,
       metricColumns: allMetricColumns,
-      dimensionColumns: result.dimensionColumns || [],
+      dimensionColumns: allDimensionColumns,
       aggregationRules: allAggregationRules,
       llmQuestions: result.llmQuestions || [],
     }

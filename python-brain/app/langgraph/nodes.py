@@ -35,8 +35,10 @@ def guard_and_route(state: AnalysisState) -> Dict[str, Any]:
 
 # Load Context and Mart Summary
 def load_context_and_mart_summary(state: AnalysisState) -> Dict[str, Any]:
-    """컨텍스트 및 Mart 요약 로드"""
+    """컨텍스트 및 Mart 요약 로드 (질문 의도 기반 데이터 소스 선택)"""
     try:
+        from app.langgraph.data_source_selector import analyze_question_intent, should_include_csv_data
+        
         supabase = get_supabase_client()
         data_accessed = []
         
@@ -48,11 +50,21 @@ def load_context_and_mart_summary(state: AnalysisState) -> Dict[str, Any]:
         start_str = start_date.strftime("%Y-%m-%d")
         end_str = end_date.strftime("%Y-%m-%d")
         
-        # 최적화: 5개 쿼리를 병렬 처리로 동시 실행
-        # Supabase Python 클라이언트는 동기적이므로 ThreadPoolExecutor 사용
+        # 질문 의도 분석하여 필요한 데이터만 로드
+        question_intent = analyze_question_intent(
+            state.get("userMessage"),
+            state.get("mode", "report"),
+            state.get("workspacePurpose", "product")
+        )
+        
+        logger.info(f"[LoadContext] Question intent: {question_intent}")
+        
+        # 최적화: 필요한 쿼리만 병렬 실행
         from concurrent.futures import ThreadPoolExecutor
         
         def fetch_ga4_metrics():
+            if not question_intent.get("need_ga4", True):
+                return []
             result = supabase.table("mart_ga4_metrics") \
                 .select("*") \
                 .eq("project_id", state["projectId"]) \
@@ -63,6 +75,8 @@ def load_context_and_mart_summary(state: AnalysisState) -> Dict[str, Any]:
             return result.data or []
         
         def fetch_kpis():
+            if not question_intent.get("need_ga4", True):
+                return []
             result = supabase.table("mart_ga4_daily_kpis") \
                 .select("*") \
                 .eq("project_id", state["projectId"]) \
@@ -73,6 +87,8 @@ def load_context_and_mart_summary(state: AnalysisState) -> Dict[str, Any]:
             return result.data or []
         
         def fetch_channels():
+            if not question_intent.get("need_channels", False):
+                return []
             result = supabase.table("mart_ga4_channel_daily") \
                 .select("*") \
                 .eq("project_id", state["projectId"]) \
@@ -82,6 +98,8 @@ def load_context_and_mart_summary(state: AnalysisState) -> Dict[str, Any]:
             return result.data or []
         
         def fetch_pages():
+            if not question_intent.get("need_pages", False):
+                return []
             result = supabase.table("mart_ga4_top_pages_daily") \
                 .select("*") \
                 .eq("project_id", state["projectId"]) \
@@ -93,6 +111,9 @@ def load_context_and_mart_summary(state: AnalysisState) -> Dict[str, Any]:
             return result.data or []
         
         def fetch_csv_metrics():
+            # CSV 데이터는 질문 의도와 실제 데이터 존재 여부를 모두 확인
+            if not question_intent.get("need_csv", False):
+                return []
             result = supabase.table("mart_csv_daily_metrics") \
                 .select("*") \
                 .eq("project_id", state["projectId"]) \
@@ -100,9 +121,16 @@ def load_context_and_mart_summary(state: AnalysisState) -> Dict[str, Any]:
                 .lte("date", end_str) \
                 .order("date") \
                 .execute()
-            return result.data or []
+            csv_data = result.data or []
+            # 질문 의도 재확인
+            if not should_include_csv_data(csv_data, question_intent, state.get("userMessage")):
+                logger.info("[LoadContext] CSV data excluded based on question intent")
+                return []
+            return csv_data
         
         def fetch_events():
+            if not question_intent.get("need_events", False):
+                return []
             result = supabase.table("mart_events") \
                 .select("*") \
                 .eq("project_id", state["projectId"]) \
@@ -113,26 +141,57 @@ def load_context_and_mart_summary(state: AnalysisState) -> Dict[str, Any]:
                 .execute()
             return result.data or []
         
-        # 병렬 실행
-        with ThreadPoolExecutor(max_workers=6) as executor:
-            futures = [
-                executor.submit(fetch_ga4_metrics),
-                executor.submit(fetch_kpis),
-                executor.submit(fetch_channels),
-                executor.submit(fetch_pages),
-                executor.submit(fetch_csv_metrics),
-                executor.submit(fetch_events)
-            ]
-            ga4_metrics, kpis, channels, pages, csv_metrics, events = [f.result() for f in futures]
+        # 필요한 쿼리만 실행
+        futures_to_run = []
+        future_names = []
         
-        data_accessed.extend([
-            "mart_ga4_metrics",
-            "mart_ga4_daily_kpis",
-            "mart_ga4_channel_daily",
-            "mart_ga4_top_pages_daily",
-            "mart_csv_daily_metrics",
-            "mart_events"
-        ])
+        if question_intent.get("need_ga4", True):
+            futures_to_run.append(fetch_ga4_metrics)
+            future_names.append("ga4_metrics")
+            futures_to_run.append(fetch_kpis)
+            future_names.append("kpis")
+        
+        if question_intent.get("need_channels", False):
+            futures_to_run.append(fetch_channels)
+            future_names.append("channels")
+        
+        if question_intent.get("need_pages", False):
+            futures_to_run.append(fetch_pages)
+            future_names.append("pages")
+        
+        if question_intent.get("need_csv", False):
+            futures_to_run.append(fetch_csv_metrics)
+            future_names.append("csv_metrics")
+        
+        if question_intent.get("need_events", False):
+            futures_to_run.append(fetch_events)
+            future_names.append("events")
+        
+        # 병렬 실행
+        max_workers = max(len(futures_to_run), 1)
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            results = [executor.submit(fn).result() for fn in futures_to_run]
+        
+        # 결과 매핑
+        result_map = dict(zip(future_names, results))
+        ga4_metrics = result_map.get("ga4_metrics", [])
+        kpis = result_map.get("kpis", [])
+        channels = result_map.get("channels", [])
+        pages = result_map.get("pages", [])
+        csv_metrics = result_map.get("csv_metrics", [])
+        events = result_map.get("events", [])
+        
+        # Only log accessed data sources
+        if question_intent.get("need_ga4", True):
+            data_accessed.extend(["mart_ga4_metrics", "mart_ga4_daily_kpis"])
+        if question_intent.get("need_channels", False):
+            data_accessed.append("mart_ga4_channel_daily")
+        if question_intent.get("need_pages", False):
+            data_accessed.append("mart_ga4_top_pages_daily")
+        if csv_metrics:  # Only if actually loaded
+            data_accessed.append("mart_csv_daily_metrics")
+        if question_intent.get("need_events", False):
+            data_accessed.append("mart_events")
         
         # GA4 Metrics 집계 (새 유연한 테이블 우선)
         ga4_global_metrics = [
@@ -375,26 +434,44 @@ def load_context_and_mart_summary(state: AnalysisState) -> Dict[str, Any]:
         except Exception:
             pass
         
-        # Statistical Analysis
+        # Statistical Analysis (only if we have sufficient data)
         statistical_analysis = None
-        try:
-            from app.langgraph.statistical_analysis import perform_statistical_analysis
-            
-            statistical_analysis = perform_statistical_analysis(
-                kpis_data=kpis,
-                events_data=events,
-                daily_trends=daily_trend,
-                channels_data=channels
-            )
-        except Exception as e:
-            # 통계 분석 실패해도 리포트 생성은 계속
-            print(f"[Statistical Analysis] Error: {str(e)}")
-            statistical_analysis = {
-                "metric_correlations": [],
-                "event_kpi_relationships": [],
-                "causality_hints": [],
-                "summary": "Statistical analysis unavailable"
-            }
+        if len(kpis) >= 7 or len(events) > 0:  # Need at least 7 days for meaningful analysis
+            try:
+                from app.langgraph.statistical_analysis import perform_statistical_analysis
+                
+                # Only include data that was actually loaded
+                statistical_analysis = perform_statistical_analysis(
+                    kpis_data=kpis if question_intent.get("need_ga4", True) else [],
+                    events_data=events if question_intent.get("need_events", False) else [],
+                    daily_trends=daily_trend if question_intent.get("need_ga4", True) else [],
+                    channels_data=channels if question_intent.get("need_channels", False) else None
+                )
+                
+                # Filter out None coefficients and ensure valid results
+                if statistical_analysis:
+                    metric_corrs = statistical_analysis.get("metric_correlations", [])
+                    if metric_corrs:
+                        statistical_analysis["metric_correlations"] = [
+                            c for c in metric_corrs 
+                            if c.get("correlation", {}).get("coefficient") is not None
+                        ]
+                    
+                    event_rels = statistical_analysis.get("event_kpi_relationships", [])
+                    if event_rels:
+                        statistical_analysis["event_kpi_relationships"] = [
+                            r for r in event_rels
+                            if r.get("correlation", {}).get("coefficient") is not None
+                        ]
+            except Exception as e:
+                # 통계 분석 실패해도 리포트 생성은 계속
+                logger.warning(f"[Statistical Analysis] Error: {str(e)}")
+                statistical_analysis = {
+                    "metric_correlations": [],
+                    "event_kpi_relationships": [],
+                    "causality_hints": [],
+                    "summary": "Statistical analysis unavailable"
+                }
         
         mart_summary: MartSummary = {
             "period": {
@@ -410,11 +487,11 @@ def load_context_and_mart_summary(state: AnalysisState) -> Dict[str, Any]:
                 "avgBounceRate": round(avg_bounce_rate * 10000) / 100,
                 "avgSessionDuration": round(avg_session_duration)
             },
-            "topChannels": top_channels,
-            "topPages": top_pages,
-            "dailyTrend": daily_trend,
+            "topChannels": top_channels if question_intent.get("need_channels", False) else [],
+            "topPages": top_pages if question_intent.get("need_pages", False) else [],
+            "dailyTrend": daily_trend if question_intent.get("need_ga4", True) else [],
             "csvMetrics": csv_metrics_summary if csv_metrics_summary else None,
-            "integratedTrend": integrated_trend,
+            "integratedTrend": integrated_trend if (has_ga4_data and has_csv_data) else None,
             "dataSources": data_sources,
             "metricDefinitions": metric_definitions,
             "statisticalAnalysis": statistical_analysis

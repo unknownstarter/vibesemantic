@@ -39,6 +39,7 @@ function isSeparatorLine(line: string): boolean {
 
 /**
  * Find the actual header row (skip comment lines, separator lines, and empty lines)
+ * Improved logic: Headers should have multiple columns and look like column names (not data)
  */
 function findHeaderRow(lines: string[]): number {
   for (let i = 0; i < lines.length; i++) {
@@ -48,17 +49,35 @@ function findHeaderRow(lines: string[]): number {
     if (isSeparatorLine(line)) continue // Skip separator lines
     
     const parsed = parseCsvLine(line)
-    // Header should have at least one non-empty column
-    // Also check that it doesn't look like a comment (all columns starting with #)
-    const hasValidColumns = parsed.length > 0 && 
-      parsed.some(col => {
-        const trimmedCol = col.trim()
-        return trimmedCol.length > 0 && !trimmedCol.startsWith('#')
-      })
+    // Header should have at least 2 columns (single column is likely metadata, not header)
+    if (parsed.length < 2) continue
     
-    if (hasValidColumns) {
-      return i
+    // Filter out empty columns
+    const validColumns = parsed.filter(col => {
+      const trimmedCol = col.trim()
+      return trimmedCol.length > 0 && !trimmedCol.startsWith('#')
+    })
+    
+    // Header should have at least 2 valid columns
+    if (validColumns.length < 2) continue
+    
+    // Check if this looks like a header (not data):
+    // - Headers usually don't start with numbers
+    // - Headers usually have text-based column names
+    // - If most columns are numeric-only, it's likely data, not header
+    const numericColumns = validColumns.filter(col => {
+      const trimmed = col.trim()
+      // Check if column is purely numeric (with possible decimal point)
+      return /^[\d.,\s-]+$/.test(trimmed) && trimmed.length > 0
+    })
+    
+    // If more than 50% of columns are purely numeric, it's likely data, not header
+    if (numericColumns.length > validColumns.length * 0.5) {
+      continue
     }
+    
+    // This looks like a header row
+    return i
   }
   return 0 // Fallback to first line
 }
