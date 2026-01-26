@@ -36,7 +36,7 @@ export async function GET(
     .eq('is_selected', true)
     .single()
 
-  // CSV 데이터셋 상태 조회
+  // CSV 데이터셋 상태 조회 (모든 상태 조회하되, ingested만 카운트)
   const { data: csvDatasets } = await supabase
     .from('csv_datasets')
     .select('id, name, status')

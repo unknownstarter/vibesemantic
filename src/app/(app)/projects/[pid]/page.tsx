@@ -202,7 +202,7 @@ function ProjectOverviewContent() {
               }}
               csv={{
                 connected: csv?.ready || false,
-                datasetCount: csv?.datasets.length || 0,
+                datasetCount: csv?.datasets?.filter(d => d.status === 'ingested').length || 0,
                 datasets: csv?.datasets || [],
               }}
               projectSlug={slug}
@@ -247,7 +247,7 @@ function ProjectOverviewContent() {
                         projectSlug={slug}
                         ga4Connected={ga4.connected}
                         csvConnected={csv?.ready || false}
-                        csvDatasetCount={csv?.datasets.length || 0}
+                        csvDatasetCount={csv?.datasets.filter(d => d.status === 'ingested').length || 0}
                         onClick={() => {
                           if (workspace.status === 'ready') {
                             const params = new URLSearchParams(searchParams.toString())

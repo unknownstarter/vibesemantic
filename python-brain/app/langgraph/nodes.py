@@ -434,18 +434,26 @@ def load_context_and_mart_summary(state: AnalysisState) -> Dict[str, Any]:
         except Exception:
             pass
         
-        # Statistical Analysis (only if we have sufficient data)
+        # Statistical Analysis (only if we have sufficient data and in report mode)
+        # Skip for chat mode to improve performance
         statistical_analysis = None
-        if len(kpis) >= 7 or len(events) > 0:  # Need at least 7 days for meaningful analysis
+        mode = state.get("mode", "report")
+        if mode == "report" and (len(kpis) >= 7 or len(events) > 0):  # Need at least 7 days for meaningful analysis
             try:
                 from app.langgraph.statistical_analysis import perform_statistical_analysis
                 
                 # Only include data that was actually loaded
+                # Limit data size for faster analysis
+                kpis_for_analysis = kpis if question_intent.get("need_ga4", True) else []
+                events_for_analysis = events[:100] if question_intent.get("need_events", False) else []  # Limit to 100 events
+                daily_trends_for_analysis = daily_trend if question_intent.get("need_ga4", True) else []
+                channels_for_analysis = channels[:50] if question_intent.get("need_channels", False) else None  # Limit to 50 channels
+                
                 statistical_analysis = perform_statistical_analysis(
-                    kpis_data=kpis if question_intent.get("need_ga4", True) else [],
-                    events_data=events if question_intent.get("need_events", False) else [],
-                    daily_trends=daily_trend if question_intent.get("need_ga4", True) else [],
-                    channels_data=channels if question_intent.get("need_channels", False) else None
+                    kpis_data=kpis_for_analysis,
+                    events_data=events_for_analysis,
+                    daily_trends=daily_trends_for_analysis,
+                    channels_data=channels_for_analysis
                 )
                 
                 # Filter out None coefficients and ensure valid results
@@ -455,14 +463,14 @@ def load_context_and_mart_summary(state: AnalysisState) -> Dict[str, Any]:
                         statistical_analysis["metric_correlations"] = [
                             c for c in metric_corrs 
                             if c.get("correlation", {}).get("coefficient") is not None
-                        ]
+                        ][:5]  # Limit to top 5 correlations
                     
                     event_rels = statistical_analysis.get("event_kpi_relationships", [])
                     if event_rels:
                         statistical_analysis["event_kpi_relationships"] = [
                             r for r in event_rels
                             if r.get("correlation", {}).get("coefficient") is not None
-                        ]
+                        ][:5]  # Limit to top 5 relationships
             except Exception as e:
                 # 통계 분석 실패해도 리포트 생성은 계속
                 logger.warning(f"[Statistical Analysis] Error: {str(e)}")

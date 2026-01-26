@@ -39,8 +39,9 @@ export function DataSourceStatus({ ga4, csv, projectSlug }: DataSourceStatusProp
         description="커스텀 데이터 업로드 및 분석"
         csv={{
           connected: csv?.connected || false,
-          datasetCount: csv?.datasets?.length || 0,
-          datasetName: csv?.datasets && csv.datasets.length > 0 ? csv.datasets[0].name : undefined,
+          datasetCount: csv?.datasets?.filter(d => d.status === 'ingested').length || 0,
+          datasetName: csv?.datasets?.find(d => d.status === 'ingested')?.name || 
+                      (csv?.datasets && csv.datasets.length > 0 ? csv.datasets[0].name : undefined),
         }}
         href={`/projects/${projectSlug}/setup/sources`}
         actionLabel={csv?.connected ? '관리' : '업로드하기'}

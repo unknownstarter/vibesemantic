@@ -170,6 +170,7 @@ Based on the analysis above${projectProfile ? ' and the project context' : ''}, 
      * 총 사용자, total users, active users, 활성 사용자, 사용자 수 → metric (sum)
      * 활성 사용자당 이벤트 수, events per user, events per active user → metric (avg)
      * 총수익, total revenue, revenue, 수익, 매출 → metric (sum)
+   - **CRITICAL**: "이벤트 이름" (event name) is a DIMENSION, not a metric - it's a categorical identifier
    - Exclude: 🔑 ID type columns
    - For metrics with names containing "rate", "ratio", "%", "avg", "당", "per" → use aggregation: "avg"
    - For counts, sums, totals, "수", "총" → use aggregation: "sum"
@@ -177,6 +178,7 @@ ${projectProfile ? '   - PRIORITIZE columns that match the recommended KPIs for 
 3. **DIMENSION columns** (categorical for grouping):
    - Include: 📝 TEXT type with reasonable uniqueness (< 90%)
    - Examples: country, channel, segment, category, platform
+   - **CRITICAL**: "이벤트 이름" (event name), "event name", "event_name" → dimension (categorical identifier)
    - Exclude: High-uniqueness text (likely descriptions or IDs)
 
 CRITICAL:
@@ -404,11 +406,15 @@ export async function probeSchema(
         const isCount = /count|수|총|total|sum/i.test(header) ||
           header.includes('수') || header.includes('총')
         const isRevenue = /revenue|수익|매출|profit|이익/i.test(header)
-        const isEventMetric = /event|이벤트/i.test(header) && (isCount || isRate)
-        const isUserMetric = /user|사용자/i.test(header) && (isCount || isRate)
+        // Explicitly detect event metrics: "이벤트 수", "events per user", etc.
+        const isEventMetric = /이벤트.*수|event.*count|event_count|events/i.test(header)
+        // Explicitly detect user metrics: "총 사용자", "total users", "active users", etc.
+        const isUserMetric = /총.*사용자|total.*user|active.*user|사용자.*수/i.test(header)
+        // Explicitly detect "활성 사용자당 이벤트 수" pattern
+        const isEventsPerUser = /활성.*사용자당.*이벤트|events.*per.*user|events.*per.*active/i.test(header)
         
         // Determine aggregation: rate/ratio metrics use avg, counts use sum
-        const aggregation = (isRate || analysis.type === 'percentage' || header.includes('당')) 
+        const aggregation = (isRate || isEventsPerUser || analysis.type === 'percentage' || header.includes('당')) 
           ? 'avg' as const 
           : 'sum' as const
         
@@ -435,12 +441,19 @@ export async function probeSchema(
       : [...(result.metricColumns || []), ...autoDetectedMetrics]
     
     // For dimensions, if LLM failed, use auto-detection
+    // Also ensure "이벤트 이름" is always detected as dimension
+    const eventNameHeaders = headers.filter(h => 
+      /이벤트.*이름|event.*name|event_name/i.test(h)
+    )
+    
     const allDimensionColumns = useAutoDetectionOnly
       ? headers
           .filter(h => {
             if (allMetricColumns.some(m => m.name === h)) return false
             if (h === result.dateColumn) return false
             const analysis = columnAnalysis[h]
+            // Always include event name columns as dimensions
+            if (eventNameHeaders.includes(h)) return true
             return analysis && analysis.type === 'string' && (analysis.stats?.uniqueRatio || 0) < 0.9
           })
           .map(h => ({
@@ -448,7 +461,23 @@ export async function probeSchema(
             displayName: h,
             type: 'string' as const,
           }))
-      : [...(result.dimensionColumns || []),]
+      : (() => {
+          const llmDimensions = result.dimensionColumns || []
+          // Ensure event name columns are included even if LLM missed them
+          const missingEventNames = eventNameHeaders.filter(
+            h => !llmDimensions.some(d => d.name === h) && 
+                 !allMetricColumns.some(m => m.name === h) &&
+                 h !== result.dateColumn
+          )
+          return [
+            ...llmDimensions,
+            ...missingEventNames.map(h => ({
+              name: h,
+              displayName: h,
+              type: 'string' as const,
+            }))
+          ]
+        })()
     
     // aggregationRules 업데이트 (자동 감지된 metric 포함)
     const allAggregationRules = { ...(result.aggregationRules || {}) }
