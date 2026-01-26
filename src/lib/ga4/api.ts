@@ -3,7 +3,7 @@ import { getOAuth2Client, decryptToken, encryptToken, refreshAccessToken } from 
 import { createServiceClient } from '@/lib/supabase/server'
 import { executeGA4Request, withRateLimitAndRetry } from './rate-limiter'
 import { isSemanticLayerEnabled, isEventCollectionEnabled } from '@/lib/feature-flags'
-import type { ProjectProfile } from '@/types/database'
+import type { ProjectProfile, Json } from '@/types/database'
 
 interface GA4Credentials {
   accessToken: string
@@ -560,8 +560,8 @@ export async function refreshMartData(
           event_count: parseInt(row.metricValues![0].value || '0'),
           unique_users: parseInt(row.metricValues![1].value || '0'),
           events_per_user: parseFloat(row.metricValues![2].value || '0'),
-          dimensions,
-          event_params: eventParams,
+          dimensions: dimensions as Json,
+          event_params: eventParams as Json,
         }
       })
 
@@ -667,8 +667,8 @@ export async function refreshEventDataAsync(
           event_count: parseInt(row.metricValues![0].value || '0'),
           unique_users: parseInt(row.metricValues![1].value || '0'),
           events_per_user: parseFloat(row.metricValues![2].value || '0'),
-          dimensions,
-          event_params: eventParams,
+          dimensions: dimensions as Json,
+          event_params: eventParams as Json,
         }
       })
 
