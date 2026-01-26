@@ -198,18 +198,38 @@ function transformToMartRecords(
     }))
     .filter(d => d.index >= 0) // Filter out any invalid indices
 
+  // If no date column, try to extract date from filename or use 'aggregate' placeholder
+  // Date column is NOT required - aggregate data without time dimension is valid
+  let defaultDate: string | null = null
+  if (!mapping.date_column) {
+    // Try to extract date from filename if available (passed via context)
+    // For now, use 'aggregate' as placeholder for data without date dimension
+    // This allows the data to be stored and queried without requiring a date
+    defaultDate = 'aggregate'
+  }
+
   for (const row of rows) {
     // Parse date
-    let dateStr = 'unknown'
+    let dateStr: string
     if (dateColIndex >= 0 && row[dateColIndex]) {
       dateStr = normalizeDate(row[dateColIndex])
+    } else if (defaultDate) {
+      // No date column - use placeholder for aggregate data
+      dateStr = defaultDate
+    } else {
+      // Should not happen, but fallback
+      dateStr = 'aggregate'
     }
 
-    // Apply date filter if provided
-    if (dateRangeFilter && dateStr !== 'unknown') {
-      const date = new Date(dateStr)
-      if (date < dateRangeFilter.startDate || date > dateRangeFilter.endDate) {
-        continue
+    // Apply date filter if provided (skip for aggregate data without date)
+    if (dateRangeFilter && dateStr !== 'aggregate') {
+      try {
+        const date = new Date(dateStr)
+        if (date < dateRangeFilter.startDate || date > dateRangeFilter.endDate) {
+          continue
+        }
+      } catch {
+        // Invalid date format - skip filtering for this row
       }
     }
 

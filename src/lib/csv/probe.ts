@@ -156,9 +156,11 @@ ${tableRows}
 === YOUR TASK ===
 Based on the analysis above${projectProfile ? ' and the project context' : ''}, categorize EVERY column:
 
-1. **DATE column** (exactly 1 or null): Time-series key for aggregation
+1. **DATE column** (optional, can be null): Time-series key for aggregation
    - Look for: 📅 DATE type, or columns with "date", "날짜", "일자", "period" in name
-   - If no clear date column, set to null (aggregate data without time dimension)
+   - **CRITICAL**: If NO date column exists in the CSV (like event aggregate data, summary reports), you MUST return null (JSON null value, not string "null")
+   - **IMPORTANT**: Date column is NOT required! Many CSVs are aggregate reports without time dimension (e.g., event counts by type, user segments, product categories). This is perfectly valid - just set dateColumn to null.
+   - Date information might be in the filename, title, or metadata - but if it's not in a column, set dateColumn to null
 
 2. **METRIC columns** (numeric measures to analyze):
    - Include: 📊 NUMBER, 💰 CURRENCY, 📈 PERCENTAGE types
@@ -199,7 +201,9 @@ IMPORTANT RULES:
 1. TRUST the provided column analysis - types are already detected with confidence scores
 2. Focus on SEMANTIC understanding - what does each column MEAN for business analytics?
 3. Be INCLUSIVE for metrics - any numeric KPI should be captured
-4. Column names must be EXACT matches (case-sensitive)
+4. Column names must be EXACT matches (case-sensitive, including spaces and special characters)
+5. **CRITICAL**: If the CSV has NO date column (aggregate data without time dimension), you MUST set dateColumn to null (not an empty string, not a column name, but the JSON value null)
+6. **CRITICAL**: Every column name in your output MUST exactly match the input headers. Check character-by-character including Korean characters, underscores, spaces.
 
 METRIC IDENTIFICATION TIPS:
 - KPI names: eCPM, ARPDAU, ARPU, LTV, DAU, MAU, retention, conversion, CTR, CPC, CPM, etc.
@@ -268,8 +272,37 @@ export async function probeSchema(
 
     const result = JSON.parse(jsonStr) as ProbeResult
     
+    // Validate column names match headers exactly
+    const headerSet = new Set(headers)
+    const invalidColumns: string[] = []
+    
+    if (result.dateColumn && !headerSet.has(result.dateColumn)) {
+      invalidColumns.push(`dateColumn: "${result.dateColumn}"`)
+    }
+    
+    result.metricColumns?.forEach(m => {
+      if (!headerSet.has(m.name)) {
+        invalidColumns.push(`metric: "${m.name}"`)
+      }
+    })
+    
+    result.dimensionColumns?.forEach(d => {
+      if (!headerSet.has(d.name)) {
+        invalidColumns.push(`dimension: "${d.name}"`)
+      }
+    })
+    
+    if (invalidColumns.length > 0) {
+      console.error(`[Probe] Invalid column names from LLM: ${invalidColumns.join(', ')}`)
+      console.error(`[Probe] Available headers: ${headers.join(', ')}`)
+      throw new Error(
+        `LLM returned invalid column names that don't match CSV headers: ${invalidColumns.join(', ')}. ` +
+        `Available headers: ${headers.join(', ')}`
+      )
+    }
+    
     console.log('[Probe] === LLM RESULT ===')
-    console.log(`[Probe] Date: ${result.dateColumn}`)
+    console.log(`[Probe] Date: ${result.dateColumn || 'null (no date column)'}`)
     console.log(`[Probe] Metrics (${result.metricColumns?.length || 0}): ${result.metricColumns?.map(m => m.name).join(', ')}`)
     console.log(`[Probe] Dimensions (${result.dimensionColumns?.length || 0}): ${result.dimensionColumns?.map(d => d.name).join(', ')}`)
     
