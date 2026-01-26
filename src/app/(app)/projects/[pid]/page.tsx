@@ -299,7 +299,7 @@ function ProjectOverviewContent() {
           projectId={projectId}
           ga4Connected={ga4.connected}
           csvConnected={csv?.ready || false}
-          csvDatasetCount={csv?.datasets.length || 0}
+          csvDatasetCount={csv?.datasets.filter(d => d.status === 'ingested').length || 0}
         />
       )}
 

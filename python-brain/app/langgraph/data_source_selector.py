@@ -3,7 +3,7 @@ Data Source Selector
 Determines which data sources are needed based on user question and workspace purpose
 """
 
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Any
 import re
 
 
@@ -138,7 +138,7 @@ def analyze_question_intent(
 
 
 def should_include_csv_data(
-    csv_metrics: List[Dict],
+    csv_metrics: List[Dict[str, Any]],
     question_intent: Dict[str, bool],
     user_message: Optional[str] = None
 ) -> bool:
