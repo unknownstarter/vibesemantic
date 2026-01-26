@@ -535,8 +535,8 @@ def load_context_and_mart_summary(state: AnalysisState) -> Dict[str, Any]:
         return {"error": str(e)}
 
 # Parse Analyst Questions
-def parse_analyst_questions(markdown: str) -> List[AnalystQuestion]:
-    """마크다운에서 Analyst Questions 추출"""
+def parse_analyst_questions(markdown: str, state: Optional[Dict[str, Any]] = None) -> List[AnalystQuestion]:
+    """마크다운에서 Analyst Questions 추출 (최소 3개)"""
     # Analyst Questions 섹션 찾기
     questions_match = re.search(
         r'#{1,4}\s*Analyst Questions[\s\S]*?(?=#{1,4}\s+[A-Z]|$)',
@@ -544,10 +544,7 @@ def parse_analyst_questions(markdown: str) -> List[AnalystQuestion]:
         re.IGNORECASE
     )
     
-    if not questions_match:
-        return get_default_questions()
-    
-    section = questions_match.group(0)
+    section = questions_match.group(0) if questions_match else ""
     questions = []
     
     # 번호 매긴 질문 찾기 (1. 질문내용?)
@@ -555,7 +552,7 @@ def parse_analyst_questions(markdown: str) -> List[AnalystQuestion]:
     matches = re.finditer(numbered_pattern, section)
     
     for idx, match in enumerate(matches):
-        if idx >= 3:
+        if idx >= 5:  # 최대 5개까지 찾기 (나중에 3개로 필터링)
             break
         
         question_text = re.sub(r'^\*+|\*+$', '', match.group(1)).strip()
@@ -569,12 +566,12 @@ def parse_analyst_questions(markdown: str) -> List[AnalystQuestion]:
             })
     
     # 번호 없이 질문만 있는 경우
-    if not questions:
+    if len(questions) < 3:
         bullet_pattern = r'[-•]\s*([^\n]+\?)'
         matches = re.finditer(bullet_pattern, section)
         
         for idx, match in enumerate(matches):
-            if idx >= 3:
+            if len(questions) >= 5:  # 최대 5개까지
                 break
             
             question_text = re.sub(r'^\*+|\*+$', '', match.group(1)).strip()
@@ -584,13 +581,24 @@ def parse_analyst_questions(markdown: str) -> List[AnalystQuestion]:
                 'quick reply' not in question_text.lower() and
                 'next_params' not in question_text.lower()):
                 questions.append({
-                    "id": f"q{idx + 1}",
+                    "id": f"q{len(questions) + 1}",
                     "question": question_text,
                     "context": extract_context(section, question_text),
                     "quickReplies": generate_quick_replies(question_text)
                 })
     
-    return questions[:3] if questions else get_default_questions()
+    # 최소 3개 보장
+    if len(questions) < 3:
+        default_questions = get_default_questions(state)
+        # 중복 제거하면서 기본 질문 추가
+        existing_questions = {q["question"].lower().strip() for q in questions}
+        for default_q in default_questions:
+            if default_q["question"].lower().strip() not in existing_questions:
+                questions.append(default_q)
+                if len(questions) >= 3:
+                    break
+    
+    return questions[:3]  # 최대 3개 반환
 
 def extract_context(section: str, question: str) -> str:
     """질문의 컨텍스트 추출"""
@@ -647,9 +655,9 @@ def generate_quick_replies(question: str) -> List[Dict[str, Any]]:
     
     return replies
 
-def get_default_questions() -> List[AnalystQuestion]:
-    """기본 질문 반환"""
-    return [
+def get_default_questions(state: Optional[Dict[str, Any]] = None) -> List[AnalystQuestion]:
+    """기본 질문 반환 (최소 3개)"""
+    questions = [
         {
             "id": "q1",
             "question": "이번 기간 가장 큰 변화는 무엇인가요?",
@@ -658,8 +666,50 @@ def get_default_questions() -> List[AnalystQuestion]:
                 {"label": "7일로 보기", "nextParams": {"range": "7d"}},
                 {"label": "30일로 보기", "nextParams": {"range": "30d"}}
             ]
+        },
+        {
+            "id": "q2",
+            "question": "주요 채널별 성과를 비교해볼까요?",
+            "context": "채널 분석",
+            "quickReplies": [
+                {"label": "채널 상세 분석", "nextParams": {"focus": "channel"}},
+                {"label": "30일로 보기", "nextParams": {"range": "30d"}}
+            ]
+        },
+        {
+            "id": "q3",
+            "question": "트렌드 변화를 더 자세히 분석해볼까요?",
+            "context": "트렌드 분석",
+            "quickReplies": [
+                {"label": "7일로 보기", "nextParams": {"range": "7d"}},
+                {"label": "30일로 보기", "nextParams": {"range": "30d"}}
+            ]
         }
     ]
+    
+    # 통계적 분석 결과가 있으면 통계 기반 질문 추가
+    if state and state.get("martSummary"):
+        statistical_analysis = state.get("martSummary", {}).get("statisticalAnalysis")
+        if statistical_analysis:
+            metric_corrs = statistical_analysis.get("metric_correlations", [])
+            event_rels = statistical_analysis.get("event_kpi_relationships", [])
+            
+            if metric_corrs and len(metric_corrs) > 0:
+                top_corr = metric_corrs[0]
+                metric1 = top_corr.get("metric1", "")
+                metric2 = top_corr.get("metric2", "")
+                if metric1 and metric2:
+                    questions.append({
+                        "id": "q4",
+                        "question": f"{metric1}와 {metric2}의 상관관계를 더 자세히 분석해볼까요?",
+                        "context": "통계적 분석",
+                        "quickReplies": [
+                            {"label": "상관관계 분석", "nextParams": {"focus": "correlation"}},
+                            {"label": "30일로 보기", "nextParams": {"range": "30d"}}
+                        ]
+                    })
+    
+    return questions[:3]  # 최소 3개 반환
 
 def remove_analyst_questions_section(markdown: str) -> str:
     """마크다운에서 Analyst Questions 섹션 제거"""

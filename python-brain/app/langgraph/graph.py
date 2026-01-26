@@ -155,11 +155,22 @@ def generate_analysis(state: Dict[str, Any]) -> Dict[str, Any]:
         # 채팅 모드: 답변 끝에 있는 후속 질문 추출
         try:
             if mode == "report":
-                questions = parse_analyst_questions(raw_content)
+                questions = parse_analyst_questions(raw_content, state)
                 cleaned_markdown = remove_analyst_questions_section(raw_content)
             else:
                 # 채팅 모드: 후속 질문 추출 (답변 끝부분의 질문)
                 questions = extract_chat_followup_questions(raw_content)
+                # 최소 3개 보장
+                if len(questions) < 3:
+                    from app.langgraph.nodes import get_default_questions
+                    default_questions = get_default_questions(state)
+                    existing_questions = {q["question"].lower().strip() for q in questions}
+                    for default_q in default_questions:
+                        if default_q["question"].lower().strip() not in existing_questions:
+                            questions.append(default_q)
+                            if len(questions) >= 3:
+                                break
+                questions = questions[:3]  # 최대 3개
                 cleaned_markdown = raw_content  # 채팅 모드에서는 전체 내용 유지
         except Exception:
             questions = []

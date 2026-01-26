@@ -175,6 +175,7 @@ ${tableRows}
 === YOUR TASK ===
 Based on the analysis above${projectProfile ? ' and the project context' : ''}, categorize EVERY column:
 
+**CRITICAL PHILOSOPHY**: Be INCLUSIVE, not EXCLUSIVE! When in doubt, include the column. Users can always deselect it later.
 **IMPORTANT**: 데이터 패턴 분석 결과를 우선적으로 신뢰하세요! 실제 데이터 값이 헤더 이름보다 더 정확한 지표입니다.
 
 1. **DATE column** (optional, can be null): Time-series key for aggregation
@@ -184,34 +185,40 @@ Based on the analysis above${projectProfile ? ' and the project context' : ''}, 
    - Date information might be in the filename, title, or metadata - but if it's not in a column, set dateColumn to null
 
 2. **METRIC columns** (numeric measures to analyze):
+   - **INCLUSIVE RULE**: Include ALL numeric columns (📊 NUMBER, 💰 CURRENCY, 📈 PERCENTAGE) EXCEPT:
+     * Only exclude if explicitly marked as 🔑 ID type AND has >95% uniqueness (likely unique identifiers)
+     * When in doubt, INCLUDE it as a metric - users can deselect if wrong
    - **CRITICAL**: 데이터 패턴 분석에서 "이벤트 수 패턴", "사용자 수 패턴", "수익 패턴", "사용자당 이벤트 수 패턴"이 감지된 컬럼은 무조건 metric으로 분류하세요!
-   - Include: 📊 NUMBER, 💰 CURRENCY, 📈 PERCENTAGE types
-   - These are KPIs like revenue, users, sessions, eCPM, ARPDAU, retention rate, etc.
    - **CRITICAL**: Event-related metrics MUST be included:
      * 이벤트 수, event count, event_count, events → metric (sum)
      * 총 사용자, total users, active users, 활성 사용자, 사용자 수 → metric (sum)
      * 활성 사용자당 이벤트 수, events per user, events per active user → metric (avg)
      * 총수익, total revenue, revenue, 수익, 매출 → metric (sum)
    - **CRITICAL**: "이벤트 이름" (event name) is a DIMENSION, not a metric - it's a categorical identifier
-   - Exclude: 🔑 ID type columns
    - For metrics with names containing "rate", "ratio", "%", "avg", "당", "per" → use aggregation: "avg"
    - For counts, sums, totals, "수", "총" → use aggregation: "sum"
    - 데이터 패턴 분석에서 제안된 aggregation을 우선 사용하세요
+   - **INCLUSIVE**: Even if a numeric column seems unusual, include it if it could be a KPI
 ${projectProfile ? '   - PRIORITIZE columns that match the recommended KPIs for this industry\n' : ''}
 3. **DIMENSION columns** (categorical for grouping):
+   - **INCLUSIVE RULE**: Include ALL string/text columns (📝 TEXT) EXCEPT:
+     * Only exclude if explicitly marked as 🔑 ID type AND has >95% uniqueness (likely unique identifiers)
+     * Only exclude if values are extremely long (>200 chars) - likely descriptions, not dimensions
+     * When in doubt, INCLUDE it as a dimension - users can deselect if wrong
    - **CRITICAL**: 데이터 패턴 분석에서 "이벤트 이름 패턴"이 감지된 컬럼은 무조건 dimension으로 분류하세요!
-   - Include: 📝 TEXT type with reasonable uniqueness (< 90%)
-   - Examples: country, channel, segment, category, platform
+   - Examples: country, channel, segment, category, platform, event name, user type, etc.
    - **CRITICAL**: "이벤트 이름" (event name), "event name", "event_name" → dimension (categorical identifier)
    - 실제 값이 "view_section", "user_engagement", "page_view" 같은 이벤트 이름 패턴이면 dimension
-   - Exclude: High-uniqueness text (likely descriptions or IDs)
+   - **INCLUSIVE**: Even if uniqueness is high (80-95%), include it if it looks categorical (not a unique ID)
 
-CRITICAL:
+CRITICAL RULES:
 - Column names in output MUST exactly match input headers (case-sensitive!)
+- **BE INCLUSIVE**: When uncertain, include the column rather than exclude it
 - Every non-ID column should be categorized as either metric OR dimension
 - **데이터 패턴 분석 결과를 반드시 우선적으로 신뢰하세요!** 실제 데이터 값이 헤더 이름보다 더 정확합니다.
 - 데이터 패턴에서 "이벤트 이름 패턴", "이벤트 수 패턴" 등이 감지된 경우, 그 결과를 무조건 따르세요.
 - ${language === 'ko' ? 'Use Korean for displayName' : 'Use English for displayName'}
+- **Remember**: Users will see all suggested columns and can deselect any they don't want. It's better to suggest too many than too few!
 
 OUTPUT FORMAT (JSON only, no markdown):
 {
@@ -234,12 +241,13 @@ Your job is to analyze pre-processed column statistics and categorize columns fo
 IMPORTANT RULES:
 1. TRUST the provided column analysis - types are already detected with confidence scores
 2. Focus on SEMANTIC understanding - what does each column MEAN for business analytics?
-3. Be INCLUSIVE for metrics - any numeric KPI should be captured
+3. **BE EXTREMELY INCLUSIVE** - when in doubt, include the column! Users can remove it later if needed.
 4. Column names must be EXACT matches (case-sensitive, including spaces and special characters)
 5. **CRITICAL**: If the CSV has NO date column (aggregate data without time dimension), you MUST set dateColumn to null (not an empty string, not a column name, but the JSON value null)
 6. **CRITICAL**: Every column name in your output MUST exactly match the input headers. Check character-by-character including Korean characters, underscores, spaces.
 
-METRIC IDENTIFICATION TIPS:
+METRIC IDENTIFICATION (BE INCLUSIVE):
+- **DEFAULT RULE**: If a column is numeric (number, currency, percentage), it's likely a metric - include it!
 - KPI names: eCPM, ARPDAU, ARPU, LTV, DAU, MAU, retention, conversion, CTR, CPC, CPM, etc.
 - Financial: revenue, cost, spend, profit, ROAS, 수익, 매출, 비용, etc.
 - Engagement: sessions, pageviews, time_spent, bounce_rate, etc.
@@ -248,12 +256,16 @@ METRIC IDENTIFICATION TIPS:
 - Calculated metrics: 활성 사용자당 이벤트 수, events per user, rate, ratio, avg, etc.
 - Any percentage or rate is likely a metric
 - **CRITICAL**: If a column name contains numbers, counts, totals, or rates in Korean or English, it's almost certainly a metric
+- **INCLUDE ALL NUMERIC COLUMNS** unless they are clearly IDs (uniqueRatio > 0.95 AND column name contains "id" or "ID")
 
-DIMENSION IDENTIFICATION TIPS:
+DIMENSION IDENTIFICATION (BE INCLUSIVE):
+- **DEFAULT RULE**: If a column is text/string type and not an ID, it's likely a dimension - include it!
 - Segmentation: user_type, segment, cohort, tier, etc.
 - Geographic: country, region, city, etc.
 - Categorical: channel, platform, device, source, medium, etc.
+- Event names: 이벤트 이름, event name, event_name, etc.
 - Temporal categories: day_of_week, hour, month_name (NOT date)
+- **INCLUDE ALL TEXT COLUMNS** unless they are clearly IDs (uniqueRatio > 0.95 AND column name contains "id" or "ID")
 
 OUTPUT: Return ONLY valid JSON, no explanation.`
 
@@ -471,9 +483,13 @@ export async function probeSchema(
       }
       
       // numeric 타입이지만 패턴 분석이 없거나 불확실한 경우
+      // **포괄적 접근**: 모든 numeric 컬럼을 기본적으로 metric으로 포함
       if (analysis && ['number', 'currency', 'percentage'].includes(analysis.type)) {
-        // ID 타입은 제외
-        if (analysis.type === 'id' || (analysis.stats?.uniqueRatio && analysis.stats.uniqueRatio > 0.9)) {
+        // ID 타입은 제외 (더 엄격한 조건: uniqueRatio > 0.95 AND name contains "id")
+        const isLikelyId = analysis.type === 'id' || 
+          (analysis.stats?.uniqueRatio && analysis.stats.uniqueRatio > 0.95 && 
+           (header.toLowerCase().includes('id') || header.toLowerCase().includes('uuid')))
+        if (isLikelyId) {
           return
         }
         
@@ -488,13 +504,16 @@ export async function probeSchema(
           ? 'avg' as const 
           : 'sum' as const
         
-        autoDetectedMetrics.push({
-          name: header,
-          displayName: header,
-          type: (isRevenue || analysis.type === 'currency' ? 'currency' : 
-                 analysis.type === 'percentage' ? 'percentage' : 'number') as 'number' | 'currency' | 'percentage',
-          aggregation,
-        })
+        // 이미 추가되지 않은 경우에만 추가
+        if (!autoDetectedMetrics.some(m => m.name === header)) {
+          autoDetectedMetrics.push({
+            name: header,
+            displayName: header,
+            type: (isRevenue || analysis.type === 'currency' ? 'currency' : 
+                   analysis.type === 'percentage' ? 'percentage' : 'number') as 'number' | 'currency' | 'percentage',
+            aggregation,
+          })
+        }
       }
     })
     
@@ -506,9 +525,16 @@ export async function probeSchema(
     // If LLM returned invalid column names, use auto-detection only
     const useAutoDetectionOnly = invalidMetrics.length > 0 || invalidDimensions.length > 0
     
-    const allMetricColumns = useAutoDetectionOnly 
+    // Merge LLM results with auto-detected metrics (remove duplicates)
+    const llmMetricNames = new Set((result.metricColumns || []).map(m => m.name))
+    const mergedMetrics = useAutoDetectionOnly 
       ? autoDetectedMetrics 
-      : [...(result.metricColumns || []), ...autoDetectedMetrics]
+      : [
+          ...(result.metricColumns || []),
+          ...autoDetectedMetrics.filter(m => !llmMetricNames.has(m.name)) // LLM이 놓친 컬럼만 추가
+        ]
+    
+    const allMetricColumns = mergedMetrics
     
     // For dimensions, 데이터 패턴 기반 자동 감지
     const autoDetectedDimensions: typeof result.dimensionColumns = []
@@ -551,38 +577,54 @@ export async function probeSchema(
         }
       }
       
-      // 패턴 분석이 없거나 불확실한 경우 타입 기반으로 판단
+      // **2단계: 타입 기반 포괄적 포함 - 모든 string 컬럼을 dimension으로 포함**
       if (analysis && analysis.type === 'string') {
         const uniqueRatio = analysis.stats?.uniqueRatio || 0
-        // uniqueness가 90% 미만이면 dimension (너무 높으면 ID일 가능성)
-        if (uniqueRatio < 0.9 && uniqueRatio > 0.1) {
-          autoDetectedDimensions.push({
-            name: header,
-            displayName: header,
-            type: 'string' as const,
-          })
-        } else if (uniqueRatio >= 0.9) {
-          // 너무 unique하면 확인 필요
+        // 더 관대한 조건: uniqueRatio < 0.95이면 dimension으로 포함
+        // 명확한 ID만 제외 (uniqueRatio > 0.95 AND name contains "id")
+        const isLikelyId = uniqueRatio > 0.95 && 
+          (header.toLowerCase().includes('id') || header.toLowerCase().includes('uuid'))
+        
+        if (!isLikelyId && uniqueRatio > 0.05) {
+          // 대부분의 string 컬럼을 dimension으로 포함
+          if (!autoDetectedDimensions.some(d => d.name === header)) {
+            autoDetectedDimensions.push({
+              name: header,
+              displayName: header,
+              type: 'string' as const,
+            })
+          }
+        } else if (isLikelyId) {
+          // 명확한 ID는 제외
+          return
+        } else {
+          // 매우 낮은 uniqueness (거의 모든 값이 동일)는 확인 필요하지만 일단 포함
+          if (!autoDetectedDimensions.some(d => d.name === header)) {
+            autoDetectedDimensions.push({
+              name: header,
+              displayName: header,
+              type: 'string' as const,
+            })
+          }
           uncertainColumns.push(header)
         }
       }
     })
     
-    const allDimensionColumns = useAutoDetectionOnly
+    // Merge LLM results with auto-detected dimensions (remove duplicates)
+    const llmDimensionNames = new Set((result.dimensionColumns || []).map(d => d.name))
+    const mergedDimensions = useAutoDetectionOnly
       ? autoDetectedDimensions
-      : (() => {
-          const llmDimensions = result.dimensionColumns || []
-          // LLM이 놓친 dimension 추가 (특히 "이벤트 이름")
-          const missingDimensions = autoDetectedDimensions.filter(
-            d => !llmDimensions.some(ld => ld.name === d.name) &&
+      : [
+          ...(result.dimensionColumns || []),
+          ...autoDetectedDimensions.filter(
+            d => !llmDimensionNames.has(d.name) && // LLM이 놓친 컬럼만 추가
                  !allMetricColumns.some(m => m.name === d.name) &&
                  d.name !== result.dateColumn
           )
-          return [
-            ...llmDimensions,
-            ...missingDimensions
-          ]
-        })()
+        ]
+    
+    const allDimensionColumns = mergedDimensions
     
     // aggregationRules 업데이트 (자동 감지된 metric 포함)
     const allAggregationRules = { ...(result.aggregationRules || {}) }
@@ -590,17 +632,27 @@ export async function probeSchema(
       allAggregationRules[m.name] = m.aggregation
     })
     
-    // 최종 검증: 데이터 패턴 기반으로 누락된 컬럼 확인
+    // 최종 검증: **포괄적 접근** - 모든 컬럼이 포함되었는지 확인하고 누락된 컬럼 자동 추가
     const missingMetrics: string[] = []
     const missingDimensions: string[] = []
+    const allIncludedColumns = new Set<string>()
+    
+    if (result.dateColumn) allIncludedColumns.add(result.dateColumn)
+    allMetricColumns.forEach(m => allIncludedColumns.add(m.name))
+    allDimensionColumns.forEach(d => allIncludedColumns.add(d.name))
     
     headers.forEach((h, colIndex) => {
-      if (h === result.dateColumn) return
-      if (allMetricColumns.some(m => m.name === h)) return
-      if (allDimensionColumns.some(d => d.name === h)) return
+      // 이미 포함된 컬럼은 스킵
+      if (allIncludedColumns.has(h)) return
       
       const patternAnalysis = dataPatternAnalyses[h]
       const analysis = columnAnalysis[h]
+      
+      if (!analysis) {
+        // 분석이 없는 경우도 일단 포함 (확인 필요)
+        missingDimensions.push(h)
+        return
+      }
       
       // 데이터 패턴 분석 결과를 우선 사용
       if (patternAnalysis) {
@@ -619,14 +671,27 @@ export async function probeSchema(
       
       // 패턴 분석이 없거나 불확실한 경우 타입 기반으로 판단
       if (analysis && ['number', 'currency', 'percentage'].includes(analysis.type)) {
-        if (analysis.type !== 'id' && (!analysis.stats?.uniqueRatio || analysis.stats.uniqueRatio < 0.9)) {
+        // 더 관대한 조건: ID가 아니면 모두 metric으로 포함
+        const isLikelyId = analysis.type === 'id' || 
+          (analysis.stats?.uniqueRatio && analysis.stats.uniqueRatio > 0.95 && 
+           (h.toLowerCase().includes('id') || h.toLowerCase().includes('uuid')))
+        if (!isLikelyId) {
           missingMetrics.push(h)
         }
       } else if (analysis && analysis.type === 'string') {
         const uniqueRatio = analysis.stats?.uniqueRatio || 0
-        if (uniqueRatio > 0.1 && uniqueRatio < 0.9) {
+        // 더 관대한 조건: 명확한 ID가 아니면 모두 dimension으로 포함
+        const isLikelyId = uniqueRatio > 0.95 && 
+          (h.toLowerCase().includes('id') || h.toLowerCase().includes('uuid'))
+        if (!isLikelyId && uniqueRatio > 0.05) {
+          missingDimensions.push(h)
+        } else if (!isLikelyId) {
+          // 매우 낮은 uniqueness도 일단 포함 (확인 필요)
           missingDimensions.push(h)
         }
+      } else {
+        // 알 수 없는 타입도 일단 dimension으로 포함 (확인 필요)
+        missingDimensions.push(h)
       }
     })
     
@@ -818,7 +883,11 @@ function fallbackProbe(
     
     // 일반 numeric 타입
     if (['number', 'currency', 'percentage'].includes(analysis.type)) {
-      if (analysis.type === 'id' || (analysis.stats?.uniqueRatio && analysis.stats.uniqueRatio > 0.9)) {
+      // 더 엄격한 ID 조건: uniqueRatio > 0.95 AND name contains "id"
+      const isLikelyId = analysis.type === 'id' || 
+        (analysis.stats?.uniqueRatio && analysis.stats.uniqueRatio > 0.95 && 
+         (h.toLowerCase().includes('id') || h.toLowerCase().includes('uuid')))
+      if (isLikelyId) {
         return // ID 타입 제외
       }
       
@@ -852,12 +921,16 @@ function fallbackProbe(
         return true
       }
       
-      if (analysis.type === 'id') return false
+      // 더 엄격한 ID 조건
+      const isLikelyId = analysis.type === 'id' || 
+        (analysis.stats?.uniqueRatio && analysis.stats.uniqueRatio > 0.95 && 
+         (h.toLowerCase().includes('id') || h.toLowerCase().includes('uuid')))
+      if (isLikelyId) return false
       if (analysis.type !== 'string') return false
       
-      // Exclude high-uniqueness text (likely descriptions)
+      // 더 관대한 조건: uniqueRatio < 0.95이면 dimension으로 포함
       const uniqueRatio = analysis.stats?.uniqueRatio || 0
-      return uniqueRatio < 0.9
+      return uniqueRatio < 0.95 && uniqueRatio > 0.05
     })
     .map(h => ({
       name: h,

@@ -511,22 +511,27 @@ export default function DatasetDetailPage() {
                       )}
                     </span>
                   ))}
-                  {isEditing && getUnusedColumns().length > 0 && (
+                  {isEditing && (
                     <div className="relative group">
                       <button className="px-2 py-1 text-sm border border-dashed border-primary/30 text-primary rounded flex items-center gap-1 hover:bg-primary/5">
-                        <PlusIcon className="w-3 h-3" /> 추가
+                        <PlusIcon className="w-3 h-3" /> {getUnusedColumns().length > 0 ? `추가 (${getUnusedColumns().length}개)` : '모두 추가됨'}
                       </button>
-                      <div className="hidden group-hover:block absolute top-full left-0 mt-1 z-10 bg-surface border border-border/30 rounded-lg shadow-lg max-h-40 overflow-auto">
-                        {getUnusedColumns().map(col => (
-                          <button
-                            key={col}
-                            onClick={() => handleAddMetric(col)}
-                            className="block w-full px-3 py-2 text-sm text-left hover:bg-surface-inset"
-                          >
-                            {col}
-                          </button>
-                        ))}
-                      </div>
+                      {getUnusedColumns().length > 0 && (
+                        <div className="hidden group-hover:block absolute top-full left-0 mt-1 z-10 bg-surface border border-border/30 rounded-lg shadow-lg max-h-60 overflow-auto min-w-[200px]">
+                          <div className="p-2 border-b border-border/10">
+                            <p className="text-xs text-muted">사용 가능한 컬럼 ({getUnusedColumns().length}개)</p>
+                          </div>
+                          {getUnusedColumns().map(col => (
+                            <button
+                              key={col}
+                              onClick={() => handleAddMetric(col)}
+                              className="block w-full px-3 py-2 text-sm text-left hover:bg-surface-inset border-b border-border/5 last:border-0"
+                            >
+                              {col}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -561,22 +566,27 @@ export default function DatasetDetailPage() {
                       )}
                     </span>
                   ))}
-                  {isEditing && getUnusedColumns().length > 0 && (
+                  {isEditing && (
                     <div className="relative group">
                       <button className="px-2 py-1 text-sm border border-dashed border-subtle/50 text-muted rounded flex items-center gap-1 hover:bg-subtle/10">
-                        <PlusIcon className="w-3 h-3" /> 추가
+                        <PlusIcon className="w-3 h-3" /> {getUnusedColumns().length > 0 ? `추가 (${getUnusedColumns().length}개)` : '모두 추가됨'}
                       </button>
-                      <div className="hidden group-hover:block absolute top-full left-0 mt-1 z-10 bg-surface border border-border/30 rounded-lg shadow-lg max-h-40 overflow-auto">
-                        {getUnusedColumns().map(col => (
-                          <button
-                            key={col}
-                            onClick={() => handleAddDimension(col)}
-                            className="block w-full px-3 py-2 text-sm text-left hover:bg-surface-inset"
-                          >
-                            {col}
-                          </button>
-                        ))}
-                      </div>
+                      {getUnusedColumns().length > 0 && (
+                        <div className="hidden group-hover:block absolute top-full left-0 mt-1 z-10 bg-surface border border-border/30 rounded-lg shadow-lg max-h-60 overflow-auto min-w-[200px]">
+                          <div className="p-2 border-b border-border/10">
+                            <p className="text-xs text-muted">사용 가능한 컬럼 ({getUnusedColumns().length}개)</p>
+                          </div>
+                          {getUnusedColumns().map(col => (
+                            <button
+                              key={col}
+                              onClick={() => handleAddDimension(col)}
+                              className="block w-full px-3 py-2 text-sm text-left hover:bg-surface-inset border-b border-border/5 last:border-0"
+                            >
+                              {col}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
