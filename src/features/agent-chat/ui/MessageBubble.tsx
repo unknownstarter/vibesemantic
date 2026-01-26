@@ -60,13 +60,15 @@ export const MessageBubble = memo(function MessageBubble({ role, content, timest
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: 'easeOut' }}
-      className={`flex gap-3 group ${isUser ? 'flex-row-reverse' : ''}`}
+      className={`flex gap-2 sm:gap-3 group ${isUser ? 'flex-row-reverse' : ''}`}
     >
       {/* Avatar */}
-      {isUser ? <UserAvatar /> : <AIAvatar />}
+      <div className="shrink-0 hidden sm:block">
+        {isUser ? <UserAvatar /> : <AIAvatar />}
+      </div>
 
       {/* Message Content */}
-      <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} max-w-[75%]`}>
+      <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} max-w-[85%] sm:max-w-[75%]`}>
         <motion.div
           initial={{ scale: 0.95 }}
           animate={{ scale: 1 }}

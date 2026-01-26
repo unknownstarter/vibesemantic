@@ -106,7 +106,7 @@ export function ChatInput({ onSend, disabled, placeholder, suggestions }: ChatIn
           borderColor: isFocused ? 'rgba(var(--primary-rgb), 0.4)' : 'rgba(var(--border-rgb), 0.2)',
           boxShadow: isFocused ? '0 8px 30px rgba(var(--primary-rgb), 0.05)' : 'none'
         }}
-        className="relative flex items-center gap-2 p-3 rounded-2xl bg-surface border"
+        className="relative flex items-center gap-2 p-2 sm:p-3 rounded-2xl bg-surface border"
       >
         {/* AI Indicator */}
         <div className="shrink-0">
@@ -114,9 +114,9 @@ export function ChatInput({ onSend, disabled, placeholder, suggestions }: ChatIn
             animate={{ 
               backgroundColor: disabled ? 'rgba(var(--primary-rgb), 0.2)' : 'var(--surface-inset)'
             }}
-            className="w-8 h-8 rounded-full flex items-center justify-center"
+            className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center"
           >
-            <SparkleIcon className={`w-4 h-4 ${disabled ? 'text-primary animate-pulse' : 'text-muted'}`} />
+            <SparkleIcon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${disabled ? 'text-primary animate-pulse' : 'text-muted'}`} />
           </motion.div>
         </div>
 
@@ -142,13 +142,13 @@ export function ChatInput({ onSend, disabled, placeholder, suggestions }: ChatIn
           disabled={disabled || !message.trim()}
           whileHover={{ scale: message.trim() && !disabled ? 1.05 : 1 }}
           whileTap={{ scale: message.trim() && !disabled ? 0.95 : 1 }}
-          className={`shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-colors
+          className={`shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center transition-colors
             ${message.trim() && !disabled
               ? 'bg-primary text-background hover:bg-primary/90'
               : 'bg-surface-inset text-muted cursor-not-allowed'
             }`}
         >
-          <SendIcon className="w-4 h-4" />
+          <SendIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </motion.button>
       </motion.div>
 

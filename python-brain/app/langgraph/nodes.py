@@ -10,6 +10,9 @@ from app.langgraph.types import AnalysisState, MartSummary, AnalystQuestion
 from app.langgraph.prompts import build_system_prompt, build_user_prompt
 import json
 import re
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Guard and Route
 def guard_and_route(state: AnalysisState) -> Dict[str, Any]:
