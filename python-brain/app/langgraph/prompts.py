@@ -3,7 +3,7 @@ LangGraph 프롬프트 생성
 TypeScript에서 Python으로 포팅
 """
 
-from typing import Optional, Literal
+from typing import Optional, Literal, Dict, Any
 from app.langgraph.types import WorkspacePurpose, ProjectProfile, MartSummary
 
 # 목적별 분석 초점

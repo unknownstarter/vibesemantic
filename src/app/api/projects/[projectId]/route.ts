@@ -41,6 +41,7 @@ export async function GET(
     .from('csv_datasets')
     .select('id, name, status')
     .eq('project_id', context.projectId)
+    .order('created_at', { ascending: false })
 
   const csvReady = csvDatasets?.some(d => 
     d.status === 'confirmed' || d.status === 'ingested'

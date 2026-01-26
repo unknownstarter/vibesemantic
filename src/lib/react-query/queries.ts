@@ -43,13 +43,23 @@ export function useProjectQuery(projectId: string) {
   return useQuery({
     queryKey: queryKeys.project(projectId),
     queryFn: async () => {
-      const res = await fetch(`/api/projects/${projectId}`)
+      // 캐시 방지를 위해 timestamp 추가
+      const res = await fetch(`/api/projects/${projectId}?t=${Date.now()}`)
       if (!res.ok) {
         throw new Error(`프로젝트를 불러올 수 없습니다: ${res.statusText}`)
       }
-      return res.json() as Promise<ProjectData>
+      const data = await res.json() as ProjectData
+      // CSV 데이터셋 확인
+      if (data.csv?.datasets) {
+        const ingestedCount = data.csv.datasets.filter(d => d.status === 'ingested').length
+        console.log('[useProjectQuery] CSV datasets:', data.csv.datasets.map(d => ({ name: d.name, status: d.status })))
+        console.log('[useProjectQuery] Ingested count:', ingestedCount, '/ Total:', data.csv.datasets.length)
+      }
+      return data
     },
     enabled: !!projectId,
+    staleTime: 0, // 항상 최신 데이터 조회
+    gcTime: 0, // 캐시 사용 안 함 (React Query v5에서는 cacheTime 대신 gcTime)
   })
 }
 
