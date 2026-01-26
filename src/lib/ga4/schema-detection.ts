@@ -168,8 +168,11 @@ export async function detectEventSchemas(
           if (rows.length === 0) return
 
           // Get event count from first query
-          const eventCount = parseInt(eventsResponse.data.rows.find(r => r.dimensionValues![0].value === eventName)?.metricValues![0].value || '0')
-          const lastSeenDate = rows.length > 0 ? formatGA4Date(rows[0].dimensionValues![0].value!) : endDateStr
+          const eventCountRow = eventsResponse.data.rows?.find(r => r.dimensionValues?.[0]?.value === eventName)
+          const eventCount = parseInt(eventCountRow?.metricValues?.[0]?.value || '0')
+          const lastSeenDate = rows.length > 0 && rows[0].dimensionValues?.[0]?.value 
+            ? formatGA4Date(rows[0].dimensionValues[0].value) 
+            : endDateStr
 
           // Determine event type (standard GA4 events vs custom)
           const standardEvents = [
@@ -403,7 +406,7 @@ export async function getRecommendedEvents(
     common_dimensions: (s.common_dimensions as EventSchema['common_dimensions']) || {},
     priority: s.priority,
     event_count_30d: s.event_count_30d,
-    last_seen_date: s.last_seen_date,
+    last_seen_date: s.last_seen_date || '',
   }))
 }
 

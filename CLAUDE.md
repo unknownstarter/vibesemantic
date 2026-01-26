@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-**Last Updated**: 2026-01-26 (Added URL encoding handling requirement)
+**Last Updated**: 2026-01-26 (Added URL encoding handling requirement, Build verification process)
 
 ## Project Overview
 
@@ -100,6 +100,78 @@ Required in `.env.local`:
 - `BRAIN_API_KEY` - Brain API authentication key
 - `OPENAI_API_KEY` - OpenAI API key (used by Brain API)
 - GA4/BigQuery credentials (for app features)
+
+## Build Verification (CRITICAL - 2026-01-26 추가)
+
+**모든 코드 변경 후 반드시 빌드 검증을 수행해야 합니다.**
+
+### 필수 빌드 검증 프로세스
+
+다음과 같은 변경이 있을 때는 **반드시** 빌드를 실행하여 검증:
+
+1. **데이터베이스 스키마 변경**
+   - 마이그레이션 추가/수정
+   - `src/types/database.ts` 수정
+   - 테이블 타입 정의 변경
+
+2. **TypeScript 타입 변경**
+   - 인터페이스/타입 정의 추가/수정
+   - 함수 시그니처 변경
+   - 제네릭 타입 변경
+
+3. **API 라우트 변경**
+   - 새로운 API 엔드포인트 추가
+   - 요청/응답 타입 변경
+   - 미들웨어 로직 변경
+
+4. **의존성 추가/변경**
+   - `package.json` 수정
+   - 새로운 라이브러리 추가
+
+5. **Python 코드 변경** (python-brain)
+   - 새로운 모듈 추가
+   - Import 구조 변경
+   - `requirements.txt` 수정
+
+### 빌드 검증 명령어
+
+```bash
+# Next.js 빌드 검증 (TypeScript 타입 체크 포함)
+npm run build
+
+# TypeScript 타입 체크만 수행 (빠른 검증)
+npx tsc --noEmit
+
+# Linter 검증
+npm run lint
+```
+
+### 빌드 검증 체크리스트
+
+코드 변경 후 다음을 확인:
+
+- [ ] `npm run build` 성공 (`✓ Compiled successfully`)
+- [ ] TypeScript 타입 오류 없음
+- [ ] Linter 경고/오류 없음 (경고는 허용, 오류는 수정 필수)
+- [ ] 데이터베이스 타입 정의와 실제 스키마 일치
+- [ ] 모든 import 경로 정확
+- [ ] Optional chaining/Nullish coalescing 적절히 사용
+
+### 자동 빌드 검증 (AI Assistant)
+
+**AI Assistant는 다음 상황에서 자동으로 빌드를 실행해야 함:**
+
+1. 데이터베이스 관련 코드 변경 시
+2. TypeScript 타입 정의 변경 시
+3. 새로운 파일 추가 시
+4. 의존성 변경 시
+5. 사용자가 명시적으로 요청한 경우
+
+**빌드 실패 시:**
+- 즉시 오류 메시지 분석
+- 타입 오류, 문법 오류, 의존성 오류 등 원인 파악
+- 수정 후 재빌드
+- 빌드 성공 확인까지 반복
 
 ## Git Conventions
 

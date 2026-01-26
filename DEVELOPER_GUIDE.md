@@ -2,7 +2,8 @@
 ## Vibe Semantic Landing Page
 
 **작성일**: 2026-01-26  
-**버전**: 2.0
+**최종 수정**: 2026-01-26 (빌드 검증 프로세스 추가)  
+**버전**: 2.1
 
 ---
 
@@ -373,61 +374,138 @@ chore: 빌드 설정, 패키지 관리 등
 
 ---
 
-## 9. 배포 가이드
+## 9. 빌드 검증 프로세스 (2026-01-26 추가)
 
-### 9.1 로컬 개발
+**⚠️ 중요: 모든 코드 변경 후 반드시 빌드 검증을 수행해야 합니다.**
+
+### 9.1 필수 빌드 검증 시점
+
+다음과 같은 변경이 있을 때는 **반드시** 빌드를 실행하여 검증:
+
+1. **데이터베이스 스키마 변경**
+   - 마이그레이션 추가/수정 (`supabase/migrations/`)
+   - `src/types/database.ts` 수정
+   - 테이블 타입 정의 변경
+
+2. **TypeScript 타입 변경**
+   - 인터페이스/타입 정의 추가/수정
+   - 함수 시그니처 변경
+   - 제네릭 타입 변경
+
+3. **API 라우트 변경**
+   - 새로운 API 엔드포인트 추가
+   - 요청/응답 타입 변경
+   - 미들웨어 로직 변경
+
+4. **의존성 추가/변경**
+   - `package.json` 수정
+   - 새로운 라이브러리 추가
+
+5. **Python 코드 변경** (python-brain)
+   - 새로운 모듈 추가
+   - Import 구조 변경
+   - `requirements.txt` 수정
+
+### 9.2 빌드 검증 명령어
+
+```bash
+# Next.js 빌드 검증 (TypeScript 타입 체크 포함)
+npm run build
+
+# TypeScript 타입 체크만 수행 (빠른 검증)
+npx tsc --noEmit
+
+# Linter 검증
+npm run lint
+```
+
+### 9.3 빌드 검증 체크리스트
+
+코드 변경 후 다음을 확인:
+
+- [ ] `npm run build` 성공 (`✓ Compiled successfully`)
+- [ ] TypeScript 타입 오류 없음
+- [ ] Linter 경고/오류 없음 (경고는 허용, 오류는 수정 필수)
+- [ ] 데이터베이스 타입 정의와 실제 스키마 일치
+- [ ] 모든 import 경로 정확
+- [ ] Optional chaining/Nullish coalescing 적절히 사용
+
+### 9.4 AI Assistant 빌드 검증 규칙
+
+**AI Assistant는 다음 상황에서 자동으로 빌드를 실행해야 함:**
+
+1. 데이터베이스 관련 코드 변경 시
+2. TypeScript 타입 정의 변경 시
+3. 새로운 파일 추가 시
+4. 의존성 변경 시
+5. 사용자가 명시적으로 요청한 경우
+
+**빌드 실패 시:**
+- 즉시 오류 메시지 분석
+- 타입 오류, 문법 오류, 의존성 오류 등 원인 파악
+- 수정 후 재빌드
+- 빌드 성공 확인까지 반복
+
+**빌드 성공 확인:**
+- `npm run build` 출력에서 `✓ Compiled successfully` 확인
+- TypeScript 컴파일 오류 없음 확인
+- 최종적으로 배포 가능 상태 확인
+
+## 10. 배포 가이드
+
+### 10.1 로컬 개발
 ```bash
 npm install
 npm run dev
 ```
 
-### 9.2 프로덕션 빌드
+### 10.2 프로덕션 빌드
 ```bash
 npm run build
 npm start
 ```
 
-### 9.3 GitHub 배포
+### 10.3 GitHub 배포
 자세한 내용은 `DEPLOY_TO_GITHUB.md` 참고
 
-### 9.4 환경 변수 설정
+### 10.4 환경 변수 설정
 프로덕션 환경에서 다음 환경 변수 설정 필요:
 - `GOOGLE_SHEETS_WEB_APP_URL`: Google Apps Script 웹 앱 URL
 
 ---
 
-## 10. 성능 최적화
+## 11. 성능 최적화
 
-### 10.1 이미지 최적화
+### 11.1 이미지 최적화
 - Next.js Image 컴포넌트 사용
 - 적절한 크기와 포맷 선택
 
-### 10.2 코드 스플리팅
+### 11.2 코드 스플리팅
 - 동적 import 사용 (필요한 경우)
 - 페이지별 자동 코드 스플리팅
 
-### 10.3 번들 크기 최적화
+### 11.3 번들 크기 최적화
 - 불필요한 의존성 제거
 - Tree shaking 활용
 
 ---
 
-## 11. 접근성 (A11y)
+## 12. 접근성 (A11y)
 
-### 11.1 필수 요구사항
+### 12.1 필수 요구사항
 - **키보드 네비게이션**: 모든 인터랙티브 요소 접근 가능
 - **ARIA 속성**: 적절한 aria-label, aria-describedby 사용
 - **색상 대비**: WCAG AA 기준 준수
 - **포커스 표시**: 명확한 포커스 인디케이터
 
-### 11.2 폼 접근성
+### 12.2 폼 접근성
 - **label 연결**: 모든 input에 htmlFor/id 연결
 - **에러 메시지**: aria-describedby로 에러 메시지 연결
 - **required 표시**: 시각적 + aria-required
 
 ---
 
-## 12. 테스트 전략
+## 13. 테스트 전략
 
 ### 12.1 수동 테스트 체크리스트
 - [ ] 모든 섹션 스크롤 확인
@@ -446,7 +524,7 @@ npm start
 
 ## 13. 트러블슈팅
 
-### 13.1 일반적인 문제
+### 14.1 일반적인 문제
 
 #### Google Sheets 저장 실패
 - 환경 변수 확인: `GOOGLE_SHEETS_WEB_APP_URL` 설정 확인
@@ -462,6 +540,26 @@ npm start
 - `npm run build`로 타입 체크
 - tsconfig.json 설정 확인
 
+#### 빌드 실패 (2026-01-26 추가)
+**증상**: Vercel/배포 환경에서 빌드 실패, TypeScript 타입 오류
+
+**원인**:
+1. 데이터베이스 스키마 변경 후 타입 정의 미업데이트
+2. TypeScript 타입 불일치
+3. Import 경로 오류
+4. Optional chaining 누락
+
+**해결**:
+1. **로컬에서 빌드 검증**: `npm run build` 실행하여 오류 확인
+2. **타입 정의 업데이트**: `src/types/database.ts`에 새 테이블/컬럼 타입 추가
+3. **타입 캐스팅**: `Json` 타입, `as` 키워드 적절히 사용
+4. **Optional chaining**: `?.` 사용하여 undefined/null 안전 처리
+
+**예방**:
+- 코드 변경 후 반드시 `npm run build` 실행
+- 데이터베이스 마이그레이션 후 타입 정의 즉시 업데이트
+- AI Assistant는 자동으로 빌드 검증 수행 (CLAUDE.md 참고)
+
 #### API에서 401 Unauthorized 오류 (2026-01-26 추가)
 **증상**: 프로젝트 owner이고 active 멤버인데도 API 호출 시 401 오류 발생
 
@@ -476,30 +574,30 @@ npm start
 
 ---
 
-## 14. 참고 자료
+## 15. 참고 자료
 
-### 14.1 문서
+### 15.1 문서
 - PRD: `PRD.md`
 - Google Sheets 설정: `GOOGLE_SHEETS_SETUP.md`
 - 배포 가이드: `DEPLOY_TO_GITHUB.md`
 - README: `README.md`
 
-### 14.2 외부 리소스
+### 15.2 외부 리소스
 - Next.js 문서: https://nextjs.org/docs
 - TailwindCSS 문서: https://tailwindcss.com/docs
 - Google Apps Script: https://script.google.com
 
 ---
 
-## 15. 향후 개선 사항
+## 16. 향후 개선 사항
 
-### 15.1 기술 부채
+### 16.1 기술 부채
 - [ ] 테스트 코드 추가
 - [ ] 에러 바운더리 추가
 - [ ] 로딩 상태 개선
 - [ ] SEO 최적화
 
-### 15.2 기능 개선
+### 16.2 기능 개선
 - [ ] 실제 결제 시스템 연동
 - [ ] 이메일 알림 시스템
 - [ ] 관리자 대시보드
