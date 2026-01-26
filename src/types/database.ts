@@ -19,6 +19,7 @@ export type Database = {
           name: string
           status: Database["public"]["Enums"]["csv_dataset_status"]
           mapping_id: string | null
+          purpose: Database["public"]["Enums"]["workspace_purpose"]
           created_by: string
           created_at: string | null
           updated_at: string | null
@@ -29,6 +30,7 @@ export type Database = {
           name: string
           status?: Database["public"]["Enums"]["csv_dataset_status"]
           mapping_id?: string | null
+          purpose?: Database["public"]["Enums"]["workspace_purpose"]
           created_by: string
           created_at?: string | null
           updated_at?: string | null
@@ -39,6 +41,7 @@ export type Database = {
           name?: string
           status?: Database["public"]["Enums"]["csv_dataset_status"]
           mapping_id?: string | null
+          purpose?: Database["public"]["Enums"]["workspace_purpose"]
           created_by?: string
           created_at?: string | null
           updated_at?: string | null
