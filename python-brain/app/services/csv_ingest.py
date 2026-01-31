@@ -47,6 +47,39 @@ def download_csv_from_storage(
         raise
 
 
+def _is_excel_filename(filename: Optional[str]) -> bool:
+    if not filename:
+        return False
+    lower = filename.lower()
+    return lower.endswith('.xlsx') or lower.endswith('.xls')
+
+
+def parse_excel_with_pandas(
+    file_content: bytes,
+    original_filename: str
+) -> pd.DataFrame:
+    """
+    Parse Excel file (.xlsx or .xls) using Pandas.
+    First sheet only; returns DataFrame with same semantics as CSV for downstream transform.
+    """
+    import io
+    try:
+        lower = original_filename.lower()
+        engine = 'openpyxl' if lower.endswith('.xlsx') else 'xlrd'
+        df = pd.read_excel(
+            io.BytesIO(file_content),
+            sheet_name=0,
+            engine=engine,
+            header=0,
+        )
+        df = df.astype(str).replace('nan', '')
+        logger.info(f"Parsed Excel: {len(df)} rows, {len(df.columns)} columns")
+        return df
+    except Exception as e:
+        logger.error(f"Error parsing Excel with pandas: {e}")
+        raise
+
+
 def parse_csv_with_pandas(
     file_content: bytes,
     encoding: str = 'utf-8'
@@ -430,7 +463,8 @@ def ingest_csv_file(
     storage_path: str,
     headers: List[str],
     mapping: Dict[str, Any],
-    date_range_filter: Optional[Dict[str, str]] = None
+    date_range_filter: Optional[Dict[str, str]] = None,
+    original_filename: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Main function to ingest a CSV file using Pandas
@@ -441,9 +475,10 @@ def ingest_csv_file(
         dataset_id: Dataset ID
         file_id: CSV file ID
         storage_path: Path to file in storage
-        headers: Original CSV headers
+        headers: Original CSV/Excel headers
         mapping: Source mapping configuration
         date_range_filter: Optional date range filter
+        original_filename: e.g. "data.xlsx" to use read_excel instead of read_csv
         
     Returns:
         Result dictionary with:
@@ -469,51 +504,17 @@ def ingest_csv_file(
 
     try:
         # 1. Download file
-        logger.info(f"Downloading CSV file: {storage_path}")
+        logger.info(f"Downloading file: {storage_path}")
         file_content = download_csv_from_storage(supabase, storage_path)
         file_size_mb = len(file_content) / (1024 * 1024)
         logger.info(f"File size: {file_size_mb:.2f} MB")
-        
-        # 2. Determine if chunk processing is needed
-        use_chunks = file_size_mb > CHUNK_SIZE_THRESHOLD_MB
-        
-        if use_chunks:
-            logger.info(f"Using chunk processing (file > {CHUNK_SIZE_THRESHOLD_MB}MB)")
-            # Process in chunks: Staging first, then Mart (deterministic transform)
-            batch_num = 0
-            for chunk_df in parse_csv_with_pandas_chunks(file_content):
-                result['total_rows'] += len(chunk_df)
-                # 2a. Insert raw rows into Staging
-                payloads = _df_rows_to_staging_payloads(chunk_df)
-                for i in range(0, len(payloads), BATCH_SIZE):
-                    batch_payloads = payloads[i:i + BATCH_SIZE]
-                    insert_staging_csv_raw(
-                        supabase, project_id, dataset_id, mapping_id, schema_version,
-                        batch_payloads, batch_num
-                    )
-                    batch_num += 1
-                # 2b. Deterministic transform Staging -> Mart
-                records = transform_dataframe_to_records(
-                    chunk_df,
-                    headers,
-                    mapping,
-                    project_id,
-                    dataset_id,
-                    date_range_filter
-                )
-                for i in range(0, len(records), BATCH_SIZE):
-                    batch = records[i:i + BATCH_SIZE]
-                    inserted = upsert_batch_to_supabase(supabase, batch, batch_num)
-                    result['inserted_records'] += inserted
-                    batch_num += 1
-                
-                result['processed_rows'] += len(chunk_df)
-        else:
-            logger.info("Processing entire file at once")
-            # Process entire file: Staging first, then Mart
-            df = parse_csv_with_pandas(file_content)
+
+        is_excel = _is_excel_filename(original_filename)
+        if is_excel:
+            # Excel: read full file with read_excel (no chunking)
+            logger.info("Processing as Excel (read_excel)")
+            df = parse_excel_with_pandas(file_content, original_filename or "file.xlsx")
             result['total_rows'] = len(df)
-            # 2a. Insert raw rows into Staging
             payloads = _df_rows_to_staging_payloads(df)
             for i in range(0, len(payloads), BATCH_SIZE):
                 batch_payloads = payloads[i:i + BATCH_SIZE]
@@ -521,32 +522,86 @@ def ingest_csv_file(
                     supabase, project_id, dataset_id, mapping_id, schema_version,
                     batch_payloads, i
                 )
-            # 2b. Deterministic transform -> Mart
             records = transform_dataframe_to_records(
-                df,
-                headers,
-                mapping,
-                project_id,
-                dataset_id,
-                date_range_filter
+                df, headers, mapping, project_id, dataset_id, date_range_filter
             )
-            batch_num = 0
             for i in range(0, len(records), BATCH_SIZE):
                 batch = records[i:i + BATCH_SIZE]
-                inserted = upsert_batch_to_supabase(supabase, batch, batch_num)
+                inserted = upsert_batch_to_supabase(supabase, batch, i)
                 result['inserted_records'] += inserted
-                batch_num += 1
-            
             result['processed_rows'] = len(df)
-        
-        # Update csv_files record with ingestion_method
-        try:
-            supabase.table('csv_files').update({
-                'ingestion_method': 'pandas'
-            }).eq('id', file_id).execute()
-        except Exception as e:
-            logger.warning(f"Failed to update ingestion_method: {e}")
-        
+            try:
+                supabase.table('csv_files').update({
+                    'ingestion_method': 'pandas'
+                }).eq('id', file_id).execute()
+            except Exception as e:
+                logger.warning(f"Failed to update ingestion_method: {e}")
+        else:
+            # CSV: existing chunk or full-file logic
+            use_chunks = file_size_mb > CHUNK_SIZE_THRESHOLD_MB
+
+            if use_chunks:
+                logger.info(f"Using chunk processing (file > {CHUNK_SIZE_THRESHOLD_MB}MB)")
+                batch_num = 0
+                for chunk_df in parse_csv_with_pandas_chunks(file_content):
+                    result['total_rows'] += len(chunk_df)
+                    payloads = _df_rows_to_staging_payloads(chunk_df)
+                    for i in range(0, len(payloads), BATCH_SIZE):
+                        batch_payloads = payloads[i:i + BATCH_SIZE]
+                        insert_staging_csv_raw(
+                            supabase, project_id, dataset_id, mapping_id, schema_version,
+                            batch_payloads, batch_num
+                        )
+                        batch_num += 1
+                    records = transform_dataframe_to_records(
+                        chunk_df,
+                        headers,
+                        mapping,
+                        project_id,
+                        dataset_id,
+                        date_range_filter
+                    )
+                    for i in range(0, len(records), BATCH_SIZE):
+                        batch = records[i:i + BATCH_SIZE]
+                        inserted = upsert_batch_to_supabase(supabase, batch, batch_num)
+                        result['inserted_records'] += inserted
+                        batch_num += 1
+                    result['processed_rows'] += len(chunk_df)
+            else:
+                logger.info("Processing entire file at once")
+                df = parse_csv_with_pandas(file_content)
+                result['total_rows'] = len(df)
+                payloads = _df_rows_to_staging_payloads(df)
+                for i in range(0, len(payloads), BATCH_SIZE):
+                    batch_payloads = payloads[i:i + BATCH_SIZE]
+                    insert_staging_csv_raw(
+                        supabase, project_id, dataset_id, mapping_id, schema_version,
+                        batch_payloads, i
+                    )
+                records = transform_dataframe_to_records(
+                    df,
+                    headers,
+                    mapping,
+                    project_id,
+                    dataset_id,
+                    date_range_filter
+                )
+                batch_num = 0
+                for i in range(0, len(records), BATCH_SIZE):
+                    batch = records[i:i + BATCH_SIZE]
+                    inserted = upsert_batch_to_supabase(supabase, batch, batch_num)
+                    result['inserted_records'] += inserted
+                    batch_num += 1
+                result['processed_rows'] = len(df)
+
+            # Update csv_files record with ingestion_method
+            try:
+                supabase.table('csv_files').update({
+                    'ingestion_method': 'pandas'
+                }).eq('id', file_id).execute()
+            except Exception as e:
+                logger.warning(f"Failed to update ingestion_method: {e}")
+
     except Exception as e:
         error_msg = str(e)
         logger.error(f"Error ingesting CSV file: {error_msg}")

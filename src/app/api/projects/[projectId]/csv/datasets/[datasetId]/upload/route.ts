@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { requireAuth, requireProjectMember } from '@/lib/supabase/auth-helpers'
 import { parseCsvMetadata } from '@/lib/csv/parser'
+import { parseXlsxMetadata } from '@/lib/csv/xlsx-parser'
 
 type RouteParams = { params: Promise<{ projectId: string; datasetId: string }> }
 
@@ -46,30 +47,43 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const uploadedFiles = []
 
   for (const file of files) {
-    // Validate file type
-    const validTypes = ['text/csv', 'application/csv', 'text/plain', 'application/vnd.ms-excel']
-    if (!validTypes.includes(file.type) && !file.name.endsWith('.csv')) {
+    const lowerName = file.name.toLowerCase()
+    const isXlsx = lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls')
+    const isCsv =
+      file.name.endsWith('.csv') ||
+      ['text/csv', 'application/csv', 'text/plain', 'application/vnd.ms-excel'].includes(file.type)
+
+    if (!isXlsx && !isCsv) {
       continue // Skip invalid files
     }
 
-    // Read file content - only parse metadata for upload
-    const content = await file.text()
-    const parseResult = parseCsvMetadata(content)
+    let parseResult: { headers: string[]; sampleRows: string[][]; totalRows: number; columnCount: number }
+    if (isXlsx) {
+      const buffer = await file.arrayBuffer()
+      parseResult = parseXlsxMetadata(buffer)
+    } else {
+      const content = await file.text()
+      parseResult = parseCsvMetadata(content)
+    }
 
     if (parseResult.headers.length === 0) {
       continue // Skip empty files
     }
 
-    // Generate storage path
     const timestamp = Date.now()
     const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
     const storagePath = `${projectId}/${datasetId}/${timestamp}_${safeName}`
 
-    // Upload to Supabase Storage
+    const contentType = isXlsx
+      ? (lowerName.endsWith('.xlsx')
+          ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+          : 'application/vnd.ms-excel')
+      : 'text/csv'
+
     const { error: uploadError } = await supabase.storage
       .from('csv-uploads')
       .upload(storagePath, file, {
-        contentType: 'text/csv',
+        contentType,
         upsert: false,
       })
 
@@ -78,7 +92,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       continue
     }
 
-    // Create csv_files record
     const { data: csvFile, error: insertError } = await supabase
       .from('csv_files')
       .insert({
@@ -90,10 +103,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         row_count: parseResult.totalRows,
         column_count: parseResult.columnCount,
         headers: parseResult.headers,
-        sample_rows: parseResult.sampleRows.slice(0, 10), // Store first 10 rows
+        sample_rows: parseResult.sampleRows.slice(0, 10),
         status: 'ready',
         is_active: true,
         uploaded_by: auth.user!.id,
+        ingestion_method: isXlsx ? 'xlsx' : null,
       })
       .select()
       .single()
@@ -109,7 +123,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   }
 
   if (uploadedFiles.length === 0) {
-    return NextResponse.json({ error: 'No valid CSV files were uploaded' }, { status: 400 })
+    return NextResponse.json({ error: 'No valid CSV or Excel files were uploaded' }, { status: 400 })
   }
 
   // Update dataset status if it was draft

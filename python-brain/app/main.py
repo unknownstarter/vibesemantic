@@ -96,6 +96,7 @@ class CSVCollectRequest(BaseModel):
     dataset_id: str
     file_id: str
     storage_path: str
+    original_filename: Optional[str] = None  # e.g. "data.xlsx" -> use read_excel
     headers: list[str]
     mapping: dict
     date_range: Optional[dict] = None
@@ -227,6 +228,7 @@ async def collect_csv(
             dataset_id=request.dataset_id,
             file_id=request.file_id,
             storage_path=request.storage_path,
+            original_filename=request.original_filename,
             headers=request.headers,
             mapping=request.mapping,
             date_range_filter=request.date_range

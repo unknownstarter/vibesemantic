@@ -85,10 +85,11 @@ export const CSV_FILE_STATUS: Record<CsvFileStatus, StatusConfig> = {
 export const CSV_MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB
 export const CSV_MAX_FILES_PER_UPLOAD = 10
 
-// Allowed MIME types
+// Allowed MIME types (CSV + Excel)
 export const CSV_ALLOWED_MIME_TYPES = [
   'text/csv',
   'application/csv',
   'text/plain',
   'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 ]

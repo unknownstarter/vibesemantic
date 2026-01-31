@@ -415,14 +415,14 @@ export default function DatasetDetailPage() {
             ) : (
               <>
                 <UploadIcon className="w-10 h-10 mx-auto text-muted mb-3" />
-                <p className="text-foreground font-medium">CSV 파일을 드래그하거나 클릭하여 업로드</p>
+                <p className="text-foreground font-medium">CSV 또는 Excel(.xlsx, .xls) 파일을 드래그하거나 클릭하여 업로드</p>
                 <p className="text-sm text-muted mt-1">여러 파일을 한 번에 업로드할 수 있습니다</p>
               </>
             )}
           </div>
           <input
             type="file"
-            accept=".csv,text/csv"
+            accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
             multiple
             className="hidden"
             onChange={(e) => handleFileUpload(e.target.files)}

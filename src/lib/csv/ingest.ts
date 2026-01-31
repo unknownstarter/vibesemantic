@@ -57,6 +57,7 @@ async function ingestViaPandasAPI(
       dataset_id: datasetId,
       file_id: file.id,
       storage_path: file.storage_path,
+      original_filename: file.original_filename,
       headers: file.headers,
       mapping: {
         id: mapping.id,
@@ -119,7 +120,9 @@ export async function ingestDataset(
 
   for (const file of files) {
     const fileSizeMB = (file.file_size_bytes || 0) / (1024 * 1024)
-    const usePandas = fileSizeMB >= PANDAS_THRESHOLD_MB
+    const lowerName = (file.original_filename ?? '').toLowerCase()
+    const isExcel = lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls')
+    const usePandas = isExcel || fileSizeMB >= PANDAS_THRESHOLD_MB
 
     try {
       if (usePandas) {
