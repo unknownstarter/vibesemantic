@@ -1,14 +1,19 @@
 /**
  * Project-level feature flags
  * DB-based flags for gradual rollout and A/B testing
+ * Cache backend: in-memory or Redis (CACHE_AND_ASSETS.md)
  */
 
 import { createClient } from '@/lib/supabase/server'
 import type { FeatureFlags, Json } from '@/types/database'
+import { getDefaultBackend } from '@/lib/cache/backend'
 
-// In-memory cache for feature flags (short TTL)
-const flagsCache = new Map<string, { flags: FeatureFlags; expiresAt: number }>()
-const FLAGS_CACHE_TTL_MS = 60 * 1000 // 1 minute (shorter than metric cache)
+const FLAGS_CACHE_TTL_MS = 60 * 1000 // 1 minute
+const FLAGS_CACHE_KEY_PREFIX = 'flags:'
+
+function getCacheKey(projectId: string): string {
+  return `${FLAGS_CACHE_KEY_PREFIX}${projectId}`
+}
 
 /**
  * Get feature flags for a project
@@ -16,15 +21,11 @@ const FLAGS_CACHE_TTL_MS = 60 * 1000 // 1 minute (shorter than metric cache)
 export async function getProjectFeatureFlags(
   projectId: string
 ): Promise<FeatureFlags> {
-  const cacheKey = `flags:${projectId}`
-  const cached = flagsCache.get(cacheKey)
+  const backend = getDefaultBackend()
+  const cacheKey = getCacheKey(projectId)
+  const cached = await backend.get<FeatureFlags>(cacheKey)
+  if (cached != null) return cached
 
-  // Cache hit
-  if (cached && cached.expiresAt > Date.now()) {
-    return cached.flags
-  }
-
-  // Cache miss - fetch from DB
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('projects')
@@ -38,13 +39,7 @@ export async function getProjectFeatureFlags(
   }
 
   const flags = (data?.feature_flags as FeatureFlags) ?? {}
-
-  // Cache the result
-  flagsCache.set(cacheKey, {
-    flags,
-    expiresAt: Date.now() + FLAGS_CACHE_TTL_MS,
-  })
-
+  await backend.set(cacheKey, flags, FLAGS_CACHE_TTL_MS)
   return flags
 }
 
@@ -73,10 +68,7 @@ export async function updateProjectFeatureFlags(
 ): Promise<void> {
   const supabase = await createClient()
 
-  // Get current flags
   const currentFlags = await getProjectFeatureFlags(projectId)
-
-  // Merge with new flags
   const updatedFlags: FeatureFlags = {
     ...currentFlags,
     ...flags,
@@ -91,8 +83,7 @@ export async function updateProjectFeatureFlags(
     throw new Error(`Failed to update feature flags: ${error.message}`)
   }
 
-  // Invalidate cache
-  flagsCache.delete(`flags:${projectId}`)
+  await invalidateFlagsCache(projectId)
 }
 
 /**
@@ -126,15 +117,17 @@ export async function disableEventCollection(projectId: string): Promise<void> {
 /**
  * Invalidate feature flags cache for a project
  */
-export function invalidateFlagsCache(projectId: string): void {
-  flagsCache.delete(`flags:${projectId}`)
+export async function invalidateFlagsCache(projectId: string): Promise<void> {
+  const backend = getDefaultBackend()
+  await backend.delete(getCacheKey(projectId))
 }
 
 /**
- * Clear all feature flags cache
+ * Clear all feature flags cache (prefix flags:)
  */
-export function clearAllFlagsCache(): void {
-  flagsCache.clear()
+export async function clearAllFlagsCache(): Promise<void> {
+  const backend = getDefaultBackend()
+  await backend.clearPrefix(FLAGS_CACHE_KEY_PREFIX)
 }
 
 /**

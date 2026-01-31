@@ -17,6 +17,7 @@ export interface IngestResult {
 
 export interface SourceMapping {
   id: string
+  schema_version?: number
   date_column: string | null
   metric_columns: MetricColumn[]
   dimension_columns: Array<{ name: string; displayName?: string; type: string }>
@@ -59,6 +60,7 @@ async function ingestViaPandasAPI(
       headers: file.headers,
       mapping: {
         id: mapping.id,
+        schema_version: mapping.schema_version ?? 1,
         date_column: mapping.date_column,
         metric_columns: mapping.metric_columns,
         dimension_columns: mapping.dimension_columns,
@@ -240,7 +242,34 @@ async function ingestViaTypeScript(
 
     result.totalRows += parseResult.totalRows
 
-    // Process rows according to mapping
+    // 1. Insert raw rows into Staging (Staging layer)
+    const schemaVersion = mapping.schema_version ?? 1
+    const stagingPayloads = parseResult.rows.map((row) => {
+      const payload: Record<string, string | number | null> = {}
+      parseResult.headers.forEach((h, idx) => {
+        payload[h] = row[idx] ?? null
+      })
+      return payload
+    })
+    if (stagingPayloads.length > 0) {
+      const batchSize = 1000
+      for (let i = 0; i < stagingPayloads.length; i += batchSize) {
+        const batch = stagingPayloads.slice(i, i + batchSize).map((payload) => ({
+          project_id: projectId,
+          dataset_id: datasetId,
+          mapping_id: mapping.id,
+          schema_version: schemaVersion,
+          payload,
+        }))
+        const { error: stagingError } = await supabase.from('staging_csv_raw').insert(batch)
+        if (stagingError) {
+          result.errors.push(`Staging insert: ${stagingError.message}`)
+          console.error('[Ingest] Staging insert error:', stagingError)
+        }
+      }
+    }
+
+    // 2. Deterministic transform Staging → Mart (no LLM)
     let records: MartRecord[]
     try {
       records = transformToMartRecords(
@@ -259,17 +288,17 @@ async function ingestViaTypeScript(
       return result
     }
 
-      // Batch upsert to mart table
-      if (records.length > 0) {
-        const batchSize = 1000
-        for (let i = 0; i < records.length; i += batchSize) {
-          const batch = records.slice(i, i + batchSize)
-          
-          const { error: upsertError } = await supabase
-            .from('mart_csv_daily_metrics')
-            .upsert(batch, {
-              onConflict: 'project_id,dataset_id,date,metric_name,dimension_key,dimension_value',
-            })
+    // 3. Batch upsert to mart table
+    if (records.length > 0) {
+      const batchSize = 1000
+      for (let i = 0; i < records.length; i += batchSize) {
+        const batch = records.slice(i, i + batchSize)
+
+        const { error: upsertError } = await supabase
+          .from('mart_csv_daily_metrics')
+          .upsert(batch, {
+            onConflict: 'project_id,dataset_id,date,metric_name,dimension_key,dimension_value',
+          })
 
           if (upsertError) {
             const errorMsg = `Batch insert error: ${upsertError.message}`

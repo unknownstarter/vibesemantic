@@ -193,7 +193,7 @@ export function AgentSlideOver({
                       prose-strong:text-foreground prose-strong:font-semibold
                       prose-li:text-muted prose-li:my-1
                       prose-ul:my-3 prose-ol:my-3
-                      prose-code:text-accent prose-code:bg-surface-inset prose-code:px-1.5 prose-code:rounded prose-code:border prose-code:border-border/10
+                      prose-code:text-primary prose-code:bg-surface-inset prose-code:px-1.5 prose-code:rounded prose-code:border prose-code:border-border/10
                       prose-a:text-primary prose-a:no-underline hover:prose-a:underline
                       prose-hr:border-border/20"
                     dangerouslySetInnerHTML={{ __html: formatMarkdown(reportMarkdown) }}

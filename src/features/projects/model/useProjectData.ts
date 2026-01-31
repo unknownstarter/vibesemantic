@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import type { Project, MemberRole, Workspace } from '@/types/database'
 
 export interface ProjectData {
@@ -30,7 +30,7 @@ export function useProjectData(projectId: string): UseProjectDataResult {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true)
     setError(null)
 
@@ -62,13 +62,13 @@ export function useProjectData(projectId: string): UseProjectDataResult {
     } finally {
       setLoading(false)
     }
-  }
+  }, [projectId])
 
   useEffect(() => {
     if (projectId) {
       fetchData()
     }
-  }, [projectId])
+  }, [projectId, fetchData])
 
   return {
     data,

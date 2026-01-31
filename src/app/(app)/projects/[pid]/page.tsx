@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/shared/ui/Button'
+import { Card } from '@/shared/ui/Card'
 import { Spinner } from '@/shared/ui/Spinner'
 import { ErrorMessage } from '@/shared/ui/ErrorMessage'
 import { useProjectQuery, useWorkspacesQuery } from '@/lib/react-query/queries'
@@ -223,7 +224,7 @@ function ProjectOverviewContent() {
               </div>
 
               {workspaces.length === 0 ? (
-                <div className="bg-surface rounded-2xl border border-border/10 text-center py-12">
+                <Card className="text-center py-12 animate-fadeIn">
                   <div className="text-subtle mb-4">
                     <svg className="w-16 h-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
@@ -234,7 +235,7 @@ function ProjectOverviewContent() {
                   <Link href={`/projects/${slug}/workspaces/new`}>
                     <Button size="sm">워크스페이스 만들기</Button>
                   </Link>
-                </div>
+                </Card>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {workspaces.map((workspace) => {

@@ -39,7 +39,7 @@ interface LineChartProps {
 // 기본 색상 팔레트
 const DEFAULT_COLORS = [
   '#22c55e', // green (primary)
-  '#3b82f6', // blue
+  '#22c55e', // primary green
   '#f59e0b', // amber
   '#ef4444', // red
   '#8b5cf6', // purple

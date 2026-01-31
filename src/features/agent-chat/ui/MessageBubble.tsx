@@ -17,7 +17,7 @@ interface MessageBubbleProps {
 // Avatar Icons
 function UserAvatar() {
   return (
-    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shrink-0">
+    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shrink-0">
       <svg className="w-4 h-4 text-background" viewBox="0 0 24 24" fill="currentColor">
         <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
       </svg>
@@ -27,7 +27,7 @@ function UserAvatar() {
 
 function AIAvatar() {
   return (
-    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 border border-primary/30 flex items-center justify-center shrink-0">
+    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/20 to-white/10 border border-primary/30 flex items-center justify-center shrink-0">
       <svg className="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
       </svg>
@@ -89,7 +89,7 @@ export const MessageBubble = memo(function MessageBubble({ role, content, timest
                   prose-p:text-muted prose-p:leading-relaxed prose-p:my-2
                   prose-strong:text-foreground prose-strong:font-semibold
                   prose-li:text-muted prose-li:my-1
-                  prose-code:text-accent prose-code:bg-surface prose-code:px-1 prose-code:rounded
+                  prose-code:text-primary prose-code:bg-surface prose-code:px-1 prose-code:rounded
                   prose-a:text-primary prose-a:no-underline hover:prose-a:underline"
                 dangerouslySetInnerHTML={{ __html: formatMarkdown(content) }}
               />

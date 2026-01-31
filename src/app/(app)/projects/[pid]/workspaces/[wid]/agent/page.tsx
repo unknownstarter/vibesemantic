@@ -11,6 +11,7 @@ import { ReportCharts } from '@/features/agent-chat/ui/ReportCharts'
 import { formatMarkdown } from '@/features/agent-chat/lib/formatMarkdown'
 import type { ReportRange, ChatMessage, Workspace, AgentConfig } from '@/types/database'
 import type { AnalystQuestion, MartSummary } from '@/lib/langgraph/types'
+import type { ChartContext } from '@/lib/api/brain-api'
 
 type TabType = 'report' | 'chat'
 
@@ -170,7 +171,7 @@ export default function AgentPage() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const sendMessage = useCallback(async (message: string) => {
+  const sendMessage = useCallback(async (message: string, chartContext?: ChartContext) => {
     if (!message.trim()) return
 
     // Add user message optimistically
@@ -197,6 +198,7 @@ export default function AgentPage() {
           userMessage: message,
           threadId,
           language: config?.language || 'ko',
+          chartContext: chartContext ?? undefined,
         }),
       })
 
@@ -245,6 +247,12 @@ export default function AgentPage() {
     // Send as chat message
     setTab('chat')
     sendMessage(`${question.question} - ${reply.label}`)
+  }, [sendMessage])
+
+  /** Epic 5.2: 차트 "이 숫자에 대해 물어보기" → 채팅 탭으로 전환 후 chartContext와 함께 전송 */
+  const handleAskAboutChart = useCallback((context: ChartContext) => {
+    setTab('chat')
+    sendMessage('이 차트에 대해 자세히 설명해줘', context)
   }, [sendMessage])
 
   // Suggested questions for empty chat
@@ -372,7 +380,11 @@ export default function AgentPage() {
                 {/* Charts Section */}
                 {reportMartSummary && (
                   <div className="px-6 pt-6">
-                    <ReportCharts martSummary={reportMartSummary} />
+                    <ReportCharts
+                      martSummary={reportMartSummary}
+                      onAskAboutChart={handleAskAboutChart}
+                      currentRange={range}
+                    />
                   </div>
                 )}
 
@@ -460,7 +472,7 @@ export default function AgentPage() {
                       boxShadow: ['0 0 0 0 rgba(var(--primary-rgb), 0)', '0 0 30px 10px rgba(var(--primary-rgb), 0.1)', '0 0 0 0 rgba(var(--primary-rgb), 0)']
                     }}
                     transition={{ duration: 2, repeat: Infinity }}
-                    className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center mb-4"
+                    className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/20 to-white/10 flex items-center justify-center mb-4"
                   >
                     <SparkleIcon className="w-8 h-8 text-primary" />
                   </motion.div>

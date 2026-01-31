@@ -3,14 +3,20 @@
 import { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { LineChart, BarChart, RadarChart } from '@/shared/ui/charts'
+import { Button } from '@/shared/ui/Button'
 import type { LineChartDataPoint } from '@/shared/ui/charts/LineChart'
 import type { MartSummary } from '@/lib/langgraph/types'
+import type { ChartContext } from '@/lib/api/brain-api'
+import type { ReportRange } from '@/types/database'
 
 interface ReportChartsProps {
   martSummary: MartSummary
+  /** Epic 5.2: "이 숫자에 대해 물어보기" 클릭 시 채팅으로 전달할 컨텍스트 */
+  onAskAboutChart?: (context: ChartContext) => void
+  currentRange?: ReportRange
 }
 
-export function ReportCharts({ martSummary }: ReportChartsProps) {
+export function ReportCharts({ martSummary, onAskAboutChart, currentRange = '7d' }: ReportChartsProps) {
   // 일별 트렌드 데이터 (Line Chart)
   const trendData = useMemo(() => {
     if (!martSummary.dailyTrend?.length) return []
@@ -81,12 +87,24 @@ export function ReportCharts({ martSummary }: ReportChartsProps) {
           animate={{ opacity: 1, y: 0 }}
           className="bg-surface-inset/30 rounded-xl p-4 border border-border/10"
         >
-          <h4 className="text-sm font-medium text-foreground mb-3">📈 일별 트렌드</h4>
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-sm font-medium text-foreground">📈 일별 트렌드</h4>
+            {onAskAboutChart && (
+              <Button
+                variant="secondary"
+                size="sm"
+                className="text-xs text-primary border-primary/30 hover:border-primary/50 hover:bg-primary/10"
+                onClick={() => onAskAboutChart({ range: currentRange, chartType: 'trend', label: '일별 트렌드 (세션·사용자)', metricNames: ['sessions', 'users'] })}
+              >
+                이 숫자에 대해 물어보기
+              </Button>
+            )}
+          </div>
           <LineChart
             data={trendData}
             series={[
               { key: 'sessions', name: '세션', color: '#22c55e' },
-              { key: 'users', name: '사용자', color: '#3b82f6' },
+              { key: 'users', name: '사용자', color: '#22c55e' },
             ]}
             height={180}
             showLegend
@@ -103,7 +121,19 @@ export function ReportCharts({ martSummary }: ReportChartsProps) {
             transition={{ delay: 0.1 }}
             className="bg-surface-inset/30 rounded-xl p-4 border border-border/10"
           >
-            <h4 className="text-sm font-medium text-foreground mb-3">📊 채널별 세션</h4>
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-medium text-foreground">📊 채널별 세션</h4>
+              {onAskAboutChart && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="text-xs text-primary border-primary/30 hover:border-primary/50 hover:bg-primary/10"
+                  onClick={() => onAskAboutChart({ range: currentRange, chartType: 'channel', label: '채널별 세션', metricNames: channelData.map(c => c.name) })}
+                >
+                  이 숫자에 대해 물어보기
+                </Button>
+              )}
+            </div>
             <BarChart
               data={channelData}
               height={160}
@@ -121,7 +151,19 @@ export function ReportCharts({ martSummary }: ReportChartsProps) {
             transition={{ delay: 0.2 }}
             className="bg-surface-inset/30 rounded-xl p-4 border border-border/10"
           >
-            <h4 className="text-sm font-medium text-foreground mb-3">🎯 페이지 참여율</h4>
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-medium text-foreground">🎯 페이지 참여율</h4>
+              {onAskAboutChart && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="text-xs text-primary border-primary/30 hover:border-primary/50 hover:bg-primary/10"
+                  onClick={() => onAskAboutChart({ range: currentRange, chartType: 'page', label: '페이지 참여율' })}
+                >
+                  이 숫자에 대해 물어보기
+                </Button>
+              )}
+            </div>
             <RadarChart
               data={pageData}
               height={160}
@@ -139,7 +181,19 @@ export function ReportCharts({ martSummary }: ReportChartsProps) {
           transition={{ delay: 0.3 }}
           className="bg-surface-inset/30 rounded-xl p-4 border border-border/10"
         >
-          <h4 className="text-sm font-medium text-foreground mb-3">🔗 GA4 + CSV 통합 분석</h4>
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-sm font-medium text-foreground">🔗 GA4 + CSV 통합 분석</h4>
+              {onAskAboutChart && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="text-xs text-primary border-primary/30 hover:border-primary/50 hover:bg-primary/10"
+                  onClick={() => onAskAboutChart({ range: currentRange, chartType: 'integrated', label: 'GA4 + CSV 통합', metricNames: ['ga4Sessions', ...csvMetricKeys] })}
+                >
+                  이 숫자에 대해 물어보기
+                </Button>
+              )}
+          </div>
           <LineChart
             data={csvTrendData}
             series={[

@@ -57,7 +57,12 @@ export async function POST(
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
-    const body = await request.json()
+    let body: Record<string, unknown>
+    try {
+      body = await request.json()
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+    }
 
     const { 
       mode = 'report',
@@ -65,12 +70,15 @@ export async function POST(
       userMessage,
       threadId = `thread_${Date.now()}`,
       language = 'ko',
+      chartContext,
     } = body as {
       mode?: 'report' | 'chat'
       range?: ReportRange
       userMessage?: string
       threadId?: string
       language?: 'ko' | 'en'
+      /** Epic 5.2: 차트→채팅. 선택한 차트/메트릭 컨텍스트 (range, metricNames, chartType, label) */
+      chartContext?: { range?: ReportRange; metricNames?: string[]; chartType?: string; label?: string }
     }
 
     if (mode === 'chat' && !userMessage) {
@@ -93,6 +101,7 @@ export async function POST(
         range,
         userMessage,
         threadId,
+        chartContext,
       })
 
       return NextResponse.json({

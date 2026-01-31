@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Button } from '@/shared/ui/Button'
 import { Card } from '@/shared/ui/Card'
+import { Spinner } from '@/shared/ui/Spinner'
 import Link from 'next/link'
 
 // 로고 아이콘
@@ -26,17 +27,6 @@ function LogoIcon({ className }: { className?: string }) {
         <rect x="4" y="23" width="12" height="2" rx="1" />
       </g>
     </svg>
-  )
-}
-
-// 스피너
-function Spinner({ size = 'sm' }: { size?: 'sm' | 'md' }) {
-  const sizes = { sm: 'h-5 w-5', md: 'h-8 w-8' }
-  return (
-    <div className={`${sizes[size]} relative`}>
-      <div className="absolute inset-0 rounded-full border-2 border-primary/20"></div>
-      <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-primary animate-spin"></div>
-    </div>
   )
 }
 
@@ -412,7 +402,7 @@ function LoginForm() {
       {/* 배경 효과 */}
       <div className="fixed inset-0 -z-10">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-accent/5 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-white/5 rounded-full blur-3xl"></div>
       </div>
 
       <div className="w-full max-w-md">
@@ -439,7 +429,7 @@ function LoginForm() {
                 잠시 후 대시보드로 이동합니다...
               </p>
               <div className="flex justify-center">
-                <Spinner size="sm" />
+                <Spinner size="md" className="text-primary" />
               </div>
             </div>
           ) : status === 'otp_sent' ? (
@@ -486,7 +476,7 @@ function LoginForm() {
                 >
                   {verifying ? (
                     <span className="flex items-center justify-center gap-2">
-                      <Spinner size="sm" />
+                      <Spinner size="sm" className="text-background" />
                       확인 중...
                     </span>
                   ) : (
@@ -596,7 +586,7 @@ function LoginForm() {
                 >
                   {loading ? (
                     <span className="flex items-center justify-center gap-2">
-                      <Spinner size="sm" />
+                      <Spinner size="sm" className="text-background" />
                       전송 중...
                     </span>
                   ) : (
@@ -639,7 +629,7 @@ function LoginForm() {
               >
                 {loading ? (
                   <span className="flex items-center justify-center gap-2">
-                    <Spinner size="sm" />
+                    <Spinner size="sm" className="text-foreground" />
                     연결 중...
                   </span>
                 ) : (
@@ -699,14 +689,11 @@ function LoadingFallback() {
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="fixed inset-0 -z-10">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-accent/5 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-white/5 rounded-full blur-3xl"></div>
       </div>
       <Card className="w-full max-w-md p-8">
         <div className="flex justify-center py-8">
-          <div className="h-8 w-8 relative">
-            <div className="absolute inset-0 rounded-full border-2 border-primary/20"></div>
-            <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-primary animate-spin"></div>
-          </div>
+          <Spinner size="lg" className="text-primary" />
         </div>
       </Card>
     </div>

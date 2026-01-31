@@ -46,7 +46,7 @@ export function formatMarkdown(markdown: string): string {
   html = html.replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre class="bg-surface-inset p-3 rounded-lg my-3 overflow-x-auto border border-border/10"><code class="text-xs text-foreground">$2</code></pre>')
   
   // Inline code
-  html = html.replace(/`([^`]+)`/g, '<code class="bg-surface-inset px-1.5 py-0.5 rounded text-accent text-sm border border-border/10">$1</code>')
+  html = html.replace(/`([^`]+)`/g, '<code class="bg-surface-inset px-1.5 py-0.5 rounded text-primary text-sm border border-border/10">$1</code>')
   
   // Headers (마크다운 형식)
   html = html.replace(/^#### (.*$)/gm, '<h4 class="text-sm font-semibold mt-6 mb-3 text-foreground">$1</h4>')

@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/shared/ui/Button'
+import { Card } from '@/shared/ui/Card'
+import { Spinner } from '@/shared/ui/Spinner'
 import { AccessRequestDialog } from '@/shared/ui/AccessRequestDialog'
 import { createClient } from '@/lib/supabase/client'
 import type { ProjectWithRole, ProjectSetupStatus } from '@/types/database'
@@ -10,18 +12,8 @@ import type { ProjectWithRole, ProjectSetupStatus } from '@/types/database'
 const STATUS_LABELS: Record<ProjectSetupStatus, { label: string; color: string }> = {
   draft: { label: '프로필 설정 필요', color: 'bg-subtle/30 text-muted' },
   profile_ready: { label: 'GA4 연동 필요', color: 'bg-warning/20 text-warning' },
-  ga4_ready: { label: '데이터 동기화 필요', color: 'bg-info/20 text-info' },
+  ga4_ready: { label: '데이터 동기화 필요', color: 'bg-primary/20 text-primary' },
   ready: { label: '분석 가능', color: 'bg-success/20 text-success' },
-}
-
-// 스피너
-function Spinner() {
-  return (
-    <div className="h-8 w-8 relative">
-      <div className="absolute inset-0 rounded-full border-2 border-primary/20"></div>
-      <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-primary animate-spin"></div>
-    </div>
-  )
 }
 
 export default function DashboardPage() {
@@ -90,7 +82,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Spinner />
+        <Spinner size="lg" className="text-primary" />
       </div>
     )
   }
@@ -116,7 +108,7 @@ export default function DashboardPage() {
       </div>
 
       {projects.length === 0 ? (
-        <div className="bg-surface rounded-2xl border border-border/10 text-center py-16">
+        <Card className="text-center py-16 animate-fadeIn">
           <div className="text-subtle mb-4">
             <svg className="w-16 h-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -135,7 +127,7 @@ export default function DashboardPage() {
           >
             프로젝트 만들기
           </Button>
-        </div>
+        </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {projects.map((project) => {

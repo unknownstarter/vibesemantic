@@ -17,8 +17,8 @@ function Spinner({ className = '' }: { className?: string }) {
 }
 
 const PURPOSE_LABELS: Record<WorkspacePurpose, { label: string; color: string; icon: string }> = {
-  product: { label: '프로덕트', color: 'bg-accent/20 text-accent', icon: '📦' },
-  marketing: { label: '마케팅', color: 'bg-info/20 text-info', icon: '📢' },
+  product: { label: '프로덕트', color: 'bg-primary/20 text-primary', icon: '📦' },
+  marketing: { label: '마케팅', color: 'bg-primary/20 text-primary', icon: '📢' },
   biz: { label: '비즈니스', color: 'bg-success/20 text-success', icon: '📊' },
   sales: { label: '세일즈', color: 'bg-warning/20 text-warning', icon: '💼' },
 }

@@ -425,7 +425,7 @@ StateGraph
 ## 9. 향후 개선 사항
 
 ### 9.1 단기 (1-2개월)
-- [ ] Redis 캐싱 (멀티 인스턴스 환경)
+- [ ] Redis 캐싱 (멀티 인스턴스 환경) — 검토·통합 방식: [CACHE_AND_ASSETS.md § 4](CACHE_AND_ASSETS.md#4-멀티-인스턴스-캐시-검토-epic-63)
 - [ ] 메트릭 정의 UI (사용자 직접 수정)
 - [ ] 실시간 데이터 업데이트 (WebSocket)
 
@@ -438,6 +438,14 @@ StateGraph
 - [ ] 멀티 테넌트 지원 강화
 - [ ] 고급 분석 기능 (예측, 이상 탐지)
 - [ ] API Rate Limiting
+
+---
+
+## 관련 문서
+
+- [CACHE_AND_ASSETS.md](./CACHE_AND_ASSETS.md) — 캐시 vs 자산 저장소 정책, 무효화·보존 규칙
+- [DATA_PIPELINE_DOCUMENTATION.md](./DATA_PIPELINE_DOCUMENTATION.md) — 스테이징·마트·요약·DB 스키마, [다소스 확장 패턴](DATA_PIPELINE_DOCUMENTATION.md#다소스-확장-martsummary-공통-패턴--epic-62) 포함
+- [AI_AGENT_DOCUMENTATION.md](./AI_AGENT_DOCUMENTATION.md) — 에이전트 플로우·API
 
 ---
 

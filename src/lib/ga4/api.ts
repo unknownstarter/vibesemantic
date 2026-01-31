@@ -424,7 +424,16 @@ export async function refreshMartData(
       }
     )
 
-    // 1. Daily KPIs upsert (including retention metrics if available)
+    // schema_version for Staging (GA4: from ga4_event_schemas or default 1)
+    const { data: schemaRow } = await supabase
+      .from('ga4_event_schemas')
+      .select('schema_version')
+      .eq('project_id', projectId)
+      .limit(1)
+      .single()
+    const schemaVersion = schemaRow?.schema_version ?? 1
+
+    // 1. Staging: daily_kpis → then Mart
     if (data.kpis.rows) {
       // Build retention data map for merging
       const retentionMap = new Map<string, {
@@ -469,12 +478,18 @@ export async function refreshMartData(
         }
       })
 
+      await supabase.from('staging_ga4_raw').insert({
+        project_id: projectId,
+        schema_version: schemaVersion,
+        report_type: 'daily_kpis',
+        payload: kpiRows,
+      })
       await supabase
         .from('mart_ga4_daily_kpis')
         .upsert(kpiRows, { onConflict: 'project_id,date' })
     }
 
-    // 2. Channel Daily upsert
+    // 2. Staging: channel_daily → then Mart
     if (data.channels.rows) {
       const channelRows = data.channels.rows.map(row => ({
         project_id: projectId,
@@ -486,12 +501,18 @@ export async function refreshMartData(
         engaged_sessions: parseInt(row.metricValues![3].value || '0'),
       }))
 
+      await supabase.from('staging_ga4_raw').insert({
+        project_id: projectId,
+        schema_version: schemaVersion,
+        report_type: 'channel_daily',
+        payload: channelRows,
+      })
       await supabase
         .from('mart_ga4_channel_daily')
         .upsert(channelRows, { onConflict: 'project_id,date,channel_group' })
     }
 
-    // 3. Top Pages Daily upsert (일별 상위 50개만)
+    // 3. Staging: top_pages_daily → then Mart (일별 상위 50개만)
     if (data.pages.rows) {
       // 날짜별로 그룹화 후 상위 50개만
       const pagesByDate = new Map<string, typeof data.pages.rows>()
@@ -519,12 +540,18 @@ export async function refreshMartData(
           engagement_rate: parseFloat(row.metricValues![3].value || '0'),
         }))
 
+      await supabase.from('staging_ga4_raw').insert({
+        project_id: projectId,
+        schema_version: schemaVersion,
+        report_type: 'top_pages_daily',
+        payload: pageRows,
+      })
       await supabase
         .from('mart_ga4_top_pages_daily')
         .upsert(pageRows, { onConflict: 'project_id,date,page_path' })
     }
 
-    // 4. Event Data upsert (if enabled)
+    // 4. Staging: events → then Mart (if enabled)
     // Now includes dimensions for better data mart structure
     if (data.events?.rows && eventsEnabled) {
       const eventRows = data.events.rows.map(row => {
@@ -565,6 +592,12 @@ export async function refreshMartData(
         }
       })
 
+      await supabase.from('staging_ga4_raw').insert({
+        project_id: projectId,
+        schema_version: schemaVersion,
+        report_type: 'events',
+        payload: eventRows,
+      })
       await supabase
         .from('mart_events')
         .upsert(eventRows, { onConflict: 'project_id,source,date,event_name,dimensions' })

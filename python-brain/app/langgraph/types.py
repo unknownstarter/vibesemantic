@@ -48,6 +48,20 @@ class MartSummary(TypedDict, total=False):
     dataSources: dict
     metricDefinitions: Optional[list[dict]]
     statisticalAnalysis: Optional[dict]
+    semanticGraph: Optional[dict]  # Epic 3.3: nodes + edges for Explainer metadata
+
+# Plan (Epic 4.1: Planner 노드 출력)
+class Plan(TypedDict, total=False):
+    intent: str  # e.g. "full_report", "channel_breakdown", "csv_revenue"
+    need_ga4: bool
+    need_csv: bool
+    need_channels: bool
+    need_pages: bool
+    need_events: bool
+    date_range: str  # "7d" | "30d" from state.range
+    metrics_requested: Optional[list[str]]
+    dimensions_requested: Optional[list[str]]
+
 
 # Analysis State
 class AnalysisState(TypedDict, total=False):
@@ -63,6 +77,8 @@ class AnalysisState(TypedDict, total=False):
     range: ReportRange
     userMessage: Optional[str]
     threadId: str
+    plan: Optional[Plan]  # Epic 4.1: Planner 노드 출력
+    chartContext: Optional[dict]  # Epic 5.2: 차트→채팅 (range, metricNames, chartType, label)
     martSummary: Optional[MartSummary]
     conversationHistory: Optional[list[dict]]  # 추가: 채팅 히스토리
     analysisMarkdown: Optional[str]

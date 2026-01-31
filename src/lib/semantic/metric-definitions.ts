@@ -22,6 +22,7 @@ import {
   getCachedMetricDefinitions,
   invalidateMetricCache,
 } from '@/lib/cache/metric-cache'
+import { syncMetricDefinitionsToGraph } from '@/lib/semantic/sync-graph'
 
 /**
  * Generate metric definitions for a project based on its profile
@@ -45,7 +46,7 @@ export async function generateMetricDefinitions(
   const savedDefinitions = await saveMetricDefinitions(projectId, definitions)
 
   // 5. Invalidate cache
-  invalidateMetricCache(projectId)
+  await invalidateMetricCache(projectId)
 
   return savedDefinitions
 }
@@ -106,6 +107,10 @@ async function saveMetricDefinitions(
     console.error('[SemanticLayer] Failed to save metric definitions:', error)
     throw new Error(`Failed to save metric definitions: ${error.message}`)
   }
+
+  await syncMetricDefinitionsToGraph(projectId).catch(err =>
+    console.warn('[SemanticLayer] Sync semantic graph failed:', err)
+  )
 
   return (data ?? []) as MetricDefinition[]
 }
@@ -278,8 +283,10 @@ export async function addCustomMetric(
     throw new Error(`Failed to add custom metric: ${error.message}`)
   }
 
-  // Invalidate cache
-  invalidateMetricCache(projectId)
+  await invalidateMetricCache(projectId)
+  await syncMetricDefinitionsToGraph(projectId).catch(err =>
+    console.warn('[SemanticLayer] Sync semantic graph failed:', err)
+  )
 
   return data as MetricDefinition
 }
@@ -304,7 +311,7 @@ export async function deactivateMetric(
   }
 
   // Invalidate cache
-  invalidateMetricCache(projectId)
+  await invalidateMetricCache(projectId)
 }
 
 /**
@@ -327,7 +334,7 @@ export async function reactivateMetric(
   }
 
   // Invalidate cache
-  invalidateMetricCache(projectId)
+  await invalidateMetricCache(projectId)
 }
 
 /**
@@ -351,5 +358,5 @@ export async function updateMetricPriority(
   }
 
   // Invalidate cache
-  invalidateMetricCache(projectId)
+  await invalidateMetricCache(projectId)
 }

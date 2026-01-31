@@ -6,7 +6,7 @@ LangGraph 엔진, 데이터 수집기, CSV 프로파일러 제공
 from fastapi import FastAPI, HTTPException, Header, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 import os
 import asyncio
@@ -56,6 +56,15 @@ async def verify_api_key(x_api_key: Optional[str] = Header(None)):
     return x_api_key
 
 # Request/Response Models
+class ChartContextModel(BaseModel):
+    """Epic 5.2: 차트→채팅. 선택한 차트/메트릭 컨텍스트. API는 camelCase 수신."""
+    range: Optional[str] = None  # "7d" | "30d"
+    metric_names: Optional[list[str]] = Field(None, alias="metricNames")
+    chart_type: Optional[str] = Field(None, alias="chartType")  # "trend" | "channel" | "page" | "integrated"
+    label: Optional[str] = None
+
+    model_config = {"populate_by_name": True}
+
 class AnalyzeRequest(BaseModel):
     workspace_id: str
     project_id: str
@@ -69,6 +78,7 @@ class AnalyzeRequest(BaseModel):
     agent_config: dict
     user_id: str
     role: str
+    chart_context: Optional[ChartContextModel] = None  # Epic 5.2
 
 class AnalyzeResponse(BaseModel):
     analysis_markdown: str
@@ -118,6 +128,14 @@ async def analyze(
             raise HTTPException(status_code=400, detail="user_message is required for chat mode")
         
         logger.info("Calling run_analysis...")
+        chart_context_dict = None
+        if request.chart_context:
+            chart_context_dict = {
+                "range": request.chart_context.range,
+                "metricNames": request.chart_context.metric_names,
+                "chartType": request.chart_context.chart_type,
+                "label": request.chart_context.label,
+            }
         result = await run_analysis({
             "userId": request.user_id,
             "projectId": request.project_id,
@@ -131,6 +149,7 @@ async def analyze(
             "range": request.range,
             "userMessage": request.user_message,
             "threadId": request.thread_id,
+            "chartContext": chart_context_dict,
         })
         
         logger.info(f"run_analysis completed: has_error={bool(result.get('error'))}, has_analysis={bool(result.get('analysisMarkdown'))}")

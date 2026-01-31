@@ -42,6 +42,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       source_mappings(
         id,
         status,
+        schema_version,
         date_column,
         metric_columns,
         dimension_columns,
@@ -80,9 +81,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     startDate.setDate(startDate.getDate() - 90)
   }
 
-  // Build mapping object
+  // Build mapping object (schema_version passed to downstream for Staging/Mart when available)
   const mapping: SourceMapping = {
     id: (mappingData as { id: string }).id,
+    schema_version: (mappingData as { schema_version?: number }).schema_version ?? 1,
     date_column: (mappingData as { date_column: string | null }).date_column,
     metric_columns: (mappingData as { metric_columns: MetricColumn[] }).metric_columns || [],
     dimension_columns: (mappingData as { dimension_columns: Array<{ name: string; displayName?: string; type: string }> }).dimension_columns || [],

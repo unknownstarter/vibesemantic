@@ -1,54 +1,30 @@
 /**
  * Caching layer for metric definitions
- * In-memory cache with TTL support
- * Note: For production with multiple instances, consider Redis
+ * Backend: in-memory or Redis (CACHE_BACKEND=redis). Policy: CACHE_AND_ASSETS.md
  */
 
 import { createClient } from '@/lib/supabase/server'
 import type { MetricDefinition } from '@/types/database'
+import { getDefaultBackend } from './backend'
 
-interface CacheEntry<T> {
-  data: T
-  expiresAt: number
-}
-
-// In-memory cache
-const cache = new Map<string, CacheEntry<MetricDefinition[]>>()
-
-// Cache configuration
 const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
 const CACHE_KEY_PREFIX = 'metrics:'
 
-/**
- * Generate cache key for a project
- */
 function getCacheKey(projectId: string): string {
   return `${CACHE_KEY_PREFIX}${projectId}`
 }
 
 /**
- * Check if cache entry is valid (not expired)
- */
-function isValidEntry<T>(entry: CacheEntry<T> | undefined): entry is CacheEntry<T> {
-  return entry !== undefined && entry.expiresAt > Date.now()
-}
-
-/**
  * Get cached metric definitions for a project
- * Returns cached data if available and not expired, otherwise fetches from DB
  */
 export async function getCachedMetricDefinitions(
   projectId: string
 ): Promise<MetricDefinition[]> {
+  const backend = getDefaultBackend()
   const cacheKey = getCacheKey(projectId)
-  const cached = cache.get(cacheKey)
+  const cached = await backend.get<MetricDefinition[]>(cacheKey)
+  if (cached != null) return cached
 
-  // Cache hit - return cached data
-  if (isValidEntry(cached)) {
-    return cached.data
-  }
-
-  // Cache miss - fetch from database
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('metric_definitions')
@@ -63,13 +39,7 @@ export async function getCachedMetricDefinitions(
   }
 
   const definitions = (data ?? []) as MetricDefinition[]
-
-  // Store in cache
-  cache.set(cacheKey, {
-    data: definitions,
-    expiresAt: Date.now() + CACHE_TTL_MS,
-  })
-
+  await backend.set(cacheKey, definitions, CACHE_TTL_MS)
   return definitions
 }
 
@@ -80,12 +50,10 @@ export async function getCachedMetricDefinitionsWithTTL(
   projectId: string,
   ttlMs: number
 ): Promise<MetricDefinition[]> {
+  const backend = getDefaultBackend()
   const cacheKey = getCacheKey(projectId)
-  const cached = cache.get(cacheKey)
-
-  if (isValidEntry(cached)) {
-    return cached.data
-  }
+  const cached = await backend.get<MetricDefinition[]>(cacheKey)
+  if (cached != null) return cached
 
   const supabase = await createClient()
   const { data, error } = await supabase
@@ -101,69 +69,42 @@ export async function getCachedMetricDefinitionsWithTTL(
   }
 
   const definitions = (data ?? []) as MetricDefinition[]
-
-  cache.set(cacheKey, {
-    data: definitions,
-    expiresAt: Date.now() + ttlMs,
-  })
-
+  await backend.set(cacheKey, definitions, ttlMs)
   return definitions
 }
 
 /**
- * Invalidate cache for a specific project
- * Call this when metric_definitions are modified
+ * Invalidate cache for a specific project. Call when metric_definitions are modified.
  */
-export function invalidateMetricCache(projectId: string): void {
-  const cacheKey = getCacheKey(projectId)
-  cache.delete(cacheKey)
+export async function invalidateMetricCache(projectId: string): Promise<void> {
+  const backend = getDefaultBackend()
+  await backend.delete(getCacheKey(projectId))
 }
 
 /**
- * Invalidate all metric caches
- * Use for debugging or when bulk changes are made
+ * Invalidate all metric caches (prefix metrics:). Use for debugging or bulk changes.
  */
-export function clearAllMetricCache(): void {
-  const keysToDelete: string[] = []
-
-  for (const key of cache.keys()) {
-    if (key.startsWith(CACHE_KEY_PREFIX)) {
-      keysToDelete.push(key)
-    }
-  }
-
-  for (const key of keysToDelete) {
-    cache.delete(key)
-  }
+export async function clearAllMetricCache(): Promise<void> {
+  const backend = getDefaultBackend()
+  await backend.clearPrefix(CACHE_KEY_PREFIX)
 }
 
 /**
- * Get cache statistics for monitoring
+ * Get cache statistics (in-memory only; Redis returns empty stats)
  */
-export function getCacheStats(): {
+export async function getCacheStats(): Promise<{
   size: number
   keys: string[]
   validEntries: number
-} {
-  const now = Date.now()
-  let validEntries = 0
-
-  for (const entry of cache.values()) {
-    if (entry.expiresAt > now) {
-      validEntries++
-    }
-  }
-
-  return {
-    size: cache.size,
-    keys: Array.from(cache.keys()),
-    validEntries,
-  }
+}> {
+  const backend = getDefaultBackend()
+  const stats = await backend.getStats?.()
+  if (stats) return stats
+  return { size: 0, keys: [], validEntries: 0 }
 }
 
 /**
  * Pre-warm cache for a project
- * Useful for ensuring cache is populated before heavy operations
  */
 export async function prewarmCache(projectId: string): Promise<void> {
   await getCachedMetricDefinitions(projectId)

@@ -12,6 +12,14 @@ import type {
 } from '@/types/database'
 import type { AnalystQuestion, MartSummary } from '@/lib/langgraph/types'
 
+/** Epic 5.2: 차트→채팅. "이 숫자에 대해 물어보기" 시 전달되는 컨텍스트 */
+export interface ChartContext {
+  range?: ReportRange
+  metricNames?: string[]
+  chartType?: string
+  label?: string
+}
+
 interface AnalyzeRequest {
   userId: string
   projectId: string
@@ -25,6 +33,7 @@ interface AnalyzeRequest {
   range: ReportRange
   userMessage?: string
   threadId: string
+  chartContext?: ChartContext
 }
 
 interface AnalyzeResponse {
@@ -66,6 +75,7 @@ export async function callBrainAnalyze(
     range: request.range,
     user_message: request.userMessage,
     thread_id: request.threadId,
+    chart_context: request.chartContext ?? undefined,
   }
 
   try {

@@ -338,21 +338,49 @@ def normalize_date(date_str: str) -> str:
     return datetime.now().strftime('%Y-%m-%d')
 
 
+def insert_staging_csv_raw(
+    supabase: Client,
+    project_id: str,
+    dataset_id: str,
+    mapping_id: str,
+    schema_version: int,
+    payloads: List[Dict[str, Any]],
+    batch_num: int = 0
+) -> int:
+    """
+    Insert raw CSV rows into staging_csv_raw (Staging layer).
+    One staging row per CSV source row; payload = column -> value.
+    """
+    if not payloads:
+        return 0
+    staging_rows = [
+        {
+            'project_id': project_id,
+            'dataset_id': dataset_id,
+            'mapping_id': mapping_id,
+            'schema_version': schema_version,
+            'payload': p,
+        }
+        for p in payloads
+    ]
+    try:
+        supabase.table('staging_csv_raw').insert(staging_rows).execute()
+        count = len(staging_rows)
+        logger.info(f"Staging batch {batch_num}: Inserted {count} rows into staging_csv_raw")
+        return count
+    except Exception as e:
+        logger.error(f"Error inserting staging batch {batch_num}: {e}")
+        raise
+
+
 def upsert_batch_to_supabase(
     supabase: Client,
     records: List[Dict[str, Any]],
     batch_num: int = 0
 ) -> int:
     """
-    Upsert a batch of records to Supabase
-    
-    Args:
-        supabase: Supabase client
-        records: List of records to upsert
-        batch_num: Batch number for logging
-        
-    Returns:
-        Number of successfully inserted records
+    Upsert a batch of records to Supabase (Mart layer).
+    Deterministic transform from Staging; no LLM.
     """
     if not records:
         return 0
@@ -364,12 +392,34 @@ def upsert_batch_to_supabase(
         ).execute()
         
         inserted_count = len(records)
-        logger.info(f"Batch {batch_num}: Inserted {inserted_count} records")
+        logger.info(f"Batch {batch_num}: Inserted {inserted_count} records into mart_csv_daily_metrics")
         return inserted_count
         
     except Exception as e:
         logger.error(f"Error upserting batch {batch_num}: {e}")
         raise
+
+
+def _to_jsonable(val: Any) -> Any:
+    """Convert a cell value to JSON-serializable type (for staging payload)."""
+    if pd.isna(val):
+        return None
+    if hasattr(val, 'strftime'):
+        return val.strftime('%Y-%m-%d')
+    if hasattr(val, 'item'):
+        return val.item()
+    if isinstance(val, (str, int, float, bool)) or val is None:
+        return val
+    return str(val)
+
+
+def _df_rows_to_staging_payloads(df: pd.DataFrame) -> List[Dict[str, Any]]:
+    """Convert DataFrame rows to staging payloads (column -> value, JSON-serializable)."""
+    payloads = []
+    for _, row in df.iterrows():
+        payload = {col: _to_jsonable(row[col]) for col in df.columns}
+        payloads.append(payload)
+    return payloads
 
 
 def ingest_csv_file(
@@ -414,6 +464,9 @@ def ingest_csv_file(
         'processing_time_ms': 0
     }
     
+    mapping_id = mapping.get('id') or ''
+    schema_version = int(mapping.get('schema_version', 1))
+
     try:
         # 1. Download file
         logger.info(f"Downloading CSV file: {storage_path}")
@@ -426,12 +479,20 @@ def ingest_csv_file(
         
         if use_chunks:
             logger.info(f"Using chunk processing (file > {CHUNK_SIZE_THRESHOLD_MB}MB)")
-            # Process in chunks
+            # Process in chunks: Staging first, then Mart (deterministic transform)
             batch_num = 0
             for chunk_df in parse_csv_with_pandas_chunks(file_content):
                 result['total_rows'] += len(chunk_df)
-                
-                # Transform chunk
+                # 2a. Insert raw rows into Staging
+                payloads = _df_rows_to_staging_payloads(chunk_df)
+                for i in range(0, len(payloads), BATCH_SIZE):
+                    batch_payloads = payloads[i:i + BATCH_SIZE]
+                    insert_staging_csv_raw(
+                        supabase, project_id, dataset_id, mapping_id, schema_version,
+                        batch_payloads, batch_num
+                    )
+                    batch_num += 1
+                # 2b. Deterministic transform Staging -> Mart
                 records = transform_dataframe_to_records(
                     chunk_df,
                     headers,
@@ -440,8 +501,6 @@ def ingest_csv_file(
                     dataset_id,
                     date_range_filter
                 )
-                
-                # Upsert in batches
                 for i in range(0, len(records), BATCH_SIZE):
                     batch = records[i:i + BATCH_SIZE]
                     inserted = upsert_batch_to_supabase(supabase, batch, batch_num)
@@ -451,11 +510,18 @@ def ingest_csv_file(
                 result['processed_rows'] += len(chunk_df)
         else:
             logger.info("Processing entire file at once")
-            # Process entire file
+            # Process entire file: Staging first, then Mart
             df = parse_csv_with_pandas(file_content)
             result['total_rows'] = len(df)
-            
-            # Transform
+            # 2a. Insert raw rows into Staging
+            payloads = _df_rows_to_staging_payloads(df)
+            for i in range(0, len(payloads), BATCH_SIZE):
+                batch_payloads = payloads[i:i + BATCH_SIZE]
+                insert_staging_csv_raw(
+                    supabase, project_id, dataset_id, mapping_id, schema_version,
+                    batch_payloads, i
+                )
+            # 2b. Deterministic transform -> Mart
             records = transform_dataframe_to_records(
                 df,
                 headers,
@@ -464,8 +530,6 @@ def ingest_csv_file(
                 dataset_id,
                 date_range_filter
             )
-            
-            # Upsert in batches
             batch_num = 0
             for i in range(0, len(records), BATCH_SIZE):
                 batch = records[i:i + BATCH_SIZE]

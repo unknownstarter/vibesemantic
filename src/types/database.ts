@@ -143,6 +143,7 @@ export type Database = {
           id: string
           project_id: string
           status: Database["public"]["Enums"]["source_mapping_status"]
+          schema_version: number
           date_column: string | null
           metric_columns: Json
           dimension_columns: Json
@@ -155,6 +156,7 @@ export type Database = {
           id?: string
           project_id: string
           status?: Database["public"]["Enums"]["source_mapping_status"]
+          schema_version?: number
           date_column?: string | null
           metric_columns?: Json
           dimension_columns?: Json
@@ -167,6 +169,7 @@ export type Database = {
           id?: string
           project_id?: string
           status?: Database["public"]["Enums"]["source_mapping_status"]
+          schema_version?: number
           date_column?: string | null
           metric_columns?: Json
           dimension_columns?: Json
@@ -178,6 +181,93 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "source_mappings_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staging_csv_raw: {
+        Row: {
+          id: string
+          project_id: string
+          dataset_id: string
+          mapping_id: string
+          schema_version: number
+          payload: Json
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          dataset_id: string
+          mapping_id: string
+          schema_version?: number
+          payload: Json
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          dataset_id?: string
+          mapping_id?: string
+          schema_version?: number
+          payload?: Json
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staging_csv_raw_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staging_csv_raw_dataset_id_fkey"
+            columns: ["dataset_id"]
+            isOneToOne: false
+            referencedRelation: "csv_datasets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staging_csv_raw_mapping_id_fkey"
+            columns: ["mapping_id"]
+            isOneToOne: false
+            referencedRelation: "source_mappings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staging_ga4_raw: {
+        Row: {
+          id: string
+          project_id: string
+          schema_version: number
+          report_type: string
+          payload: Json
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          schema_version?: number
+          report_type: string
+          payload: Json
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          schema_version?: number
+          report_type?: string
+          payload?: Json
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staging_ga4_raw_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
@@ -507,6 +597,7 @@ export type Database = {
           common_dimensions: Json
           priority: number
           is_active: boolean
+          schema_version: number
           last_seen_date: string | null
           event_count_30d: number
           created_at: string | null
@@ -523,6 +614,7 @@ export type Database = {
           common_dimensions?: Json
           priority?: number
           is_active?: boolean
+          schema_version?: number
           last_seen_date?: string | null
           event_count_30d?: number
           created_at?: string | null
@@ -539,6 +631,7 @@ export type Database = {
           common_dimensions?: Json
           priority?: number
           is_active?: boolean
+          schema_version?: number
           last_seen_date?: string | null
           event_count_30d?: number
           created_at?: string | null
@@ -968,6 +1061,93 @@ export type Database = {
           },
         ]
       }
+      semantic_nodes: {
+        Row: {
+          id: string
+          project_id: string
+          type: Database["public"]["Enums"]["semantic_node_type"]
+          payload: Json
+          metric_definition_id: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          type: Database["public"]["Enums"]["semantic_node_type"]
+          payload?: Json
+          metric_definition_id?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          type?: Database["public"]["Enums"]["semantic_node_type"]
+          payload?: Json
+          metric_definition_id?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "semantic_nodes_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "semantic_nodes_metric_definition_id_fkey"
+            columns: ["metric_definition_id"]
+            isOneToOne: false
+            referencedRelation: "metric_definitions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      semantic_edges: {
+        Row: {
+          id: string
+          from_id: string
+          to_id: string
+          relation_type: Database["public"]["Enums"]["semantic_relation_type"]
+          payload: Json
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          from_id: string
+          to_id: string
+          relation_type: Database["public"]["Enums"]["semantic_relation_type"]
+          payload?: Json
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          from_id?: string
+          to_id?: string
+          relation_type?: Database["public"]["Enums"]["semantic_relation_type"]
+          payload?: Json
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "semantic_edges_from_id_fkey"
+            columns: ["from_id"]
+            isOneToOne: false
+            referencedRelation: "semantic_nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "semantic_edges_to_id_fkey"
+            columns: ["to_id"]
+            isOneToOne: false
+            referencedRelation: "semantic_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reports: {
         Row: {
           created_at: string | null
@@ -1067,6 +1247,8 @@ export type Database = {
       member_status: "active" | "invited" | "suspended"
       project_setup_status: "draft" | "profile_ready" | "ga4_ready" | "ready"
       report_range: "7d" | "30d"
+      semantic_node_type: "metric" | "dimension" | "source"
+      semantic_relation_type: "depends_on" | "relates_to" | "from_source"
       source_mapping_status: "draft" | "confirmed"
       workspace_purpose: "product" | "marketing" | "biz" | "sales"
       workspace_status: "draft" | "ready" | "error"

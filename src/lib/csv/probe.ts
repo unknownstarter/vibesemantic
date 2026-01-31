@@ -1,7 +1,11 @@
 /**
- * CSV Schema Probe using LLM
- * Analyzes CSV headers and sample data to generate mapping suggestions
- * Optionally uses project profile to prioritize relevant KPIs
+ * CSV Schema Probe: Profiler (deterministic) + Schema Proposal (LLM, semantic only)
+ *
+ * - Profiler: code only (parser + data-pattern-analyzer, optional Pandas). No LLM.
+ *   Output: dateColumn, metricColumns, dimensionColumns, aggregationRules.
+ * - Schema Proposal: LLM receives Profiler output and suggests display names / llmQuestions only.
+ *
+ * One probe call = "Profiler result" + optional "Proposal result" (display names, questions).
  */
 
 import { ChatOpenAI } from '@langchain/openai'
@@ -16,6 +20,332 @@ export interface ProbeResult {
   dimensionColumns: DimensionColumn[]
   aggregationRules: Record<string, string>
   llmQuestions: LLMQuestion[]
+}
+
+/** Options for runCsvProfiler (deterministic, no LLM). */
+export interface RunCsvProfilerOptions {
+  language?: 'ko' | 'en'
+  fileContent?: string
+}
+
+/**
+ * Run CSV Profiler only: deterministic column classification from parser + data-pattern-analyzer
+ * (and optional Pandas). No LLM. Returns dateColumn, metricColumns, dimensionColumns,
+ * aggregationRules, and llmQuestions for uncertain columns (from pattern analysis only).
+ */
+export async function runCsvProfiler(
+  headers: string[],
+  rows: string[][],
+  options: RunCsvProfilerOptions = {}
+): Promise<ProbeResult> {
+  const { language = 'ko', fileContent } = options
+
+  let columnAnalysis: Record<string, ColumnAnalysis>
+  if (fileContent && rows.length > 1000) {
+    const pandasAnalysis = await getPandasColumnAnalysis(fileContent, rows.length)
+    columnAnalysis = pandasAnalysis ?? getDetailedColumnAnalysis(headers, rows)
+  } else {
+    columnAnalysis = getDetailedColumnAnalysis(headers, rows)
+  }
+
+  const dataPatternAnalyses: Record<string, ReturnType<typeof analyzeDataPatterns>> = {}
+  headers.forEach((header, colIndex) => {
+    dataPatternAnalyses[header] = analyzeDataPatterns(header, colIndex, rows, columnAnalysis[header])
+  })
+
+  return buildProfilerResultFromAnalysis(
+    headers,
+    columnAnalysis,
+    dataPatternAnalyses,
+    language
+  )
+}
+
+/**
+ * Build ProbeResult from column analysis and data pattern analysis only (no LLM).
+ * Used by runCsvProfiler and by probeSchema fallback.
+ */
+function buildProfilerResultFromAnalysis(
+  headers: string[],
+  columnAnalysis: Record<string, ColumnAnalysis>,
+  dataPatternAnalyses: Record<string, ReturnType<typeof analyzeDataPatterns>>,
+  language: 'ko' | 'en'
+): ProbeResult {
+  const dateColumn = headers.find((h) => columnAnalysis[h]?.type === 'date') ?? null
+
+  const metricColumns: MetricColumn[] = []
+  const dimensionColumns: DimensionColumn[] = []
+  const uncertainColumns: string[] = []
+
+  headers.forEach((header) => {
+    if (header === dateColumn) return
+    const analysis = columnAnalysis[header]
+    const pattern = dataPatternAnalyses[header]
+    if (!analysis) return
+
+    if (pattern?.isEventName && !pattern.needsConfirmation) {
+      dimensionColumns.push({ name: header, displayName: header, type: 'string' })
+      return
+    }
+    if (
+      pattern &&
+      (pattern.isEventCount ||
+        pattern.isUserCount ||
+        pattern.isRevenue ||
+        pattern.isEventsPerUser ||
+        (pattern.isMetric && !pattern.needsConfirmation))
+    ) {
+      const t =
+        pattern.isRevenue || analysis.type === 'currency'
+          ? 'currency'
+          : analysis.type === 'percentage'
+            ? 'percentage'
+            : 'number'
+      metricColumns.push({
+        name: header,
+        displayName: header,
+        type: t,
+        aggregation: pattern.suggestedAggregation ?? 'sum',
+      })
+      return
+    }
+    if (pattern?.isDimension && !pattern.needsConfirmation) {
+      dimensionColumns.push({ name: header, displayName: header, type: 'string' })
+      return
+    }
+    if (pattern?.needsConfirmation) {
+      uncertainColumns.push(header)
+    }
+
+    if (['number', 'currency', 'percentage'].includes(analysis.type)) {
+      const isLikelyId =
+        analysis.type === 'id' ||
+        (analysis.stats?.uniqueRatio &&
+          analysis.stats.uniqueRatio > 0.95 &&
+          (header.toLowerCase().includes('id') || header.toLowerCase().includes('uuid')))
+      if (isLikelyId) return
+      const isRate =
+        /rate|ratio|avg|percentage|%|당|per/i.test(header) || header.includes('당')
+      metricColumns.push({
+        name: header,
+        displayName: header,
+        type: (analysis.type === 'currency'
+          ? 'currency'
+          : analysis.type === 'percentage'
+            ? 'percentage'
+            : 'number') as 'number' | 'currency' | 'percentage',
+        aggregation: isRate || analysis.type === 'percentage' ? 'avg' : 'sum',
+      })
+      return
+    }
+    if (analysis.type === 'string') {
+      const uniqueRatio = analysis.stats?.uniqueRatio ?? 0
+      const isLikelyId =
+        uniqueRatio > 0.95 &&
+        (header.toLowerCase().includes('id') || header.toLowerCase().includes('uuid'))
+      if (!isLikelyId && uniqueRatio > 0.05) {
+        dimensionColumns.push({ name: header, displayName: header, type: 'string' })
+      } else if (!isLikelyId) {
+        dimensionColumns.push({ name: header, displayName: header, type: 'string' })
+        uncertainColumns.push(header)
+      }
+    }
+  })
+
+  const aggregationRules: Record<string, string> = {}
+  metricColumns.forEach((m) => {
+    aggregationRules[m.name] = m.aggregation
+  })
+
+  const llmQuestions: LLMQuestion[] = []
+  const uncertainMetrics = uncertainColumns.filter((h) => {
+    const a = columnAnalysis[h]
+    return a && ['number', 'currency', 'percentage'].includes(a.type)
+  })
+  const uncertainDimensions = uncertainColumns.filter((h) => {
+    const a = columnAnalysis[h]
+    return a && a.type === 'string'
+  })
+  if (uncertainMetrics.length > 0) {
+    llmQuestions.push({
+      id: 'uncertain_metrics',
+      question:
+        language === 'ko'
+          ? `다음 컬럼들이 지표(metric)로 분류되었지만 확인이 필요합니다: ${uncertainMetrics.join(', ')}. 실제 데이터 값을 확인하여 지표로 사용할지 결정해주세요.`
+          : `The following columns were classified as metrics but need confirmation: ${uncertainMetrics.join(', ')}. Please review the actual data values to confirm.`,
+      quickReplies: uncertainMetrics.slice(0, 8).map((h) => ({
+        label: h,
+        value: h,
+        action: 'confirm_metric' as const,
+      })),
+    })
+  }
+  if (uncertainDimensions.length > 0) {
+    llmQuestions.push({
+      id: 'uncertain_dimensions',
+      question:
+        language === 'ko'
+          ? `다음 컬럼들이 차원(dimension)으로 분류되었지만 확인이 필요합니다: ${uncertainDimensions.join(', ')}. 실제 데이터 값을 확인하여 차원으로 사용할지 결정해주세요.`
+          : `The following columns were classified as dimensions but need confirmation: ${uncertainDimensions.join(', ')}. Please review the actual data values to confirm.`,
+      quickReplies: uncertainDimensions.slice(0, 8).map((h) => ({
+        label: h,
+        value: h,
+        action: 'confirm_dimension' as const,
+      })),
+    })
+  }
+  if (metricColumns.length === 0) {
+    const potential = headers.filter((h) => {
+      const a = columnAnalysis[h]
+      return a && ['number', 'currency', 'percentage'].includes(a.type)
+    })
+    llmQuestions.push({
+      id: 'no_metrics_detected',
+      question:
+        language === 'ko'
+          ? '지표(숫자) 컬럼을 자동으로 감지하지 못했습니다. CSV 파일의 헤더를 확인하고 분석하고 싶은 숫자 컬럼을 선택해주세요.'
+          : 'No metric columns detected. Please check CSV headers and select numeric columns to analyze.',
+      quickReplies: (potential.length ? potential : headers).slice(0, 8).map((h) => ({
+        label: h,
+        value: h,
+        action: 'add_metric' as const,
+      })),
+    })
+  }
+
+  return {
+    dateColumn,
+    metricColumns,
+    dimensionColumns,
+    aggregationRules,
+    llmQuestions,
+  }
+}
+
+/** Schema Proposal output: display names and semantic questions only. No structure, no numbers. */
+export interface SchemaProposalResult {
+  displayNames: Record<string, string>
+  llmQuestions: LLMQuestion[]
+}
+
+const SCHEMA_PROPOSAL_SYSTEM_PROMPT = `You are a data analyst expert. Your task is SEMANTIC SUGGESTION ONLY.
+
+You will receive:
+1. A pre-computed column classification (dateColumn, metricColumns, dimensionColumns, aggregationRules). Do NOT change it.
+2. Sample data.
+
+Your job: Suggest ONLY
+- **displayName**: A short, human-readable name for each metric and dimension column (e.g. "총 세션 수", "유입 채널"). Use the requested language.
+- **llmQuestions**: Optional 0–3 short semantic suggestions or questions for the user (e.g. "이 컬럼은 매출로 보입니다. 지표로 사용할까요?"). No numbers, no aggregation.
+
+Do NOT output: dateColumn, metricColumns, dimensionColumns, aggregationRules, or any structural change.
+Do NOT suggest numbers, formulas, or normalization.`
+
+/**
+ * Build prompt for Schema Proposal (LLM): meaning/display names only. No structure, no aggregation.
+ */
+function buildSchemaProposalPrompt(
+  profilerResult: ProbeResult,
+  headers: string[],
+  maskedRows: string[][],
+  language: 'ko' | 'en',
+  projectProfile?: ProjectProfile,
+  workspacePurposes?: WorkspacePurpose[]
+): string {
+  const { dateColumn, metricColumns, dimensionColumns, aggregationRules } = profilerResult
+  const metricNames = metricColumns.map((m) => m.name).join(', ')
+  const dimensionNames = dimensionColumns.map((d) => d.name).join(', ')
+  const tableHeader = headers.join(' | ')
+  const displayRows = maskedRows.length > 10 ? maskedRows.slice(0, 5) : maskedRows.slice(0, 3)
+  const tableRows = displayRows
+    .map((row) => row.map((c) => (c.length > 12 ? c.slice(0, 10) + '...' : c)).join(' | '))
+    .join('\n')
+
+  let context = ''
+  if (projectProfile?.industry || projectProfile?.serviceName) {
+    context = `\nProject: ${projectProfile.serviceName ?? 'Unknown'}, Industry: ${projectProfile.industry ?? 'General'}.`
+  }
+  if (workspacePurposes?.length) {
+    context += `\nPurpose: ${workspacePurposes.join(', ')}.`
+  }
+
+  return `=== CURRENT CLASSIFICATION (do not change) ===
+dateColumn: ${dateColumn ?? 'null'}
+metricColumns: ${metricNames || '(none)'}
+dimensionColumns: ${dimensionNames || '(none)'}
+aggregationRules: ${JSON.stringify(aggregationRules)}
+${context}
+
+=== SAMPLE DATA ===
+${tableHeader}
+${'-'.repeat(40)}
+${tableRows}
+
+=== YOUR TASK (semantic only) ===
+Suggest ONLY:
+1. **displayNames**: Object mapping each column name (from metricColumns and dimensionColumns) to a short human-readable name in ${language === 'ko' ? 'Korean' : 'English'}.
+2. **llmQuestions**: Optional array of 0–3 items: { "id": "q1", "question": "short semantic suggestion or question", "quickReplies": [] }. Example: "이 컬럼은 매출로 보입니다. 지표로 사용할까요?"
+
+Do NOT change the list of columns. Do NOT output aggregation or numbers.
+
+OUTPUT FORMAT (JSON only):
+{
+  "displayNames": { "column_name": "Human Name", ... },
+  "llmQuestions": [ { "id": "q1", "question": "...", "quickReplies": [] } ]
+}`
+}
+
+/**
+ * Run Schema Proposal only: LLM suggests display names and semantic questions. No structure, no numbers.
+ */
+export async function runSchemaProposal(
+  profilerResult: ProbeResult,
+  headers: string[],
+  maskedRows: string[][],
+  options: {
+    language?: 'ko' | 'en'
+    projectProfile?: ProjectProfile
+    workspacePurposes?: WorkspacePurpose[]
+  } = {}
+): Promise<SchemaProposalResult> {
+  const { language = 'ko', projectProfile, workspacePurposes } = options
+  const userPrompt = buildSchemaProposalPrompt(
+    profilerResult,
+    headers,
+    maskedRows,
+    language,
+    projectProfile,
+    workspacePurposes
+  )
+
+  const model = new ChatOpenAI({
+    modelName: 'gpt-4o',
+    openAIApiKey: process.env.OPENAI_API_KEY,
+    temperature: 0.1,
+  })
+
+  const response = await model.invoke([
+    { role: 'system', content: SCHEMA_PROPOSAL_SYSTEM_PROMPT },
+    { role: 'user', content: userPrompt },
+  ])
+
+  const content =
+    typeof response.content === 'string'
+      ? response.content
+      : response.content.map((c) => ('text' in c ? c.text : '')).join('')
+
+  let jsonStr = content.trim()
+  if (jsonStr.startsWith('```')) {
+    jsonStr = jsonStr.replace(/```json?\n?/g, '').replace(/```$/g, '').trim()
+  }
+
+  const parsed = JSON.parse(jsonStr) as { displayNames?: Record<string, string>; llmQuestions?: LLMQuestion[] }
+  const displayNames = parsed.displayNames && typeof parsed.displayNames === 'object' ? parsed.displayNames : {}
+  const llmQuestions = Array.isArray(parsed.llmQuestions)
+    ? parsed.llmQuestions.filter((q) => q?.id && q?.question)
+    : []
+
+  return { displayNames, llmQuestions }
 }
 
 /**
@@ -321,488 +651,51 @@ export async function probeSchema(
   workspacePurposes?: WorkspacePurpose[],
   fileContent?: string // Optional: full CSV content for Pandas profiling
 ): Promise<ProbeResult> {
-  // Step 1: Try Pandas analysis first (if file content provided and file is large enough)
-  // Use Pandas for files with > 1000 rows or when explicitly requested
-  let columnAnalysis: Record<string, ColumnAnalysis>
-  
-  if (fileContent && allRows.length > 1000) {
-    console.log('[Probe] Using Pandas for enhanced column analysis (large file)')
-    const pandasAnalysis = await getPandasColumnAnalysis(fileContent, allRows.length)
-    if (pandasAnalysis) {
-      columnAnalysis = pandasAnalysis
-      console.log('[Probe] Pandas analysis completed')
-    } else {
-      // Fallback to TypeScript
-      console.log('[Probe] Pandas failed, using TypeScript analysis')
-      columnAnalysis = getDetailedColumnAnalysis(headers, allRows)
-    }
-  } else {
-    // Use TypeScript for small files (faster)
-    columnAnalysis = getDetailedColumnAnalysis(headers, allRows)
-  }
+  // Step 1: Profiler (deterministic) — no LLM. Structure from code only.
+  const profilerResult = await runCsvProfiler(headers, allRows, { language, fileContent })
+  console.log('[Probe] === PROFILER RESULT (deterministic) ===')
+  console.log(
+    `[Probe] Date: ${profilerResult.dateColumn ?? 'null'}, Metrics: ${profilerResult.metricColumns.length}, Dimensions: ${profilerResult.dimensionColumns.length}`
+  )
 
-  console.log('[Probe] === COLUMN ANALYSIS ===')
-  console.log(`[Probe] Analyzing ${allRows.length} rows (full dataset)`)
-  if (projectProfile) {
-    console.log(`[Probe] Project context: ${projectProfile.serviceName} (${projectProfile.industry})`)
-  }
-  if (workspacePurposes && workspacePurposes.length > 0) {
-    console.log(`[Probe] Workspace purposes: ${workspacePurposes.join(', ')}`)
-  }
-  Object.entries(columnAnalysis).forEach(([col, analysis]) => {
-    console.log(`[Probe] "${col}": ${analysis.type} (${(analysis.confidence * 100).toFixed(0)}%) | samples: ${analysis.sampleValues.slice(0, 2).join(', ')}`)
-  })
-
-  // Step 1.5: Analyze actual data patterns (not just headers)
-  console.log('[Probe] === DATA PATTERN ANALYSIS ===')
-  const dataPatternAnalyses: Record<string, ReturnType<typeof analyzeDataPatterns>> = {}
-  const columnsNeedingConfirmation: string[] = []
-  
-  headers.forEach((header, colIndex) => {
-    const patternAnalysis = analyzeDataPatterns(header, colIndex, allRows, columnAnalysis[header])
-    dataPatternAnalyses[header] = patternAnalysis
-    
-    if (patternAnalysis.needsConfirmation) {
-      columnsNeedingConfirmation.push(header)
-      console.log(`[Probe] "${header}": Needs confirmation (confidence: ${(patternAnalysis.confidence * 100).toFixed(0)}%)`)
-    } else {
-      console.log(`[Probe] "${header}": ${patternAnalysis.suggestedType} (${(patternAnalysis.confidence * 100).toFixed(0)}%) - ${patternAnalysis.isEventName ? 'Event Name' : patternAnalysis.isEventCount ? 'Event Count' : patternAnalysis.isUserCount ? 'User Count' : patternAnalysis.isRevenue ? 'Revenue' : patternAnalysis.isEventsPerUser ? 'Events Per User' : patternAnalysis.suggestedType}`)
-    }
-  })
-
-  // Step 2: Build enriched prompt with project context and workspace purposes
-  // Use full data for analysis, but mask sensitive data for LLM
+  // Step 2: Schema Proposal (LLM) — meaning/display names only. No structure, no numbers.
   const maskedRows = maskSensitiveData(allRows)
-  const userPrompt = buildEnrichedPrompt(headers, maskedRows, columnAnalysis, language, projectProfile, workspacePurposes, dataPatternAnalyses)
-
-  // Step 3: Call LLM
-  const model = new ChatOpenAI({
-    modelName: 'gpt-4o',
-    openAIApiKey: process.env.OPENAI_API_KEY,
-    temperature: 0.1,
-  })
-
   try {
-    const response = await model.invoke([
-      { role: 'system', content: SYSTEM_PROMPT },
-      { role: 'user', content: userPrompt },
-    ])
+    const proposal = await runSchemaProposal(profilerResult, headers, maskedRows, {
+      language,
+      projectProfile,
+      workspacePurposes,
+    })
 
-    const content = typeof response.content === 'string'
-      ? response.content
-      : response.content.map(c => 'text' in c ? c.text : '').join('')
-
-    // Parse JSON response
-    let jsonStr = content.trim()
-    if (jsonStr.startsWith('```')) {
-      jsonStr = jsonStr.replace(/```json?\n?/g, '').replace(/```$/g, '').trim()
-    }
-
-    const result = JSON.parse(jsonStr) as ProbeResult
-    
-    // Validate column names match headers exactly
     const headerSet = new Set(headers)
-    const invalidColumns: string[] = []
-    
-    if (result.dateColumn && !headerSet.has(result.dateColumn)) {
-      invalidColumns.push(`dateColumn: "${result.dateColumn}"`)
-    }
-    
-    result.metricColumns?.forEach(m => {
-      if (!headerSet.has(m.name)) {
-        invalidColumns.push(`metric: "${m.name}"`)
-      }
-    })
-    
-    result.dimensionColumns?.forEach(d => {
-      if (!headerSet.has(d.name)) {
-        invalidColumns.push(`dimension: "${d.name}"`)
-      }
-    })
-    
-    // Validate LLM output: ensure all column names match exactly
-    const allHeadersSet = new Set(headers)
-    const invalidMetrics = (result.metricColumns || []).filter(m => !allHeadersSet.has(m.name))
-    const invalidDimensions = (result.dimensionColumns || []).filter(d => !allHeadersSet.has(d.name))
-    
-    if (invalidMetrics.length > 0 || invalidDimensions.length > 0) {
-      console.error(`[Probe] LLM column name mismatch:\n${invalidMetrics.map(m => `Metric: "${m.name}"`).join(', ')}\n${invalidDimensions.map(d => `Dimension: "${d.name}"`).join(', ')}\n\nActual headers: ${headers.join(', ')}`)
-      // Don't throw error - fallback to auto-detection instead
-      console.log('[Probe] Falling back to auto-detection for all columns')
-    }
-    
-    console.log('[Probe] === LLM RESULT ===')
-    console.log(`[Probe] Date: ${result.dateColumn || 'null (no date column)'}`)
-    console.log(`[Probe] Metrics (${result.metricColumns?.length || 0}): ${result.metricColumns?.map(m => m.name).join(', ')}`)
-    console.log(`[Probe] Dimensions (${result.dimensionColumns?.length || 0}): ${result.dimensionColumns?.map(d => d.name).join(', ')}`)
-    
-    // 자동 감지 개선: numeric 타입 컬럼 중 metric으로 분류되지 않은 컬럼 자동 추가
-    const detectedMetricNames = new Set((result.metricColumns || []).map(m => m.name))
-    const autoDetectedMetrics: typeof result.metricColumns = []
-    
-    // 데이터 패턴 기반 자동 감지 (실제 데이터 값 분석)
-    headers.forEach((header, colIndex) => {
-      // 이미 metric으로 분류되었거나 date 컬럼이면 스킵
-      if (detectedMetricNames.has(header) || header === result.dateColumn) {
-        return
-      }
-      
-      const analysis = columnAnalysis[header]
-      const patternAnalysis = dataPatternAnalyses[header]
-      
-      if (!patternAnalysis) return
-      
-      // 데이터 패턴 분석 결과를 우선 사용
-      if (patternAnalysis.isEventName) {
-        // 이벤트 이름은 dimension으로 처리 (아래 dimension 로직에서 처리)
-        return
-      }
-      
-      if (patternAnalysis.isEventCount || patternAnalysis.isUserCount || patternAnalysis.isRevenue || patternAnalysis.isEventsPerUser) {
-        // 데이터 패턴이 명확한 경우 무조건 metric으로 추가
-        autoDetectedMetrics.push({
-          name: header,
-          displayName: header,
-          type: (patternAnalysis.isRevenue || analysis.type === 'currency' ? 'currency' : 
-                 analysis.type === 'percentage' ? 'percentage' : 'number') as 'number' | 'currency' | 'percentage',
-          aggregation: patternAnalysis.suggestedAggregation || 'sum',
-        })
-        return
-      }
-      
-      // 패턴이 명확하지 않지만 numeric 타입인 경우
-      if (patternAnalysis.isMetric && !patternAnalysis.needsConfirmation) {
-        autoDetectedMetrics.push({
-          name: header,
-          displayName: header,
-          type: (analysis.type === 'currency' ? 'currency' : 
-                 analysis.type === 'percentage' ? 'percentage' : 'number') as 'number' | 'currency' | 'percentage',
-          aggregation: patternAnalysis.suggestedAggregation || 'sum',
-        })
-        return
-      }
-      
-      // numeric 타입이지만 패턴 분석이 없거나 불확실한 경우
-      // **포괄적 접근**: 모든 numeric 컬럼을 기본적으로 metric으로 포함
-      if (analysis && ['number', 'currency', 'percentage'].includes(analysis.type)) {
-        // ID 타입은 제외 (더 엄격한 조건: uniqueRatio > 0.95 AND name contains "id")
-        const isLikelyId = analysis.type === 'id' || 
-          (analysis.stats?.uniqueRatio && analysis.stats.uniqueRatio > 0.95 && 
-           (header.toLowerCase().includes('id') || header.toLowerCase().includes('uuid')))
-        if (isLikelyId) {
-          return
-        }
-        
-        // 패턴 분석이 불확실하면 헤더 이름 기반으로 판단
-        const isRate = /rate|ratio|avg|percentage|%|retention|conversion|ctr|cpc|당|per/i.test(header) ||
-          header.includes('당') || header.includes('per')
-        const isCount = /count|수|총|total|sum/i.test(header) ||
-          header.includes('수') || header.includes('총')
-        const isRevenue = /revenue|수익|매출|profit|이익/i.test(header)
-        
-        const aggregation = (isRate || analysis.type === 'percentage' || header.includes('당')) 
-          ? 'avg' as const 
-          : 'sum' as const
-        
-        // 이미 추가되지 않은 경우에만 추가
-        if (!autoDetectedMetrics.some(m => m.name === header)) {
-          autoDetectedMetrics.push({
-            name: header,
-            displayName: header,
-            type: (isRevenue || analysis.type === 'currency' ? 'currency' : 
-                   analysis.type === 'percentage' ? 'percentage' : 'number') as 'number' | 'currency' | 'percentage',
-            aggregation,
-          })
-        }
-      }
-    })
-    
-    // 자동 감지된 metric 추가
-    if (autoDetectedMetrics.length > 0) {
-      console.log(`[Probe] Auto-detected ${autoDetectedMetrics.length} additional metric columns: ${autoDetectedMetrics.map(m => m.name).join(', ')}`)
-    }
-    
-    // If LLM returned invalid column names, use auto-detection only
-    const useAutoDetectionOnly = invalidMetrics.length > 0 || invalidDimensions.length > 0
-    
-    // Merge LLM results with auto-detected metrics (remove duplicates)
-    const llmMetricNames = new Set((result.metricColumns || []).map(m => m.name))
-    const mergedMetrics = useAutoDetectionOnly 
-      ? autoDetectedMetrics 
-      : [
-          ...(result.metricColumns || []),
-          ...autoDetectedMetrics.filter(m => !llmMetricNames.has(m.name)) // LLM이 놓친 컬럼만 추가
-        ]
-    
-    const allMetricColumns = mergedMetrics
-    
-    // For dimensions, 데이터 패턴 기반 자동 감지
-    const autoDetectedDimensions: typeof result.dimensionColumns = []
-    const uncertainColumns: string[] = []
-    
-    headers.forEach((header, colIndex) => {
-      // 이미 metric이나 date 컬럼이면 스킵
-      if (allMetricColumns.some(m => m.name === header) || header === result.dateColumn) {
-        return
-      }
-      
-      const analysis = columnAnalysis[header]
-      const patternAnalysis = dataPatternAnalyses[header]
-      
-      // 데이터 패턴 분석 결과를 우선 사용
-      if (patternAnalysis) {
-        if (patternAnalysis.isEventName) {
-          // 이벤트 이름 패턴이 감지된 경우 무조건 dimension
-          autoDetectedDimensions.push({
-            name: header,
-            displayName: header,
-            type: 'string' as const,
-          })
-          return
-        }
-        
-        if (patternAnalysis.isDimension && !patternAnalysis.needsConfirmation) {
-          // dimension 패턴이 명확한 경우
-          autoDetectedDimensions.push({
-            name: header,
-            displayName: header,
-            type: 'string' as const,
-          })
-          return
-        }
-        
-        if (patternAnalysis.needsConfirmation) {
-          // 불확실한 경우 확인 필요 목록에 추가
-          uncertainColumns.push(header)
-        }
-      }
-      
-      // **2단계: 타입 기반 포괄적 포함 - 모든 string 컬럼을 dimension으로 포함**
-      if (analysis && analysis.type === 'string') {
-        const uniqueRatio = analysis.stats?.uniqueRatio || 0
-        // 더 관대한 조건: uniqueRatio < 0.95이면 dimension으로 포함
-        // 명확한 ID만 제외 (uniqueRatio > 0.95 AND name contains "id")
-        const isLikelyId = uniqueRatio > 0.95 && 
-          (header.toLowerCase().includes('id') || header.toLowerCase().includes('uuid'))
-        
-        if (!isLikelyId && uniqueRatio > 0.05) {
-          // 대부분의 string 컬럼을 dimension으로 포함
-          if (!autoDetectedDimensions.some(d => d.name === header)) {
-            autoDetectedDimensions.push({
-              name: header,
-              displayName: header,
-              type: 'string' as const,
-            })
-          }
-        } else if (isLikelyId) {
-          // 명확한 ID는 제외
-          return
-        } else {
-          // 매우 낮은 uniqueness (거의 모든 값이 동일)는 확인 필요하지만 일단 포함
-          if (!autoDetectedDimensions.some(d => d.name === header)) {
-            autoDetectedDimensions.push({
-              name: header,
-              displayName: header,
-              type: 'string' as const,
-            })
-          }
-          uncertainColumns.push(header)
-        }
-      }
-    })
-    
-    // Merge LLM results with auto-detected dimensions (remove duplicates)
-    const llmDimensionNames = new Set((result.dimensionColumns || []).map(d => d.name))
-    const mergedDimensions = useAutoDetectionOnly
-      ? autoDetectedDimensions
-      : [
-          ...(result.dimensionColumns || []),
-          ...autoDetectedDimensions.filter(
-            d => !llmDimensionNames.has(d.name) && // LLM이 놓친 컬럼만 추가
-                 !allMetricColumns.some(m => m.name === d.name) &&
-                 d.name !== result.dateColumn
-          )
-        ]
-    
-    const allDimensionColumns = mergedDimensions
-    
-    // aggregationRules 업데이트 (자동 감지된 metric 포함)
-    const allAggregationRules = { ...(result.aggregationRules || {}) }
-    autoDetectedMetrics.forEach(m => {
-      allAggregationRules[m.name] = m.aggregation
-    })
-    
-    // 최종 검증: **포괄적 접근** - 모든 컬럼이 포함되었는지 확인하고 누락된 컬럼 자동 추가
-    const missingMetrics: string[] = []
-    const missingDimensions: string[] = []
-    const allIncludedColumns = new Set<string>()
-    
-    if (result.dateColumn) allIncludedColumns.add(result.dateColumn)
-    allMetricColumns.forEach(m => allIncludedColumns.add(m.name))
-    allDimensionColumns.forEach(d => allIncludedColumns.add(d.name))
-    
-    headers.forEach((h, colIndex) => {
-      // 이미 포함된 컬럼은 스킵
-      if (allIncludedColumns.has(h)) return
-      
-      const patternAnalysis = dataPatternAnalyses[h]
-      const analysis = columnAnalysis[h]
-      
-      if (!analysis) {
-        // 분석이 없는 경우도 일단 포함 (확인 필요)
-        missingDimensions.push(h)
-        return
-      }
-      
-      // 데이터 패턴 분석 결과를 우선 사용
-      if (patternAnalysis) {
-        if (patternAnalysis.isEventName && !patternAnalysis.needsConfirmation) {
-          missingDimensions.push(h)
-          return
-        }
-        
-        if ((patternAnalysis.isEventCount || patternAnalysis.isUserCount || 
-             patternAnalysis.isRevenue || patternAnalysis.isEventsPerUser || 
-             patternAnalysis.isMetric) && !patternAnalysis.needsConfirmation) {
-          missingMetrics.push(h)
-          return
-        }
-      }
-      
-      // 패턴 분석이 없거나 불확실한 경우 타입 기반으로 판단
-      if (analysis && ['number', 'currency', 'percentage'].includes(analysis.type)) {
-        // 더 관대한 조건: ID가 아니면 모두 metric으로 포함
-        const isLikelyId = analysis.type === 'id' || 
-          (analysis.stats?.uniqueRatio && analysis.stats.uniqueRatio > 0.95 && 
-           (h.toLowerCase().includes('id') || h.toLowerCase().includes('uuid')))
-        if (!isLikelyId) {
-          missingMetrics.push(h)
-        }
-      } else if (analysis && analysis.type === 'string') {
-        const uniqueRatio = analysis.stats?.uniqueRatio || 0
-        // 더 관대한 조건: 명확한 ID가 아니면 모두 dimension으로 포함
-        const isLikelyId = uniqueRatio > 0.95 && 
-          (h.toLowerCase().includes('id') || h.toLowerCase().includes('uuid'))
-        if (!isLikelyId && uniqueRatio > 0.05) {
-          missingDimensions.push(h)
-        } else if (!isLikelyId) {
-          // 매우 낮은 uniqueness도 일단 포함 (확인 필요)
-          missingDimensions.push(h)
-        }
-      } else {
-        // 알 수 없는 타입도 일단 dimension으로 포함 (확인 필요)
-        missingDimensions.push(h)
-      }
-    })
-    
-    // 누락된 metric 컬럼 자동 추가
-    if (missingMetrics.length > 0) {
-      console.log(`[Probe] Adding missing metrics based on data patterns: ${missingMetrics.join(', ')}`)
-      missingMetrics.forEach(h => {
-        const analysis = columnAnalysis[h]
-        const patternAnalysis = dataPatternAnalyses[h]
-        const isRate = /rate|ratio|avg|percentage|%|당|per/i.test(h) || h.includes('당')
-        allMetricColumns.push({
-          name: h,
-          displayName: h,
-          type: (analysis.type === 'currency' ? 'currency' : 
-                 analysis.type === 'percentage' ? 'percentage' : 'number') as 'number' | 'currency' | 'percentage',
-          aggregation: patternAnalysis?.suggestedAggregation || (isRate || analysis.type === 'percentage' ? 'avg' : 'sum') as 'sum' | 'avg',
-        })
-        allAggregationRules[h] = patternAnalysis?.suggestedAggregation || (isRate || analysis.type === 'percentage' ? 'avg' : 'sum')
-      })
-    }
-    
-    // 누락된 dimension 컬럼 자동 추가
-    if (missingDimensions.length > 0) {
-      console.log(`[Probe] Adding missing dimensions based on data patterns: ${missingDimensions.join(', ')}`)
-      missingDimensions.forEach(h => {
-        allDimensionColumns.push({
-          name: h,
-          displayName: h,
-          type: 'string' as const,
-        })
-      })
-    }
-    
-    // 불확실한 컬럼에 대한 질문 생성 (사용자가 수동으로 확인할 수 있도록)
-    const llmQuestions: LLMQuestion[] = [...(result.llmQuestions || [])]
-    
-    if (uncertainColumns.length > 0) {
-      const uncertainMetrics = uncertainColumns.filter(h => {
-        const analysis = columnAnalysis[h]
-        return analysis && ['number', 'currency', 'percentage'].includes(analysis.type)
-      })
-      const uncertainDimensions = uncertainColumns.filter(h => {
-        const analysis = columnAnalysis[h]
-        return analysis && analysis.type === 'string'
-      })
-      
-      if (uncertainMetrics.length > 0) {
-        llmQuestions.push({
-          id: 'uncertain_metrics',
-          question: language === 'ko' 
-            ? `다음 컬럼들이 지표(metric)로 분류되었지만 확인이 필요합니다: ${uncertainMetrics.join(', ')}. 실제 데이터 값을 확인하여 지표로 사용할지 결정해주세요.`
-            : `The following columns were classified as metrics but need confirmation: ${uncertainMetrics.join(', ')}. Please review the actual data values to confirm.`,
-          quickReplies: uncertainMetrics.slice(0, 8).map(h => ({
-            label: h,
-            value: h,
-            action: 'confirm_metric' as const,
-          })),
-        })
-      }
-      
-      if (uncertainDimensions.length > 0) {
-        llmQuestions.push({
-          id: 'uncertain_dimensions',
-          question: language === 'ko'
-            ? `다음 컬럼들이 차원(dimension)으로 분류되었지만 확인이 필요합니다: ${uncertainDimensions.join(', ')}. 실제 데이터 값을 확인하여 차원으로 사용할지 결정해주세요.`
-            : `The following columns were classified as dimensions but need confirmation: ${uncertainDimensions.join(', ')}. Please review the actual data values to confirm.`,
-          quickReplies: uncertainDimensions.slice(0, 8).map(h => ({
-            label: h,
-            value: h,
-            action: 'confirm_dimension' as const,
-          })),
-        })
-      }
-    }
-    
-    // Validate and ensure arrays
+    const metricColumns: MetricColumn[] = profilerResult.metricColumns.map((m) => ({
+      ...m,
+      displayName: headerSet.has(m.name) && proposal.displayNames[m.name]
+        ? proposal.displayNames[m.name]
+        : m.displayName,
+    }))
+    const dimensionColumns: DimensionColumn[] = profilerResult.dimensionColumns.map((d) => ({
+      ...d,
+      displayName: headerSet.has(d.name) && proposal.displayNames[d.name]
+        ? proposal.displayNames[d.name]
+        : d.displayName,
+    }))
+    const llmQuestions: LLMQuestion[] = [
+      ...profilerResult.llmQuestions,
+      ...proposal.llmQuestions,
+    ]
+
+    console.log('[Probe] === MERGED (Profiler structure + Proposal display names/questions) ===')
     return {
-      dateColumn: result.dateColumn || null,
-      metricColumns: allMetricColumns,
-      dimensionColumns: allDimensionColumns,
-      aggregationRules: allAggregationRules,
-      llmQuestions: llmQuestions, // Include questions for uncertain columns
+      dateColumn: profilerResult.dateColumn,
+      metricColumns,
+      dimensionColumns,
+      aggregationRules: profilerResult.aggregationRules,
+      llmQuestions,
     }
-  } catch (error) {
-    console.error('[Probe] LLM error:', error)
-    
-    // Fallback: use column analysis directly
-    const fallbackResult = fallbackProbe(headers, columnAnalysis, language)
-    
-    // If fallback also fails to detect metrics, add helpful question
-    if (fallbackResult.metricColumns.length === 0) {
-      fallbackResult.llmQuestions.push({
-        id: 'no_metrics_detected',
-        question: language === 'ko' 
-          ? '지표(숫자) 컬럼을 자동으로 감지하지 못했습니다. CSV 파일의 헤더를 확인하고 분석하고 싶은 숫자 컬럼을 선택해주세요.'
-          : 'No metric columns detected. Please check CSV headers and select numeric columns to analyze.',
-        quickReplies: headers
-          .filter(h => {
-            const analysis = columnAnalysis[h]
-            return analysis && ['number', 'currency', 'percentage'].includes(analysis.type)
-          })
-          .slice(0, 8)
-          .map(h => ({
-            label: h,
-            value: h,
-            action: 'add_metric' as const,
-          })),
-      })
-    }
-    
-    return fallbackResult
+  } catch (_llmError) {
+    console.error('[Probe] Schema Proposal (LLM) error, returning Profiler result only:', _llmError)
+    return profilerResult
   }
 }
 

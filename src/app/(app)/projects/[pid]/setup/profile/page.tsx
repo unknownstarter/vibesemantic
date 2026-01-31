@@ -207,7 +207,7 @@ export default function ProfileSetupPage() {
               {profile.goals?.map((goal, i) => (
                 <span
                   key={i}
-                  className="px-3 py-1.5 bg-accent/20 text-accent rounded-full text-sm flex items-center gap-2"
+                  className="px-3 py-1.5 bg-primary/20 text-primary rounded-full text-sm flex items-center gap-2"
                 >
                   {goal}
                   <button
@@ -216,7 +216,7 @@ export default function ProfileSetupPage() {
                       ...prev,
                       goals: prev.goals?.filter((_, idx) => idx !== i),
                     }))}
-                    className="hover:text-accent/70 transition"
+                    className="hover:text-primary/80 transition"
                   >
                     ×
                   </button>

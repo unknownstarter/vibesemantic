@@ -163,10 +163,16 @@ def build_system_prompt(
   4. 개선/최적화 관련 질문
 - Quick Reply, next_params 작성 금지 (시스템이 자동 생성)"""
     
-    # 채팅 모드
+    # 채팅 모드 (Epic 4.5: 짧은 답변, 반문 2~3개, 리포트 형식 금지, 분석가 톤)
     return f"""{base_context}
 
 ## 응답 포맷 (채팅 모드 - 대화형)
+
+### Chat 모드 핵심 규칙 (반드시 준수)
+- **답변 길이**: 300단어 이내로 짧게 작성. 한두 문단으로 핵심만 전달.
+- **후속 질문**: 정확히 2~3개만 제시. 끝에 "다음에 볼 만한 질문" 형태로 나열.
+- **리포트 형식 금지**: 긴 섹션·여러 테이블·보고서 스타일 사용 금지. 대화하듯 한두 문단 + 반문만.
+- **분석가 톤**: "왜 그런지" 한두 문장 추론 포함. 수치 인용은 간단히 (예: "Organic이 45%로 가장 큽니다").
 
 ### 질문 이해 및 데이터 추출 프로세스
 1. **질문 분석**:
@@ -256,19 +262,20 @@ def build_system_prompt(
 
 ### 금지 사항
 - "질문 이해", "관련 데이터 추출", "구체적 답변", "유의미한 후속 질문" 같은 메타 구조 설명 금지
-- 리포트 전체 내용 반복 금지
+- **리포트 스타일 금지**: 긴 요약·발견·상세·제안 섹션 반복 금지. 채팅은 짧은 대화형만.
 - 일반론적이고 뻔한 조언 금지
 - 관련 없는 데이터 나열 금지
-- 300단어 이상의 긴 답변 금지
+- **300단어 초과 금지**. 2~3개 초과의 후속 질문 금지.
 - 데이터 없이 추측만 하는 답변 금지
 - 번호 목록으로 구조를 설명하는 형태 금지 (예: "1. 질문 이해: ...")"""
 
 def build_user_prompt(
     mode: Literal["report", "chat"],
     mart_summary: MartSummary,
-    user_message: Optional[str] = None
+    user_message: Optional[str] = None,
+    chart_context: Optional[Dict[str, Any]] = None,
 ) -> str:
-    """사용자 프롬프트 생성"""
+    """사용자 프롬프트 생성. Epic 5.2: chart_context 있으면 채팅 시 '선택한 차트/메트릭' 문구 포함."""
     import json
     
     summary_json = json.dumps(mart_summary, indent=2, ensure_ascii=False)
@@ -414,11 +421,26 @@ def build_user_prompt(
 - 상관관계나 인과관계 언급 시 통계적 근거를 제시하세요.
 """
     
+    chart_context_block = ""
+    if chart_context and (chart_context.get("label") or chart_context.get("chartType") or chart_context.get("metricNames")):
+        parts = []
+        if chart_context.get("label"):
+            parts.append(f"설명: {chart_context['label']}")
+        if chart_context.get("chartType"):
+            parts.append(f"차트 유형: {chart_context['chartType']}")
+        if chart_context.get("metricNames"):
+            parts.append(f"메트릭: {', '.join(chart_context['metricNames'])}")
+        chart_context_block = f"""
+## 선택한 차트/메트릭 컨텍스트 (Epic 5.2)
+사용자가 대시보드에서 "이 숫자에 대해 물어보기"를 선택했습니다. 답변 시 이 컨텍스트를 반드시 참고하세요.
+{chr(10).join(parts)}
+"""
     return f"""## 분석 데이터 ({start_date} ~ {end_date})
 데이터 소스: {data_sources_desc}
 
 **중요**: 위 데이터 중 질문과 직접 관련된 부분만 사용하세요. 관련 없는 데이터는 무시하세요.
 {statistical_instruction}
+{chart_context_block}
 ## 사용자 질문
 **"{user_message}"**
 

@@ -88,10 +88,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     })
   }
 
-  // Confirm the mapping
+  // Confirm the mapping and set schema_version (immutable after confirm; first confirm = 1)
+  const mappingRow = dataset.source_mappings as { schema_version?: number } | null
+  const schemaVersion = mappingRow?.schema_version ?? 1
   const { error: mappingError } = await supabase
     .from('source_mappings')
-    .update({ status: 'confirmed' })
+    .update({ status: 'confirmed', schema_version: schemaVersion })
     .eq('id', dataset.mapping_id)
 
   if (mappingError) {

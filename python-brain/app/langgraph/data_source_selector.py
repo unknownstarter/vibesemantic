@@ -1,10 +1,94 @@
 """
 Data Source Selector
-Determines which data sources are needed based on user question and workspace purpose
+Determines which data sources are needed based on user question and workspace purpose.
+Epic 4.1: build_plan() returns full Plan for Planner node (intent + need_* + date_range).
 """
 
 from typing import Dict, List, Optional, Set, Any
 import re
+
+
+def build_plan(
+    user_message: Optional[str],
+    mode: str,
+    workspace_purpose: str,
+    range_value: str,
+    chart_context: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """
+    Build Planner output: intent, need_ga4, need_csv, need_channels, need_pages, need_events, date_range.
+    Report mode: full range plan (intent=full_report, all need_* True).
+    Chat mode: userMessage-based plan via analyze_question_intent + simple intent string.
+    Epic 5.2: chart_context 있으면 date_range·metrics_requested 반영.
+    """
+    date_range = range_value if range_value in ("7d", "30d") else "7d"
+    if chart_context and chart_context.get("range") in ("7d", "30d"):
+        date_range = chart_context["range"]
+    if mode == "report":
+        return {
+            "intent": "full_report",
+            "need_ga4": True,
+            "need_csv": True,
+            "need_channels": True,
+            "need_pages": True,
+            "need_events": True,
+            "date_range": date_range,
+        }
+    # Epic 5.2: 차트 컨텍스트 있으면 해당 메트릭/차트 타입 반영
+    if chart_context:
+        chart_type = chart_context.get("chartType") or ""
+        if chart_type == "channel":
+            intent_result = {"need_ga4": True, "need_csv": False, "need_channels": True, "need_pages": False, "need_events": False}
+        elif chart_type == "page":
+            intent_result = {"need_ga4": True, "need_csv": False, "need_channels": False, "need_pages": True, "need_events": False}
+        elif chart_type == "integrated":
+            intent_result = {"need_ga4": True, "need_csv": True, "need_channels": False, "need_pages": False, "need_events": False}
+        else:
+            intent_result = {"need_ga4": True, "need_csv": False, "need_channels": False, "need_pages": False, "need_events": False}
+        return {
+            "intent": "chart_focus",
+            "need_ga4": intent_result.get("need_ga4", True),
+            "need_csv": intent_result.get("need_csv", False),
+            "need_channels": intent_result.get("need_channels", False),
+            "need_pages": intent_result.get("need_pages", False),
+            "need_events": intent_result.get("need_events", False),
+            "date_range": date_range,
+            "metrics_requested": chart_context.get("metricNames"),
+            "dimensions_requested": None,
+        }
+    intent_result = analyze_question_intent(user_message, mode, workspace_purpose)
+    intent = _derive_intent(user_message, intent_result, workspace_purpose)
+    return {
+        "intent": intent,
+        "need_ga4": intent_result.get("need_ga4", True),
+        "need_csv": intent_result.get("need_csv", False),
+        "need_channels": intent_result.get("need_channels", False),
+        "need_pages": intent_result.get("need_pages", False),
+        "need_events": intent_result.get("need_events", False),
+        "date_range": date_range,
+    }
+
+
+def _derive_intent(
+    user_message: Optional[str],
+    intent_result: Dict[str, bool],
+    workspace_purpose: str,
+) -> str:
+    """Derive a simple intent label for Chat mode (no LLM)."""
+    if not user_message or not user_message.strip():
+        return "general"
+    lower = user_message.lower()
+    if intent_result.get("need_channels"):
+        return "channel_breakdown"
+    if intent_result.get("need_pages"):
+        return "page_breakdown"
+    if intent_result.get("need_csv"):
+        return "csv_metrics"
+    if intent_result.get("need_events"):
+        return "events"
+    if any(k in lower for k in ("요약", "summary", "전체", "overview", "전반")):
+        return "overview"
+    return "general"
 
 
 def analyze_question_intent(

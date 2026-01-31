@@ -3,7 +3,6 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { createAuditLog, AuditActions } from '@/lib/audit'
 import type { ProjectProfile, MemberRole, Json } from '@/types/database'
 import { generateMetricDefinitions } from '@/lib/semantic/metric-definitions'
-import { isSemanticLayerEnabled } from '@/lib/feature-flags'
 
 // GET: 사용자가 접근 가능한 프로젝트 목록
 export async function GET() {

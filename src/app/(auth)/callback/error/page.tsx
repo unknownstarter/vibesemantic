@@ -4,6 +4,7 @@ import { Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/shared/ui/Button'
 import { Card } from '@/shared/ui/Card'
+import { Spinner } from '@/shared/ui/Spinner'
 import Link from 'next/link'
 
 // 에러 아이콘
@@ -56,7 +57,7 @@ function ErrorContent() {
       {/* 배경 효과 */}
       <div className="fixed inset-0 -z-10">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-accent/5 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-white/5 rounded-full blur-3xl"></div>
       </div>
 
       <Card className="w-full max-w-md p-8">
@@ -105,14 +106,11 @@ function LoadingFallback() {
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="fixed inset-0 -z-10">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-accent/5 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-white/5 rounded-full blur-3xl"></div>
       </div>
       <Card className="w-full max-w-md p-8">
         <div className="flex justify-center py-8">
-          <div className="h-12 w-12 relative">
-            <div className="absolute inset-0 rounded-full border-2 border-primary/20"></div>
-            <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-primary animate-spin"></div>
-          </div>
+          <Spinner size="lg" className="text-primary" />
         </div>
       </Card>
     </div>
