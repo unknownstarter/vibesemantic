@@ -1,5 +1,6 @@
 export { MessageBubble } from './MessageBubble'
 export { ChatInput } from './ChatInput'
 export { TypingIndicator } from './TypingIndicator'
+export { AgentThinkingMessages } from './AgentThinkingMessages'
 export { QuickReplyChip, ChartIcon, TrendIcon, CalendarIcon, TargetIcon } from './QuickReplyChip'
 export { ReportCharts } from './ReportCharts'

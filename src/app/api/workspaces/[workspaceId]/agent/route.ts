@@ -10,6 +10,9 @@ import type {
   MemberRole
 } from '@/types/database'
 
+/** 유저에게 노출할 통일 메시지 (운영자/기술 에러는 서버 로그만) */
+const USER_FACING_ERROR = '문제가 발생했습니다. 잠시 후 다시 시도해주세요.'
+
 type RouteParams = { params: Promise<{ workspaceId: string }> }
 
 export async function POST(
@@ -112,35 +115,11 @@ export async function POST(
         dataAccessed: result.dataAccessed || [],
       })
     } catch (brainError) {
-      // 브레인 API 에러를 명확하게 처리
-      if (brainError instanceof Error) {
-        // 환경 변수 누락
-        if (brainError.message.includes('BRAIN_API_URL') || brainError.message.includes('BRAIN_API_KEY')) {
-          return NextResponse.json({ 
-            error: 'AI 서버 설정이 완료되지 않았습니다. 관리자에게 문의해주세요.' 
-          }, { status: 500 })
-        }
-        // 네트워크 에러
-        if (brainError.message.includes('fetch') || brainError.message.includes('network') || brainError.message.includes('Failed to fetch')) {
-          return NextResponse.json({ 
-            error: 'AI 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.' 
-          }, { status: 503 })
-        }
-        // 타임아웃
-        if (brainError.message.includes('timeout') || brainError.message.includes('AbortError')) {
-          return NextResponse.json({ 
-            error: '요청 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.' 
-          }, { status: 504 })
-        }
-        // 브레인 API 에러 메시지 전달
-        return NextResponse.json({ 
-          error: brainError.message || 'AI 서버에서 오류가 발생했습니다.' 
-        }, { status: 500 })
-      }
-      throw brainError
+      console.error('[Agent] Brain API error:', brainError instanceof Error ? brainError.message : brainError)
+      return NextResponse.json({ error: USER_FACING_ERROR }, { status: 500 })
     }
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : '분석 중 오류가 발생했습니다'
-    return NextResponse.json({ error: errorMessage }, { status: 500 })
+    console.error('[Agent] Unexpected error:', error instanceof Error ? error.message : error)
+    return NextResponse.json({ error: USER_FACING_ERROR }, { status: 500 })
   }
 }

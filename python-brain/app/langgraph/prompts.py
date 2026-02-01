@@ -1,10 +1,32 @@
 """
 LangGraph 프롬프트 생성
 TypeScript에서 Python으로 포팅
+토큰 절감: mart_summary 배열 크기 제한, JSON indent 없음.
 """
 
+import copy
 from typing import Optional, Literal, Dict, Any
 from app.langgraph.types import WorkspacePurpose, ProjectProfile, MartSummary
+
+# 토큰 절감: 프롬프트에 넣는 mart_summary 배열 상한
+MAX_TREND_POINTS = 14
+MAX_TOP_CHANNELS = 5
+MAX_TOP_PAGES = 5
+MAX_INTEGRATED_TREND = 14
+
+
+def trim_mart_summary_for_prompt(mart_summary: MartSummary) -> MartSummary:
+    """LLM 프롬프트용으로 배열 크기 제한 (토큰 절감)."""
+    out = copy.deepcopy(mart_summary)
+    if out.get("dailyTrend"):
+        out["dailyTrend"] = out["dailyTrend"][:MAX_TREND_POINTS]
+    if out.get("topChannels"):
+        out["topChannels"] = out["topChannels"][:MAX_TOP_CHANNELS]
+    if out.get("topPages"):
+        out["topPages"] = out["topPages"][:MAX_TOP_PAGES]
+    if out.get("integratedTrend"):
+        out["integratedTrend"] = out["integratedTrend"][:MAX_INTEGRATED_TREND]
+    return out
 
 # 목적별 분석 초점
 PURPOSE_FOCUS = {
@@ -275,10 +297,10 @@ def build_user_prompt(
     user_message: Optional[str] = None,
     chart_context: Optional[Dict[str, Any]] = None,
 ) -> str:
-    """사용자 프롬프트 생성. Epic 5.2: chart_context 있으면 채팅 시 '선택한 차트/메트릭' 문구 포함."""
+    """사용자 프롬프트 생성. Epic 5.2: chart_context 있으면 채팅 시 '선택한 차트/메트릭' 문구 포함. 토큰 절감: trim + indent 없음."""
     import json
-    
-    summary_json = json.dumps(mart_summary, indent=2, ensure_ascii=False)
+    trimmed = trim_mart_summary_for_prompt(mart_summary)
+    summary_json = json.dumps(trimmed, ensure_ascii=False)
     data_sources_desc = get_data_sources_description(mart_summary)
     
     period = mart_summary.get("period", {})

@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/shared/ui/Button'
 import { Breadcrumb } from '@/shared/ui/Breadcrumb'
 import { Spinner } from '@/shared/ui/Spinner'
-import { MessageBubble, ChatInput, TypingIndicator, QuickReplyChip, ChartIcon, TrendIcon, CalendarIcon } from '@/features/agent-chat/ui'
+import { MessageBubble, ChatInput, TypingIndicator, AgentThinkingMessages, QuickReplyChip, ChartIcon, TrendIcon, CalendarIcon } from '@/features/agent-chat/ui'
 import { ReportCharts } from '@/features/agent-chat/ui/ReportCharts'
 import { formatMarkdown } from '@/features/agent-chat/lib/formatMarkdown'
 import type { ReportRange, ChatMessage, Workspace, AgentConfig } from '@/types/database'
@@ -15,6 +15,9 @@ import type { AnalystQuestion, MartSummary } from '@/lib/langgraph/types'
 import type { ChartContext } from '@/lib/api/brain-api'
 
 type TabType = 'report' | 'chat'
+
+/** 유저에게 노출할 통일 에러 메시지 (운영자/기술 에러는 API·로그만) */
+const USER_FACING_ERROR = '문제가 발생했습니다. 잠시 후 다시 시도해주세요.'
 
 // Icons
 function ReportIcon({ className = '' }: { className?: string }) {
@@ -83,6 +86,7 @@ export default function AgentPage() {
   
   const chatEndRef = useRef<HTMLDivElement>(null)
   const hasGeneratedRef = useRef(false)
+  const [reportError, setReportError] = useState<string | null>(null)
 
   // Load workspace info
   useEffect(() => {
@@ -126,6 +130,7 @@ export default function AgentPage() {
     }
 
     setReportLoading(true)
+    setReportError(null)
     try {
       const config = workspace?.agent_config as AgentConfig | undefined
       const res = await fetch(`/api/workspaces/${workspaceSlug}/agent`, {
@@ -147,6 +152,7 @@ export default function AgentPage() {
       setReportMartSummary(data.martSummary || null)
       setThreadId(data.threadId)
     } catch (err) {
+      setReportError(USER_FACING_ERROR)
       console.error(err)
     } finally {
       setReportLoading(false)
@@ -161,10 +167,11 @@ export default function AgentPage() {
     }
   }, [tab, generateReport])
 
-  // Reset generated flag when range changes
+  // Reset generated flag and error when range changes
   useEffect(() => {
     hasGeneratedRef.current = false
     setReportMarkdown(null)
+    setReportError(null)
   }, [range])
 
   // Scroll to bottom on new messages
@@ -229,7 +236,7 @@ export default function AgentPage() {
         workspace_id: workspaceSlug,
         thread_id: threadId,
         role: 'assistant',
-        content: err instanceof Error ? err.message : '메시지를 전송하는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
+        content: USER_FACING_ERROR,
         created_at: new Date().toISOString(),
         metadata: { error: true },
       }
@@ -345,10 +352,21 @@ export default function AgentPage() {
                 className="flex items-center justify-center h-64"
               >
                 <div className="text-center">
-                  <Spinner size="lg" className="text-primary mx-auto" />
-                  <p className="text-muted mt-4">AI가 데이터를 분석하고 있습니다...</p>
-                  <p className="text-xs text-subtle mt-1">최대 30초 정도 소요될 수 있습니다</p>
+                  <Spinner size="lg" className="text-primary mx-auto mb-4" />
+                  <AgentThinkingMessages variant="report" subText="최대 30초 정도 소요될 수 있습니다" />
                 </div>
+              </motion.div>
+            ) : reportError ? (
+              <motion.div
+                key="error"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex flex-col items-center justify-center h-64 text-center px-4"
+              >
+                <p className="text-muted text-sm mb-4">{reportError}</p>
+                <Button variant="secondary" size="sm" onClick={() => generateReport(true)}>
+                  다시 시도
+                </Button>
               </motion.div>
             ) : reportMarkdown ? (
               <motion.div 
@@ -497,7 +515,14 @@ export default function AgentPage() {
                 />
               ))}
               
-              {chatLoading && <TypingIndicator />}
+              {chatLoading && (
+                <div className="flex gap-2 sm:gap-3">
+                  <div className="shrink-0 hidden sm:block w-8 h-8 rounded-full bg-gradient-to-br from-primary/20 to-white/10 border border-primary/30" />
+                  <div className="rounded-2xl px-4 py-3 bg-surface-inset border border-border/10 rounded-tl-sm">
+                    <AgentThinkingMessages variant="chat" />
+                  </div>
+                </div>
+              )}
               
               <div ref={chatEndRef} />
             </div>
