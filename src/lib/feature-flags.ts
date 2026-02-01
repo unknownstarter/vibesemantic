@@ -16,15 +16,20 @@ function getCacheKey(projectId: string): string {
 }
 
 /**
- * Get feature flags for a project
+ * Get feature flags for a project.
+ * Cache failure (e.g. Redis WRONGPASS) is ignored; falls back to DB.
  */
 export async function getProjectFeatureFlags(
   projectId: string
 ): Promise<FeatureFlags> {
   const backend = getDefaultBackend()
   const cacheKey = getCacheKey(projectId)
-  const cached = await backend.get<FeatureFlags>(cacheKey)
-  if (cached != null) return cached
+  try {
+    const cached = await backend.get<FeatureFlags>(cacheKey)
+    if (cached != null) return cached
+  } catch (e) {
+    console.warn('[FeatureFlags] Cache get failed, using DB:', e instanceof Error ? e.message : e)
+  }
 
   const supabase = await createClient()
   const { data, error } = await supabase
@@ -39,7 +44,11 @@ export async function getProjectFeatureFlags(
   }
 
   const flags = (data?.feature_flags as FeatureFlags) ?? {}
-  await backend.set(cacheKey, flags, FLAGS_CACHE_TTL_MS)
+  try {
+    await backend.set(cacheKey, flags, FLAGS_CACHE_TTL_MS)
+  } catch (e) {
+    console.warn('[FeatureFlags] Cache set failed:', e instanceof Error ? e.message : e)
+  }
   return flags
 }
 
@@ -115,19 +124,29 @@ export async function disableEventCollection(projectId: string): Promise<void> {
 }
 
 /**
- * Invalidate feature flags cache for a project
+ * Invalidate feature flags cache for a project.
+ * Cache failure is ignored (e.g. Redis WRONGPASS).
  */
 export async function invalidateFlagsCache(projectId: string): Promise<void> {
-  const backend = getDefaultBackend()
-  await backend.delete(getCacheKey(projectId))
+  try {
+    const backend = getDefaultBackend()
+    await backend.delete(getCacheKey(projectId))
+  } catch (e) {
+    console.warn('[FeatureFlags] Cache invalidate failed:', e instanceof Error ? e.message : e)
+  }
 }
 
 /**
- * Clear all feature flags cache (prefix flags:)
+ * Clear all feature flags cache (prefix flags:).
+ * Cache failure is ignored.
  */
 export async function clearAllFlagsCache(): Promise<void> {
-  const backend = getDefaultBackend()
-  await backend.clearPrefix(FLAGS_CACHE_KEY_PREFIX)
+  try {
+    const backend = getDefaultBackend()
+    await backend.clearPrefix(FLAGS_CACHE_KEY_PREFIX)
+  } catch (e) {
+    console.warn('[FeatureFlags] Cache clearPrefix failed:', e instanceof Error ? e.message : e)
+  }
 }
 
 /**

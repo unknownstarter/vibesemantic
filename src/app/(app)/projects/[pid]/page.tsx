@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/shared/ui/Button'
+import { Breadcrumb } from '@/shared/ui/Breadcrumb'
 import { Card } from '@/shared/ui/Card'
 import { Spinner } from '@/shared/ui/Spinner'
 import { ErrorMessage } from '@/shared/ui/ErrorMessage'
@@ -130,11 +131,13 @@ function ProjectOverviewContent() {
       <div className="px-4 sm:px-0">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center gap-2 text-sm text-muted mb-2">
-            <Link href="/dashboard" className="hover:text-foreground transition">모든 프로젝트</Link>
-            <span>/</span>
-            <span className="text-foreground">{project.name}</span>
-          </div>
+          <Breadcrumb
+            items={[
+              { label: '모든 프로젝트', href: '/dashboard' },
+              { label: project.name },
+            ]}
+            className="mb-2"
+          />
           <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
             <div>
               <h1 className="text-2xl font-bold text-foreground">{project.name}</h1>

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/shared/ui/Button'
+import { Breadcrumb } from '@/shared/ui/Breadcrumb'
 import { Spinner } from '@/shared/ui/Spinner'
 import { UploadIcon, FileIcon, TrashIcon, CheckIcon, PlusIcon } from '@/shared/ui/Icons'
 import { CSV_DATASET_STATUS } from '@/entities/csv/constants'
@@ -336,13 +337,13 @@ export default function DatasetDetailPage() {
     <div className="px-4 sm:px-0 max-w-4xl mx-auto">
       {/* Header */}
       <div className="mb-8">
-        <div className="flex items-center gap-2 text-sm text-muted mb-2">
-          <Link href={`/projects/${projectSlug}/setup/sources`} className="hover:text-foreground transition">
-            데이터 소스
-          </Link>
-          <span>/</span>
-          <span className="text-foreground">{dataset.name}</span>
-        </div>
+        <Breadcrumb
+          items={[
+            { label: '데이터 소스', href: `/projects/${projectSlug}/setup/sources` },
+            { label: dataset.name },
+          ]}
+          className="mb-2"
+        />
         <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
           <div>
             <div className="flex items-center gap-3">

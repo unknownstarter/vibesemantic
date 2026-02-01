@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/shared/ui/Button'
+import { Breadcrumb } from '@/shared/ui/Breadcrumb'
 import { Spinner } from '@/shared/ui/Spinner'
 import { MessageBubble, ChatInput, TypingIndicator, QuickReplyChip, ChartIcon, TrendIcon, CalendarIcon } from '@/features/agent-chat/ui'
 import { ReportCharts } from '@/features/agent-chat/ui/ReportCharts'
@@ -267,13 +268,13 @@ export default function AgentPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
         <div>
-          <div className="flex items-center gap-2 text-sm text-muted mb-1">
-            <Link href={`/projects/${projectSlug}/workspaces`} className="hover:text-foreground transition">
-              워크스페이스
-            </Link>
-            <span>/</span>
-            <span className="text-foreground">{workspace?.name}</span>
-          </div>
+          <Breadcrumb
+            items={[
+              { label: '워크스페이스', href: `/projects/${projectSlug}/workspaces` },
+              { label: workspace?.name ?? '' },
+            ]}
+            className="mb-1"
+          />
           <div className="flex items-center gap-2">
             <SparkleIcon className="w-5 h-5 text-primary" />
             <h1 className="text-xl font-bold text-foreground">AI 분석</h1>

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/shared/ui/Button'
+import { Breadcrumb } from '@/shared/ui/Breadcrumb'
 import type { Project, MemberRole } from '@/types/database'
 
 // Spinner Component
@@ -99,13 +100,13 @@ export default function ProjectSettingsPage() {
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-0">
       <div className="mb-8">
-        <div className="flex items-center gap-2 text-sm text-muted mb-2">
-          <Link href={`/projects/${slug}`} className="hover:text-foreground transition">
-            {project.name}
-          </Link>
-          <span>/</span>
-          <span className="text-foreground">설정</span>
-        </div>
+        <Breadcrumb
+          items={[
+            { label: project.name, href: `/projects/${slug}` },
+            { label: '설정' },
+          ]}
+          className="mb-2"
+        />
         <h1 className="text-2xl font-bold text-foreground">프로젝트 설정</h1>
       </div>
 

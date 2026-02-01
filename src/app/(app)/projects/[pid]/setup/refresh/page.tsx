@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Button } from '@/shared/ui/Button'
+import { Breadcrumb } from '@/shared/ui/Breadcrumb'
 import type { ReportRange } from '@/types/database'
 
 // Spinner Component
@@ -103,11 +104,13 @@ export default function RefreshPage() {
   return (
     <div className="max-w-xl mx-auto px-4 sm:px-0">
       <div className="mb-8">
-        <div className="flex items-center gap-2 text-sm text-muted mb-2">
-          <span>프로젝트 설정</span>
-          <span>/</span>
-          <span className="text-foreground">3. 데이터 동기화</span>
-        </div>
+        <Breadcrumb
+          items={[
+            { label: '프로젝트 설정', href: `/projects/${projectSlug}` },
+            { label: '3. 데이터 동기화' },
+          ]}
+          className="mb-2"
+        />
         <h1 className="text-2xl font-bold text-foreground">GA4 데이터 동기화</h1>
         <p className="text-muted mt-1">GA4에서 데이터를 가져와 분석 준비를 완료하세요</p>
       </div>

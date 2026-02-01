@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/shared/ui/Button'
+import { Breadcrumb } from '@/shared/ui/Breadcrumb'
 import { Spinner } from '@/shared/ui/Spinner'
 import { GA4Icon, CsvIcon, PlusIcon, CheckIcon } from '@/shared/ui/Icons'
 import { CSV_DATASET_STATUS } from '@/entities/csv/constants'
@@ -88,11 +89,13 @@ export default function SourcesPage() {
     <div className="px-4 sm:px-0 max-w-4xl mx-auto">
       {/* Header */}
       <div className="mb-8">
-        <div className="flex items-center gap-2 text-sm text-muted mb-2">
-          <Link href={`/projects/${projectSlug}`} className="hover:text-foreground transition">프로젝트</Link>
-          <span>/</span>
-          <span className="text-foreground">데이터 소스 설정</span>
-        </div>
+        <Breadcrumb
+          items={[
+            { label: '프로젝트', href: `/projects/${projectSlug}` },
+            { label: '데이터 소스 설정' },
+          ]}
+          className="mb-2"
+        />
         <h1 className="text-2xl font-bold text-foreground">데이터 소스</h1>
         <p className="text-muted mt-1">GA4 또는 CSV를 연결하여 분석 데이터를 준비하세요</p>
       </div>

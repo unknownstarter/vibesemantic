@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/shared/ui/Button'
+import { Breadcrumb } from '@/shared/ui/Breadcrumb'
 import type { Workspace, WorkspacePurpose, WorkspaceStatus } from '@/types/database'
 
 // Spinner Component
@@ -57,13 +58,14 @@ export default function WorkspacesPage() {
     <div className="px-4 sm:px-0">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
-          <div className="flex items-center gap-2 text-sm text-muted mb-2">
-            <Link href="/dashboard" className="hover:text-foreground transition">프로젝트</Link>
-            <span>/</span>
-            <Link href={`/projects/${projectSlug}`} className="hover:text-foreground transition">Overview</Link>
-            <span>/</span>
-            <span className="text-foreground">워크스페이스</span>
-          </div>
+          <Breadcrumb
+            items={[
+              { label: '프로젝트', href: '/dashboard' },
+              { label: 'Overview', href: `/projects/${projectSlug}` },
+              { label: '워크스페이스' },
+            ]}
+            className="mb-2"
+          />
           <h1 className="text-2xl font-bold text-foreground">워크스페이스</h1>
           <p className="text-muted mt-1">목적별 분석 워크스페이스를 관리하세요</p>
         </div>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Button } from '@/shared/ui/Button'
+import { Breadcrumb } from '@/shared/ui/Breadcrumb'
 import type { GA4Property } from '@/types/database'
 
 // Spinner Component
@@ -90,13 +91,14 @@ export default function GA4PropertyPage() {
   return (
     <div className="max-w-xl mx-auto px-4 sm:px-0">
       <div className="mb-8">
-        <div className="flex items-center gap-2 text-sm text-muted mb-2">
-          <span>프로젝트 설정</span>
-          <span>/</span>
-          <span>2. GA4 연동</span>
-          <span>/</span>
-          <span className="text-foreground">Property 선택</span>
-        </div>
+        <Breadcrumb
+          items={[
+            { label: '프로젝트 설정', href: `/projects/${projectSlug}` },
+            { label: '2. GA4 연동', href: `/projects/${projectSlug}/setup/ga4/connect` },
+            { label: 'Property 선택' },
+          ]}
+          className="mb-2"
+        />
         <h1 className="text-2xl font-bold text-foreground">GA4 Property 선택</h1>
         <p className="text-muted mt-1">분석할 GA4 Property를 선택하세요</p>
       </div>

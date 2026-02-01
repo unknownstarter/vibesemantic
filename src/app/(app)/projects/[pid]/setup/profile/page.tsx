@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Button } from '@/shared/ui/Button'
+import { Breadcrumb } from '@/shared/ui/Breadcrumb'
 import type { ProjectProfile } from '@/types/database'
 
 const INDUSTRIES = [
@@ -119,11 +120,13 @@ export default function ProfileSetupPage() {
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-0">
       <div className="mb-8">
-        <div className="flex items-center gap-2 text-sm text-muted mb-2">
-          <span>프로젝트 설정</span>
-          <span>/</span>
-          <span className="text-foreground">1. 서비스 프로필</span>
-        </div>
+        <Breadcrumb
+          items={[
+            { label: '프로젝트 설정', href: `/projects/${projectSlug}` },
+            { label: '1. 서비스 프로필' },
+          ]}
+          className="mb-2"
+        />
         <h1 className="text-2xl font-bold text-foreground">서비스 프로필 설정</h1>
         <p className="text-muted mt-1">AI 분석의 정확도를 높이기 위해 서비스 정보를 입력하세요</p>
       </div>

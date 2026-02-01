@@ -15,15 +15,20 @@ function getCacheKey(projectId: string): string {
 }
 
 /**
- * Get cached metric definitions for a project
+ * Get cached metric definitions for a project.
+ * Cache failure (e.g. Redis WRONGPASS) is ignored; falls back to DB.
  */
 export async function getCachedMetricDefinitions(
   projectId: string
 ): Promise<MetricDefinition[]> {
   const backend = getDefaultBackend()
   const cacheKey = getCacheKey(projectId)
-  const cached = await backend.get<MetricDefinition[]>(cacheKey)
-  if (cached != null) return cached
+  try {
+    const cached = await backend.get<MetricDefinition[]>(cacheKey)
+    if (cached != null) return cached
+  } catch (e) {
+    console.warn('[MetricCache] Cache get failed, using DB:', e instanceof Error ? e.message : e)
+  }
 
   const supabase = await createClient()
   const { data, error } = await supabase
@@ -39,12 +44,17 @@ export async function getCachedMetricDefinitions(
   }
 
   const definitions = (data ?? []) as MetricDefinition[]
-  await backend.set(cacheKey, definitions, CACHE_TTL_MS)
+  try {
+    await backend.set(cacheKey, definitions, CACHE_TTL_MS)
+  } catch (e) {
+    console.warn('[MetricCache] Cache set failed:', e instanceof Error ? e.message : e)
+  }
   return definitions
 }
 
 /**
- * Get metric definitions with custom TTL
+ * Get metric definitions with custom TTL.
+ * Cache failure is ignored; falls back to DB.
  */
 export async function getCachedMetricDefinitionsWithTTL(
   projectId: string,
@@ -52,8 +62,12 @@ export async function getCachedMetricDefinitionsWithTTL(
 ): Promise<MetricDefinition[]> {
   const backend = getDefaultBackend()
   const cacheKey = getCacheKey(projectId)
-  const cached = await backend.get<MetricDefinition[]>(cacheKey)
-  if (cached != null) return cached
+  try {
+    const cached = await backend.get<MetricDefinition[]>(cacheKey)
+    if (cached != null) return cached
+  } catch (e) {
+    console.warn('[MetricCache] Cache get failed, using DB:', e instanceof Error ? e.message : e)
+  }
 
   const supabase = await createClient()
   const { data, error } = await supabase
@@ -69,24 +83,36 @@ export async function getCachedMetricDefinitionsWithTTL(
   }
 
   const definitions = (data ?? []) as MetricDefinition[]
-  await backend.set(cacheKey, definitions, ttlMs)
+  try {
+    await backend.set(cacheKey, definitions, ttlMs)
+  } catch (e) {
+    console.warn('[MetricCache] Cache set failed:', e instanceof Error ? e.message : e)
+  }
   return definitions
 }
 
 /**
- * Invalidate cache for a specific project. Call when metric_definitions are modified.
+ * Invalidate cache for a specific project. Cache failure is ignored.
  */
 export async function invalidateMetricCache(projectId: string): Promise<void> {
-  const backend = getDefaultBackend()
-  await backend.delete(getCacheKey(projectId))
+  try {
+    const backend = getDefaultBackend()
+    await backend.delete(getCacheKey(projectId))
+  } catch (e) {
+    console.warn('[MetricCache] Cache invalidate failed:', e instanceof Error ? e.message : e)
+  }
 }
 
 /**
- * Invalidate all metric caches (prefix metrics:). Use for debugging or bulk changes.
+ * Invalidate all metric caches (prefix metrics:). Cache failure is ignored.
  */
 export async function clearAllMetricCache(): Promise<void> {
-  const backend = getDefaultBackend()
-  await backend.clearPrefix(CACHE_KEY_PREFIX)
+  try {
+    const backend = getDefaultBackend()
+    await backend.clearPrefix(CACHE_KEY_PREFIX)
+  } catch (e) {
+    console.warn('[MetricCache] Cache clearPrefix failed:', e instanceof Error ? e.message : e)
+  }
 }
 
 /**

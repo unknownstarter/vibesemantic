@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import { Button } from '@/shared/ui/Button'
+import { Breadcrumb } from '@/shared/ui/Breadcrumb'
 
 // Spinner Component
 function Spinner({ className = '' }: { className?: string }) {
@@ -106,11 +107,13 @@ function GA4ConnectContent() {
   return (
     <div className="max-w-xl mx-auto px-4 sm:px-0">
       <div className="mb-8">
-        <div className="flex items-center gap-2 text-sm text-muted mb-2">
-          <span>프로젝트 설정</span>
-          <span>/</span>
-          <span className="text-foreground">2. GA4 연동</span>
-        </div>
+        <Breadcrumb
+          items={[
+            { label: '프로젝트 설정', href: `/projects/${projectSlug}` },
+            { label: '2. GA4 연동' },
+          ]}
+          className="mb-2"
+        />
         <h1 className="text-2xl font-bold text-foreground">Google Analytics 4 연동</h1>
         <p className="text-muted mt-1">GA4 계정을 연결하여 데이터 분석을 시작하세요</p>
       </div>

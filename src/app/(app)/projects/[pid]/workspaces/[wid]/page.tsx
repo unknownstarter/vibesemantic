@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Button } from '@/shared/ui/Button'
+import { Breadcrumb } from '@/shared/ui/Breadcrumb'
 import type { Workspace, WorkspacePurpose, AgentConfig } from '@/types/database'
 
 // Spinner Component
@@ -108,13 +109,14 @@ export default function WorkspaceSetupPage() {
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-0">
       <div className="mb-8">
-        <div className="flex items-center gap-2 text-sm text-muted mb-2">
-          <span>워크스페이스</span>
-          <span>/</span>
-          <span>{workspace.name}</span>
-          <span>/</span>
-          <span className="text-foreground">설정</span>
-        </div>
+        <Breadcrumb
+          items={[
+            { label: '워크스페이스', href: `/projects/${projectSlug}/workspaces` },
+            { label: workspace?.name ?? '', href: `/projects/${projectSlug}/workspaces/${workspaceSlug}/agent` },
+            { label: '설정' },
+          ]}
+          className="mb-2"
+        />
         <h1 className="text-2xl font-bold text-foreground">{workspace.name}</h1>
         <p className="text-muted mt-1">
           {PURPOSE_LABELS[workspace.purpose]} 분석을 위한 AI 에이전트를 설정하세요
