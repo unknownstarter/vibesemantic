@@ -2,7 +2,7 @@
 
 Vibe Semantic은 SQL 없이도 제품의 데이터를 분석하고 인사이트를 제공하는 AI 기반 데이터 분석 플랫폼입니다.
 
-**Last Updated**: 2026-01-26
+**Last Updated**: 2026-02-01
 
 ## 기술 스택
 
@@ -41,17 +41,17 @@ src/
 ├── lib/                   # 외부 서비스 연동
 │   ├── supabase/          # Supabase 클라이언트
 │   ├── ga4/               # Google Analytics 4
-│   ├── csv/               # CSV 처리
-│   ├── semantic-layer/    # Semantic Layer
+│   ├── csv/               # CSV·Excel 파싱·프로파일링·ingest
+│   ├── cache/             # 메트릭 캐시 (feature-flags 연동)
 │   └── react-query/       # React Query
 └── types/                 # 데이터베이스 타입
 
 python-brain/              # Python FastAPI 서버
 ├── app/
 │   ├── main.py            # FastAPI 앱
-│   ├── langgraph/         # LangGraph 엔진
-│   ├── collectors/        # 데이터 수집기
-│   └── profilers/         # CSV 프로파일러
+│   ├── langgraph/         # LangGraph 엔진 (report/chat, prompts, MartSummary)
+│   ├── services/          # CSV/Excel ingest, GA4 연동
+│   └── (collectors 등)    # 데이터 수집·변환
 └── requirements.txt
 ```
 
@@ -100,10 +100,19 @@ npm start
 ### 애플리케이션
 - **인증 시스템**: Email OTP, Google OAuth
 - **프로젝트 관리**: 프로젝트 생성 및 프로필 설정
-- **데이터 소스 연결**: GA4, CSV 파일
-- **AI 분석**: 리포트 생성 및 채팅 분석
-- **Semantic Layer**: 메트릭 정의 자동 생성
-- **워크스페이스**: 목적별 데이터 분석 공간
+- **데이터 소스 연결**: GA4, CSV 및 Excel(.xlsx, .xls) 파일 업로드
+- **AI 분석**: 리포트 생성 및 채팅 분석 (MartSummary 기반, 토큰 절감 적용)
+- **Semantic Layer**: 메트릭 정의 자동 생성, semantic graph
+- **워크스페이스**: 목적별(프로덕트·마케팅·비즈니스·세일즈) 데이터 분석 공간
+
+### 데이터 플랫폼 (2026-02-01 기준 구현)
+
+- **데이터 소스**: GA4(OAuth·Data API), CSV·Excel(업로드·프로파일링·컬럼 매핑 확인 후 ingest)
+- **Staging 레이어**: 소스별 원시 적재, `schema_version` 기준 보존 (GA4/CSV 파이프라인)
+- **Mart 레이어**: Staging → 결정론적 변환만 적용 (mart_events, mart_ga4_*, mart_csv_* 등), LLM 미참여
+- **Semantic Layer**: `metric_definitions` 프로젝트별 메트릭 정의, semantic graph 노드 연동
+- **에이전트 연동**: MartSummary 생성 → LLM 프롬프트(trim·compact JSON으로 토큰 절감) → 리포트/채팅 응답
+- **상세**: `DATA_PIPELINE_DOCUMENTATION.md` 참고
 
 ## 디자인 특징
 
@@ -118,7 +127,7 @@ npm start
 - **PRD.md**: 제품 요구사항 문서
 - **DEVELOPER_GUIDE.md**: 개발자 가이드
 - **ARCHITECTURE.md**: 아키텍처 및 주요 로직 설계
-- **CLAUDE.md**: Claude AI 코딩 가이드
+- **DATA_PIPELINE_DOCUMENTATION.md**: 데이터 파이프라인 (GA4·CSV/Excel, Staging·Mart·Semantic Layer·에이전트)
 - **SETUP_GUIDE.md**: 설정 가이드 (환경 변수, Supabase, Google Sheets, 도메인, 배포 등)
 
 ## Google Sheets 연동

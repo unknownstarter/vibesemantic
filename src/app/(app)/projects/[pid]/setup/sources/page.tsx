@@ -168,7 +168,7 @@ export default function SourcesPage() {
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
-              <h2 className="text-lg font-semibold text-foreground">CSV 데이터셋</h2>
+              <h2 className="text-lg font-semibold text-foreground">CSV / Excel 데이터셋</h2>
               {hasCSV && (
                 <span className="px-2 py-0.5 text-xs rounded-full bg-success/20 text-success">
                   {datasets.filter(d => d.status === 'ingested').length}개 활성
@@ -176,7 +176,7 @@ export default function SourcesPage() {
               )}
             </div>
             <p className="text-sm text-muted mb-4">
-              CSV 파일을 업로드하여 커스텀 데이터를 분석합니다
+              CSV 또는 Excel(.xlsx, .xls) 파일을 업로드하여 커스텀 데이터를 분석합니다
             </p>
 
             {/* Dataset List */}
