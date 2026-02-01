@@ -55,7 +55,7 @@ export interface MartSummary {
     avgEngagementRate: number
     avgBounceRate: number
     avgSessionDuration: number
-    // 변화율 (7d vs 이전 7d)
+    // 변화율 % (현재 기간 vs 이전 기간)
     sessionsTrend?: number
     usersTrend?: number
   }
@@ -82,6 +82,8 @@ export interface MartSummary {
     byDimension: Record<string, Record<string, number>>
     trend: Array<{ date: string; value: number }>
   }>
+  // 파생 지표 (예: 전환율 = Leads/Sessions)
+  derivedMetrics?: Array<{ name: string; value: number; formula?: string }>
   // GA4 + CSV 통합 트렌드 (date 기준 join)
   integratedTrend?: Array<{
     date: string
@@ -92,7 +94,13 @@ export interface MartSummary {
   // 데이터 소스 정보
   dataSources?: {
     ga4: { available: boolean; dateRange?: { start: string; end: string } | null; recordCount?: number }
-    csv: { available: boolean; metrics?: string[]; recordCount?: number }
+    csv: {
+      available: boolean
+      metrics?: string[]
+      recordCount?: number
+      /** "7d" | "30d" = 기간 적용, "none" = 집계 데이터(기간 기준 없음) */
+      timeScope?: '7d' | '30d' | 'none'
+    }
     integrated: boolean
   }
   // Semantic Layer: 프로젝트별 메트릭 정의

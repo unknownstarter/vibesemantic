@@ -44,6 +44,7 @@ class MartSummary(TypedDict, total=False):
     topPages: list[dict]
     dailyTrend: list[dict]
     csvMetrics: Optional[dict]
+    derivedMetrics: Optional[list[dict]]  # e.g. [{"name": "전환율 (Leads/Sessions)", "value": 0.1, "formula": "Leads/Sessions"}]
     integratedTrend: Optional[list[dict]]
     dataSources: dict
     metricDefinitions: Optional[list[dict]]

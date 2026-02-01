@@ -297,6 +297,51 @@ def build_summary_from_mart(
     for mn in csv_metrics_summary:
         csv_metrics_summary[mn]["trend"].sort(key=lambda x: x["date"])
 
+    # P1-2: Derived metrics (e.g. Leads/Sessions = conversion rate)
+    derived_metrics: List[Dict[str, Any]] = []
+    if csv_metrics_summary:
+        metric_names = list(csv_metrics_summary.keys())
+        totals = {mn: csv_metrics_summary[mn]["total"] for mn in metric_names}
+        # Common denominator names for ratio (e.g. Sessions, Visitors)
+        for denom in ("Sessions", "sessions", "Visitors", "visitors"):
+            if denom not in totals or totals[denom] <= 0:
+                continue
+            for num in metric_names:
+                if num == denom:
+                    continue
+                val = totals[num] / totals[denom]
+                derived_metrics.append({
+                    "name": f"비율 ({num}/{denom})",
+                    "value": round(val * 10000) / 10000,
+                    "formula": f"{num}/{denom}",
+                })
+            break  # one denominator only
+
+    # P1-3: Period-over-period (current vs previous period)
+    sessions_trend: Optional[float] = None
+    users_trend: Optional[float] = None
+    if question_intent.get("need_ga4", True) and (start_date and end_date and days):
+        prev_end = start_date - timedelta(days=1)
+        prev_start = prev_end - timedelta(days=days)
+        prev_start_str = prev_start.strftime("%Y-%m-%d")
+        prev_end_str = prev_end.strftime("%Y-%m-%d")
+        try:
+            prev_res = supabase.table("mart_ga4_daily_kpis") \
+                .select("sessions, active_users") \
+                .eq("project_id", project_id) \
+                .gte("date", prev_start_str) \
+                .lte("date", prev_end_str) \
+                .execute()
+            prev_kpis = prev_res.data or []
+            prev_sessions = sum(float(k.get("sessions", 0) or 0) for k in prev_kpis)
+            prev_users = sum(float(k.get("active_users", 0) or 0) for k in prev_kpis)
+            if prev_sessions > 0:
+                sessions_trend = round((total_sessions - prev_sessions) / prev_sessions * 10000) / 100
+            if prev_users > 0:
+                users_trend = round((total_active_users - prev_users) / prev_users * 10000) / 100
+        except Exception:
+            pass
+
     has_ga4_data = len(kpis) > 0
     has_csv_data = len(csv_metrics) > 0
     integrated_trend = None
@@ -318,6 +363,27 @@ def build_summary_from_mart(
                 "csvMetrics": csv_for_day if csv_for_day else None,
             })
 
+    # CSV time scope: 7d/30d applies only when at least one CSV dataset has a date column
+    csv_time_scope = "none"
+    if has_csv_data:
+        try:
+            ds_res = supabase.table("csv_datasets") \
+                .select("mapping_id") \
+                .eq("project_id", project_id) \
+                .not_.is_("mapping_id", "null") \
+                .execute()
+            mapping_ids = [r["mapping_id"] for r in (ds_res.data or []) if r.get("mapping_id")]
+            if mapping_ids:
+                map_res = supabase.table("source_mappings") \
+                    .select("date_column") \
+                    .in_("id", mapping_ids) \
+                    .execute()
+                date_cols = [r.get("date_column") for r in (map_res.data or [])]
+                if any(dc for dc in date_cols if dc):
+                    csv_time_scope = range_value  # "7d" or "30d"
+        except Exception:
+            csv_time_scope = range_value  # fallback: assume time-scoped
+
     data_sources = {
         "ga4": {
             "available": has_ga4_data,
@@ -328,6 +394,7 @@ def build_summary_from_mart(
             "available": has_csv_data,
             "metrics": list(csv_metrics_summary.keys()) if csv_metrics_summary else None,
             "recordCount": len(csv_metrics),
+            "timeScope": csv_time_scope,  # "7d" | "30d" | "none" (none = 집계 데이터, 기간 기준 없음)
         },
         "integrated": has_ga4_data and has_csv_data,
     }
@@ -385,16 +452,22 @@ def build_summary_from_mart(
                 "summary": "Statistical analysis unavailable",
             }
 
+    kpis_dict: Dict[str, Any] = {
+        "totalSessions": total_sessions,
+        "totalActiveUsers": total_active_users,
+        "totalNewUsers": total_new_users,
+        "avgEngagementRate": round(avg_engagement_rate * 10000) / 100,
+        "avgBounceRate": round(avg_bounce_rate * 10000) / 100,
+        "avgSessionDuration": round(avg_session_duration),
+    }
+    if sessions_trend is not None:
+        kpis_dict["sessionsTrend"] = sessions_trend
+    if users_trend is not None:
+        kpis_dict["usersTrend"] = users_trend
+
     mart_summary: MartSummary = {
         "period": {"start": start_str, "end": end_str, "days": days},
-        "kpis": {
-            "totalSessions": total_sessions,
-            "totalActiveUsers": total_active_users,
-            "totalNewUsers": total_new_users,
-            "avgEngagementRate": round(avg_engagement_rate * 10000) / 100,
-            "avgBounceRate": round(avg_bounce_rate * 10000) / 100,
-            "avgSessionDuration": round(avg_session_duration),
-        },
+        "kpis": kpis_dict,
         "topChannels": top_channels if question_intent.get("need_channels", False) else [],
         "topPages": top_pages if question_intent.get("need_pages", False) else [],
         "dailyTrend": daily_trend if question_intent.get("need_ga4", True) else [],
@@ -405,4 +478,6 @@ def build_summary_from_mart(
         "statisticalAnalysis": statistical_analysis,
         "semanticGraph": semantic_graph,
     }
+    if derived_metrics:
+        mart_summary["derivedMetrics"] = derived_metrics
     return mart_summary, data_accessed

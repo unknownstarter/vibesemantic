@@ -9,7 +9,7 @@ import { SkeletonReport } from '@/shared/ui/SkeletonReport'
 import { useAgentChatReactQuery as useAgentChat } from '@/features/agent-chat/model/useAgentChatReactQuery'
 import { MessageBubble, ChatInput, TypingIndicator, QuickReplyChip, ChartIcon, TrendIcon, CalendarIcon, TargetIcon } from '@/features/agent-chat/ui'
 import { ReportCharts } from '@/features/agent-chat/ui/ReportCharts'
-import { formatMarkdown } from '@/features/agent-chat/lib/formatMarkdown'
+import { MarkdownRenderer } from '@/features/agent-chat/ui/MarkdownRenderer'
 import type { ReportRange } from '@/types/database'
 
 interface AgentSlideOverProps {
@@ -83,11 +83,22 @@ export function AgentSlideOver({
     }
   }, [isOpen, tab, reportMarkdown, reportLoading, workspace, generateReport])
 
-  const chatSuggestions = [
-    '이번 주 가장 큰 변화는?',
-    '전환율 개선 방법 제안해줘',
-    '채널별 효율 비교해줘',
-  ]
+  const ds = reportMartSummary?.dataSources
+  const hasGa4 = ds?.ga4?.available === true
+  const hasCsv = ds?.csv?.available === true
+  const csvMetrics = (ds?.csv?.metrics as string[] | undefined) ?? []
+  const chatSuggestions: string[] = (() => {
+    if (hasGa4 && hasCsv) return ['이번 주 가장 큰 변화는?', '채널별 효율 비교해줘', '전환율 개선 방법 제안해줘']
+    if (hasCsv && !hasGa4) {
+      const first = csvMetrics[0]
+      const second = csvMetrics[1]
+      const trend = first ? `${first} 트렌드 알려줘` : '트렌드 분석해줘'
+      const conversion = first && second ? `${first} 대비 ${second} 전환율 분석해줘` : '전환율 분석해줘'
+      return [trend, conversion, '이번 기간 요약해줘']
+    }
+    if (hasGa4 && !hasCsv) return ['채널별 유입 분석해줘', '페이지 성과 알려줘', '이번 주 가장 큰 변화는?']
+    return ['이번 주 가장 큰 변화는?', '데이터 요약해줘', '트렌드 분석해줘']
+  })()
 
   return (
     <SlideOver
@@ -186,18 +197,7 @@ export function AgentSlideOver({
                 </div>
               ) : reportMarkdown ? (
                 <>
-                  <div 
-                    className="prose prose-invert max-w-none mb-6
-                      prose-headings:text-foreground prose-headings:font-semibold
-                      prose-p:text-muted prose-p:leading-relaxed prose-p:my-3
-                      prose-strong:text-foreground prose-strong:font-semibold
-                      prose-li:text-muted prose-li:my-1
-                      prose-ul:my-3 prose-ol:my-3
-                      prose-code:text-primary prose-code:bg-surface-inset prose-code:px-1.5 prose-code:rounded prose-code:border prose-code:border-border/10
-                      prose-a:text-primary prose-a:no-underline hover:prose-a:underline
-                      prose-hr:border-border/20"
-                    dangerouslySetInnerHTML={{ __html: formatMarkdown(reportMarkdown) }}
-                  />
+                  <MarkdownRenderer content={reportMarkdown} className="mb-6 prose-p:text-muted prose-li:text-muted" />
                   
                   {reportMartSummary && (
                     <div className="mb-6 mt-8">

@@ -9,7 +9,7 @@ import { Breadcrumb } from '@/shared/ui/Breadcrumb'
 import { Spinner } from '@/shared/ui/Spinner'
 import { MessageBubble, ChatInput, TypingIndicator, AgentThinkingMessages, QuickReplyChip, ChartIcon, TrendIcon, CalendarIcon } from '@/features/agent-chat/ui'
 import { ReportCharts } from '@/features/agent-chat/ui/ReportCharts'
-import { formatMarkdown } from '@/features/agent-chat/lib/formatMarkdown'
+import { MarkdownRenderer } from '@/features/agent-chat/ui/MarkdownRenderer'
 import type { ReportRange, ChatMessage, Workspace, AgentConfig } from '@/types/database'
 import type { AnalystQuestion, MartSummary } from '@/lib/langgraph/types'
 import type { ChartContext } from '@/lib/api/brain-api'
@@ -263,12 +263,27 @@ export default function AgentPage() {
     sendMessage('이 차트에 대해 자세히 설명해줘', context)
   }, [sendMessage])
 
-  // Suggested questions for empty chat
-  const chatSuggestions = [
-    '이번 주 가장 큰 변화는?',
-    '전환율 개선 방법 제안해줘',
-    '채널별 효율 비교해줘',
-  ]
+  // Data-source aware chat suggestions (reportMartSummary?.dataSources when report loaded)
+  const ds = reportMartSummary?.dataSources
+  const hasGa4 = ds?.ga4?.available === true
+  const hasCsv = ds?.csv?.available === true
+  const csvMetrics = (ds?.csv?.metrics as string[] | undefined) ?? []
+  const chatSuggestions: string[] = (() => {
+    if (hasGa4 && hasCsv) {
+      return ['이번 주 가장 큰 변화는?', '채널별 효율 비교해줘', '전환율 개선 방법 제안해줘']
+    }
+    if (hasCsv && !hasGa4) {
+      const first = csvMetrics[0]
+      const second = csvMetrics[1]
+      const trend = first ? `${first} 트렌드 알려줘` : '트렌드 분석해줘'
+      const conversion = first && second ? `${first} 대비 ${second} 전환율 분석해줘` : '전환율 분석해줘'
+      return [trend, conversion, '이번 기간 요약해줘']
+    }
+    if (hasGa4 && !hasCsv) {
+      return ['채널별 유입 분석해줘', '페이지 성과 알려줘', '이번 주 가장 큰 변화는?']
+    }
+    return ['이번 주 가장 큰 변화는?', '데이터 요약해줘', '트렌드 분석해줘']
+  })()
 
   return (
     <div className="h-[calc(100vh-8rem)] flex flex-col px-4 sm:px-0">
@@ -287,7 +302,7 @@ export default function AgentPage() {
             <h1 className="text-xl font-bold text-foreground">AI 분석</h1>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           {/* Range Toggle */}
           <div className="flex bg-surface rounded-xl p-1 border border-border/10">
             {(['7d', '30d'] as ReportRange[]).map((r) => (
@@ -304,6 +319,12 @@ export default function AgentPage() {
               </button>
             ))}
           </div>
+          {reportMartSummary?.dataSources?.csv?.available === true &&
+            reportMartSummary?.dataSources?.csv?.timeScope === 'none' && (
+            <span className="text-xs text-muted">
+              선택한 기간은 GA4에만 적용됩니다. CSV 집계 데이터는 기간과 무관합니다.
+            </span>
+          )}
         </div>
       </div>
 
@@ -409,18 +430,7 @@ export default function AgentPage() {
 
                 {/* Markdown Content */}
                 <div className="px-6 py-6">
-                  <div 
-                    className="prose prose-sm max-w-none text-foreground
-                      prose-headings:text-foreground prose-headings:font-semibold
-                      prose-p:text-foreground/80 prose-p:leading-relaxed
-                      prose-strong:text-foreground prose-strong:font-semibold
-                      prose-li:text-foreground/80 prose-li:my-1
-                      prose-ul:text-foreground/80 prose-ol:text-foreground/80
-                      prose-code:text-primary prose-code:bg-surface-inset prose-code:px-1.5 prose-code:rounded
-                      prose-a:text-primary prose-a:no-underline hover:prose-a:underline
-                      prose-hr:border-border/20"
-                    dangerouslySetInnerHTML={{ __html: formatMarkdown(reportMarkdown) }}
-                  />
+                  <MarkdownRenderer content={reportMarkdown ?? ''} />
                 </div>
                 
                 {/* Quick Replies */}

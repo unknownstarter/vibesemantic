@@ -54,7 +54,7 @@ export function ReportCharts({ martSummary, onAskAboutChart, currentRange = '7d'
     })
   }, [martSummary.topPages])
 
-  // CSV 메트릭 트렌드 (통합 분석)
+  // CSV 메트릭 트렌드 (통합 분석: GA4 + CSV)
   const csvTrendData = useMemo((): LineChartDataPoint[] => {
     if (!martSummary.integratedTrend?.length) return []
     return martSummary.integratedTrend.map(d => {
@@ -74,12 +74,72 @@ export function ReportCharts({ martSummary, onAskAboutChart, currentRange = '7d'
     return Object.keys(martSummary.csvMetrics).slice(0, 2) // 최대 2개
   }, [martSummary.csvMetrics])
 
-  const hasData = trendData.length > 0 || channelData.length > 0
+  // P2-2: CSV 전용 프로젝트 — csvMetrics.trend 기반 시계열 차트
+  const csvOnlyTrendData = useMemo((): LineChartDataPoint[] => {
+    const csv = martSummary.csvMetrics
+    if (!csv || martSummary.dailyTrend?.length) return []
+    const dateToPoint: Record<string, LineChartDataPoint> = {}
+    const keys: string[] = []
+    Object.entries(csv).forEach(([metricName, meta]) => {
+      const trend = meta?.trend
+      if (!Array.isArray(trend)) return
+      keys.push(metricName)
+      trend.forEach(({ date, value }: { date: string; value: number }) => {
+        if (!dateToPoint[date]) dateToPoint[date] = { date }
+        dateToPoint[date][metricName] = value
+      })
+    })
+    return Object.values(dateToPoint).sort((a, b) => (a.date < b.date ? -1 : 1))
+  }, [martSummary.csvMetrics, martSummary.dailyTrend?.length])
+
+  const csvOnlyMetricKeys = useMemo(() => {
+    if (!martSummary.csvMetrics || martSummary.dailyTrend?.length) return []
+    return Object.keys(martSummary.csvMetrics).slice(0, 4)
+  }, [martSummary.csvMetrics, martSummary.dailyTrend?.length])
+
+  const hasData =
+    trendData.length > 0 ||
+    channelData.length > 0 ||
+    csvOnlyTrendData.length > 0 ||
+    (csvTrendData.length > 0 && csvMetricKeys.length > 0)
 
   if (!hasData) return null
 
   return (
     <div className="space-y-6 mb-6">
+      {/* CSV 전용 시계열 차트 (P2-2) */}
+      {csvOnlyTrendData.length > 0 && csvOnlyMetricKeys.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-surface-inset/30 rounded-xl p-4 border border-border/10"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-sm font-medium text-foreground">📈 CSV 시계열</h4>
+            {onAskAboutChart && (
+              <Button
+                variant="secondary"
+                size="sm"
+                className="text-xs text-primary border-primary/30 hover:border-primary/50 hover:bg-primary/10"
+                onClick={() => onAskAboutChart({ range: currentRange, chartType: 'trend', label: 'CSV 시계열', metricNames: csvOnlyMetricKeys })}
+              >
+                이 숫자에 대해 물어보기
+              </Button>
+            )}
+          </div>
+          <LineChart
+            data={csvOnlyTrendData}
+            series={csvOnlyMetricKeys.map((key, i) => ({
+              key,
+              name: key,
+              color: ['#22c55e', '#f59e0b', '#ef4444', '#8b5cf6'][i % 4],
+            }))}
+            height={180}
+            showLegend
+          />
+        </motion.div>
+      )}
+
       {/* 트렌드 차트 (GA4 데이터) */}
       {trendData.length > 0 && (
         <motion.div
