@@ -13,7 +13,7 @@ Vibe Semantic 개발 시 AI가 따를 프로젝트 가이드. **토큰 효율**�
 - **검색 우선**: "어디서 X를 쓰나?" → `grep` 또는 `codebase_search`. "X가 어떻게 동작하나?" → 해당 파일 한두 개만 열기.
 - **대용량 파일**: 500줄 이상은 offset/limit으로 필요한 구간만 읽기. 한 번에 여러 파일 읽을 때는 각각 필요한 라인 범위만 지정.
 - **응답**: 요청에 필요한 내용만. 문서·README 생성은 사용자가 요청할 때만. 코드 변경 시 관련 파일만 수정하고, 변경 이유를 한두 문장으로 명시.
-- **스킬 활용**: 스킬은 `.cursor/skills/` 에 역할별로 있음. **한 번에 한두 개 역할만** 읽어 컨텍스트 폭을 제한한다. 작업 유형에 맞는 스킬만 참고한 뒤 작업. 스킬 본문도 간결·중복 피함.
+- **스킬 활용**: 아래 Skills 섹션의 핵심 원칙을 자동 적용한다. 상세 가이드가 필요한 작업이면 `.cursor/skills/{역할}/SKILL.md`를 읽어 추가 적용하고, 그 사실을 사용자에게 알린다.
 
 ---
 
@@ -132,20 +132,85 @@ Commit prefix: `feat:`, `fix:`, `docs:`, `style:`, `refactor:`, `chore:`.
 
 ---
 
-## Skills Reference
+## Skills (자동 적용)
 
-스킬은 `.cursor/skills/` 아래 **역할별**로 있음. 각 스킬에는 해당 전문가의 **역할·역량·인사이트 발굴 방식·확장 시 원칙**이 들어 있음. 작업 전 관련 역할 **1~2개만** 읽어 토큰을 아끼고, 확장 가능한 패턴을 따른다.
+작업 유형에 따라 아래 핵심 원칙을 자동 적용한다. **상세 가이드가 필요하면** `.cursor/skills/{역할}/SKILL.md`를 읽어 추가 적용하고, 사용자에게 알린다.
 
-- **data-analyst** — 지표·세맨틱 레이어·mart·분석 출력 설계 및 확장 (분석가 실제 업무 반영)
-- **data-engineer** — ETL/ELT·마트·스키마·품질·배치/스트리밍·거버넌스 (데이터 엔지니어 실제 업무)
-- **data-scientist** — 문제 정의·가설·EDA·모델링·평가·인사이트·재현성 (데이터 사이언티스트 실제 업무)
-- **ai-agent-developer** — 에이전트·프롬프트·토큰·대화/스레드 설계 및 확장 (AI 에이전트 개발자 실제 업무)
-- **frontend-developer** — Next.js/React·컴포넌트·라우팅·i18n 원칙 및 확장 (프론트엔드 개발자 실제 업무)
-- **backend-developer** — API·인증·DB·Brain 연동 원칙 및 확장 (백엔드 개발자 실제 업무)
-- **technical-architect** — 아키텍처·레이어·데이터 플로우·진화/마이그레이션 (기술 설계자 실제 업무)
-- **designer** — UI/UX·디자인 시스템·접근성·반응형 원칙 및 확장 (디자이너 실제 업무)
-- **ux-researcher** — 리서치 설계·정성/정량 방법·페르소나·여정·인사이트 도출·디자인/제품 결정 지원 (UX 리서처 실제 업무)
-- **marketer** — 랜딩·메시지·리드/전환·포지셔닝 원칙 및 확장 (마케터 실제 업무)
-- **business-developer** — 파트너십·GTM·영업 지원·가격/딜 구조·고객/파트너 관계 (비즈니스 디벨로퍼 실제 업무)
-- **qa-engineer** — 테스트 코드·테스트 케이스·API 직접 호출·결과 판단(통과/개선 지시)·피드백 루프 (QA 엔지니어 실제 업무)
-- **pm-orchestration** — 전문가 조율·목표/의존성 정렬·역량·실행 평가·피드백·RACI (PM 오케스트레이션)
+### data-analyst
+- **Semantic layer**: 지표 이름·정의·계산식을 한 곳에서 정의. 새 지표는 여기에 먼저 추가.
+- **Analysis output**: headline → evidence(지표) → interpretation → actions 순서.
+- Ref: `src/types/database.ts`, `supabase/migrations/`, Brain API prompts.
+
+### data-engineer
+- **Idempotency**: 파이프라인 재실행해도 결과 일관. 증분/전체 재처리 가능.
+- **Schema evolution**: additive 우선, breaking change는 마이그레이션·백필.
+- **Fail visibly**: 실패는 로그·알림. 사용자에겐 적절한 메시지만.
+- Ref: `src/app/api/projects/.../csv/`, `python-brain/app/services/csv_ingest.py`, `supabase/migrations/`.
+
+### data-scientist
+- **Question first**: "무슨 질문에 답하는가"가 명확해야.
+- **Evidence + interpretation**: 숫자만 나열 안 함, 해석·다음 액션 함께.
+- **Bias and limits**: 데이터·모델 한계 언급, 과한 일반화 피함.
+- Ref: report/chat markdown, metric_definitions, mart summary.
+
+### ai-agent-developer
+- **Context over length**: 최소 컨텍스트로 최대 품질. 시계열 14점, top-N 5~10, compact JSON.
+- **Stable system prompt**: 시스템 프롬프트는 역할·포맷·규칙만. 사용자 데이터는 유저 메시지에.
+- **Structured output**: 마크다운(요약·지표·제안 섹션). 에러는 사용자 메시지만 노출.
+- Ref: `python-brain/app/langgraph/`, `src/features/agent-chat/`, `src/app/api/workspaces/[workspaceId]/agent/route.ts`.
+
+### frontend-developer
+- **Route vs logic**: App Router는 라우트·레이아웃만. 비즈니스 로직은 features/lib.
+- **Shared UI**: 프리미티브(Button, Card, Input) 한 곳. 컴포지션·props(variant, size) 우선.
+- **State**: 서버 상태 React Query, URL 공유 가능 상태, 로컬 UI 상태 컴포넌트.
+- Ref: `src/app/`, `src/shared/ui/`, `src/features/`, `src/features/agent-chat/`.
+
+### backend-developer
+- **API contract**: Zod 검증, `{ success, data }` or `{ error }`. 하위 호환 유지.
+- **Auth**: 모든 보호 라우트에서 세션/토큰 확인. 서비스 키 노출 금지. RLS 적용.
+- **Project scope**: slug/ID → 멤버십·상태 확인. `decodeURIComponent()` 필수.
+- **User-facing errors**: 내부 에러 미노출. 서버 로그 + 사용자 메시지.
+- Ref: `src/app/api/`, `src/lib/supabase/`, `src/types/database.ts`, `src/lib/api/brain-api.ts`.
+
+### technical-architect
+- **Clear boundaries**: Frontend=UI·라우팅, API=인증·스코핑, Brain=모델·분석, DB=진실 소스+RLS.
+- **Data flow**: User → App → API(auth, scope) → Brain/DB. 역방향 없음.
+- **Extensibility by layer**: 분석 유형 → Brain config+prompt, 데이터 소스 → collector+mart, 기능 → route+feature.
+- Ref: `src/app/`, `src/features/`, `python-brain/app/`, `supabase/migrations/`.
+
+### designer
+- **Design tokens**: 색·간격·타이포를 토큰(CSS vars)으로. 컴포넌트는 토큰 참조.
+- **Feedback states**: 로딩·성공·에러·빈 상태 명시. 에이전트 UI는 인라인 피드백.
+- **Accessibility**: 포커스 순서·라벨·역할·대비·터치 영역 확인.
+- Ref: `tailwind.config.ts`, `src/shared/ui/`, `src/features/agent-chat/`.
+
+### ux-researcher
+- **Question before method**: "무엇을 알아야 하는가" 먼저, 방법은 그 다음.
+- **Actionable deliverables**: 인사이트 → "그래서 무엇을 할 것인가" 연결.
+- Ref: user-facing flows (login, onboarding, agent), personas/research docs.
+
+### marketer
+- **Message hierarchy**: 하나의 가치 제안(헤드라인) + 근거(문제·기능·증거) 순.
+- **Lead capture**: 필요한 것만 요청, 마찰 최소화, 세그먼트별 팔로업.
+- **Consistency**: 톤·제품명·포지셔닝 랜딩~인앱~에러까지 일관.
+- Ref: `src/app/(marketing)/`, `src/widgets/`, LeadCaptureForm.
+
+### business-developer
+- **Value before price**: 가격은 전달 가치(지표 해석·시간 절감)에 맞춤. 결과 강조.
+- **Segment-fit**: 세그먼트별 메시지·오퍼·채널. 일관 포지셔닝 내 톤 조정.
+- **Feedback loop**: 파트너·고객 요구 → 제품·마케팅·지원 공유·추적.
+- Ref: `src/widgets/pricing/`, PRD.md, SERVICE_POSITIONING.md.
+
+### qa-engineer
+- **Test what changed**: 모든 로직/API 변경에 최소 1개 테스트 케이스 또는 검증 단계.
+- **Explicit test cases**: 입력·기대 결과·경계 조건 명시. API면 성공/400/401/500.
+- **Result judgment**: Pass("통과") 또는 Fail("미통과 + 원인 + 구체적 수정 사항").
+- **Feedback loop**: 개선 후 동일 검증 재실행 → 최종 Pass 확인.
+- Ref: `src/app/api/`, `python-brain/`. 테스트 러너 미설정 → Vitest 권장 또는 curl 검증.
+
+### pm-orchestration
+- **목표·결과로 정렬**: 각 역할 산출이 제품/비즈니스 결과와 연결되도록.
+- **의존성 가시화**: 핸드오프·입력 준비 시점을 보이게.
+- **구체적 피드백**: 문제·기대·다음 액션 명시. 해결 방법은 전문가에게.
+- **역할 명확화**: RACI(Responsible·Accountable·Consulted·Informed) 적용.
+- Ref: 조율 대상 = 위 전체 스킬. 각 스킬의 Principles·Extensibility를 평가 기준으로.

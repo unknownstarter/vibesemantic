@@ -221,6 +221,32 @@ def analyze_question_intent(
     }
 
 
+def refine_plan_with_available_data(
+    plan: Dict[str, Any],
+    data_sources: Dict[str, Any],
+) -> Dict[str, Any]:
+    """
+    build_summary_from_mart 이후 호출.
+    실제 데이터 유무에 따라 plan의 need_* 플래그를 보정한다.
+    예: GA4 데이터가 없으면 need_ga4=False, need_channels=False, need_pages=False.
+    이를 통해 이후 프롬프트 생성 시 불필요한 분석 지시를 줄인다.
+    """
+    refined = dict(plan)
+    has_ga4 = data_sources.get("ga4", {}).get("available", False)
+    has_csv = data_sources.get("csv", {}).get("available", False)
+
+    if not has_ga4:
+        refined["need_ga4"] = False
+        refined["need_channels"] = False
+        refined["need_pages"] = False
+        refined["need_events"] = False
+
+    if not has_csv:
+        refined["need_csv"] = False
+
+    return refined
+
+
 def should_include_csv_data(
     csv_metrics: List[Dict[str, Any]],
     question_intent: Dict[str, bool],

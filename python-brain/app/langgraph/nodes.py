@@ -152,6 +152,7 @@ def explainer_node(state: AnalysisState) -> Dict[str, Any]:
             profile=state.get("projectProfile", {}),
             metric_definitions=mart_summary.get("metricDefinitions"),
             mode=mode,
+            available_data_sources=mart_summary.get("dataSources"),
         )
         user_prompt = build_user_prompt(
             mode,

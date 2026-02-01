@@ -28,6 +28,120 @@ def trim_mart_summary_for_prompt(mart_summary: MartSummary) -> MartSummary:
         out["integratedTrend"] = out["integratedTrend"][:MAX_INTEGRATED_TREND]
     return out
 
+
+def clean_summary_for_prompt(mart_summary: MartSummary) -> dict:
+    """실제 데이터가 없는 필드를 제거하여 LLM 혼동 방지.
+    빈 GA4 필드(kpis 전부 0, topChannels=[], dailyTrend=[])가 남아 있으면
+    LLM이 해당 차원을 채우려 환각할 수 있으므로 제거한다.
+    """
+    out = copy.deepcopy(mart_summary)
+    ds = out.get("dataSources", {})
+    has_ga4 = ds.get("ga4", {}).get("available", False)
+    has_csv = ds.get("csv", {}).get("available", False)
+
+    # GA4 데이터 없으면 GA4 전용 필드 제거 (전부 0인 kpis 포함)
+    if not has_ga4:
+        out.pop("kpis", None)
+        out.pop("topChannels", None)
+        out.pop("topPages", None)
+        out.pop("dailyTrend", None)
+    else:
+        # GA4 있어도 빈 배열은 제거
+        if not out.get("topChannels"):
+            out.pop("topChannels", None)
+        if not out.get("topPages"):
+            out.pop("topPages", None)
+        if not out.get("dailyTrend"):
+            out.pop("dailyTrend", None)
+
+    if not has_csv:
+        out.pop("csvMetrics", None)
+
+    if not (has_ga4 and has_csv):
+        out.pop("integratedTrend", None)
+
+    # statisticalAnalysis가 비어 있으면 제거
+    sa = out.get("statisticalAnalysis")
+    if sa and not sa.get("metric_correlations") and not sa.get("event_kpi_relationships"):
+        out.pop("statisticalAnalysis", None)
+
+    # None 값 제거
+    out = {k: v for k, v in out.items() if v is not None}
+    return out
+
+
+def _get_available_data_description(mart_summary: MartSummary) -> str:
+    """사용 가능/불가능한 데이터를 명시적으로 설명하여 LLM이 없는 데이터를 만들지 않게 한다."""
+    ds = mart_summary.get("dataSources", {})
+    has_ga4 = ds.get("ga4", {}).get("available", False)
+    has_csv = ds.get("csv", {}).get("available", False)
+    lines = []
+
+    if has_ga4:
+        lines.append("- GA4 데이터: 사용 가능 (세션, 유저, 참여도 등)")
+    else:
+        lines.append("- GA4 데이터: **없음** — 세션/유저/채널/페이지 GA4 지표 사용 불가")
+
+    if mart_summary.get("topChannels"):
+        lines.append(f"- 채널 데이터: 사용 가능 ({len(mart_summary['topChannels'])}개 채널)")
+    else:
+        lines.append("- 채널 데이터: **없음** — 채널별 분석·채널 비율·채널 테이블 작성 금지")
+
+    if mart_summary.get("topPages"):
+        lines.append(f"- 페이지 데이터: 사용 가능 ({len(mart_summary['topPages'])}개 페이지)")
+    else:
+        lines.append("- 페이지 데이터: **없음** — 페이지별 분석 작성 금지")
+
+    csv_metrics = mart_summary.get("csvMetrics")
+    if csv_metrics:
+        metric_names = list(csv_metrics.keys())
+        lines.append(f"- CSV 데이터: 사용 가능 (메트릭: {', '.join(metric_names)})")
+    else:
+        lines.append("- CSV 데이터: 없음")
+
+    return "### 사용 가능한 데이터 (이 범위 밖의 차원·지표는 절대 언급 금지)\n" + "\n".join(lines)
+
+
+def _get_purpose_focus(purpose: str, available_data_sources: Optional[Dict] = None) -> str:
+    """워크스페이스 목적별 분석 초점. 실제 데이터 유무에 따라 조건부 생성."""
+    ds = available_data_sources or {}
+    has_ga4 = ds.get("ga4", {}).get("available", False)
+    has_csv = ds.get("csv", {}).get("available", False)
+    csv_metrics = ds.get("csv", {}).get("metrics", [])
+
+    if purpose == "marketing":
+        lines = []
+        if has_ga4:
+            lines.append("- 채널별 유입 효율성과 ROI에 집중")
+            lines.append("- 캠페인/채널별 전환 성과 분석")
+            lines.append("- 트래픽 소스의 품질 평가")
+            lines.append("- 마케팅 예산 배분 최적화 관점")
+        if has_csv:
+            metrics_str = ', '.join(csv_metrics) if csv_metrics else '업로드된 메트릭'
+            lines.append(f"- CSV 데이터 기반 지표 분석 ({metrics_str})")
+        if not has_ga4 and has_csv:
+            lines.append("- 채널/트래픽/페이지 데이터 없음 → 보유한 CSV 데이터 범위에서만 마케팅 성과 분석")
+        if not has_ga4 and not has_csv:
+            lines.append("- 분석 가능한 데이터가 없습니다")
+        return "\n".join(lines)
+
+    if purpose == "product":
+        lines = []
+        if has_ga4:
+            lines.append("- 사용자 행동 패턴과 제품 사용성에 집중")
+            lines.append("- 주요 페이지/기능별 참여도 분석")
+            lines.append("- 사용자 여정과 이탈 포인트 파악")
+            lines.append("- 신규 vs 기존 사용자 행동 차이")
+        if has_csv:
+            metrics_str = ', '.join(csv_metrics) if csv_metrics else '업로드된 메트릭'
+            lines.append(f"- CSV 데이터 기반 지표 분석 ({metrics_str})")
+        if not has_ga4 and has_csv:
+            lines.append("- GA4 데이터 없음 → 보유한 CSV 데이터 범위에서만 제품 성과 분석")
+        return "\n".join(lines) if lines else PURPOSE_FOCUS.get(purpose, "")
+
+    # biz, sales 등은 기존 고정값 사용 (필요 시 확장)
+    return PURPOSE_FOCUS.get(purpose, "")
+
 # 목적별 분석 초점
 PURPOSE_FOCUS = {
     "product": """
@@ -80,11 +194,12 @@ def build_system_prompt(
     purpose: WorkspacePurpose,
     profile: ProjectProfile,
     metric_definitions: Optional[list] = None,
-    mode: Literal["report", "chat"] = "report"
+    mode: Literal["report", "chat"] = "report",
+    available_data_sources: Optional[Dict[str, Any]] = None,
 ) -> str:
-    """시스템 프롬프트 생성"""
+    """시스템 프롬프트 생성. available_data_sources로 실제 데이터 유무에 따라 분석 초점과 가드를 조정."""
     lang_instructions = "모든 응답은 한국어로 작성합니다." if language == "ko" else "All responses must be in English."
-    purpose_focus = PURPOSE_FOCUS.get(purpose, "")
+    purpose_focus = _get_purpose_focus(purpose, available_data_sources)
     
     # Metric definitions 섹션 생성
     metrics_section = ""
@@ -114,8 +229,13 @@ def build_system_prompt(
 ## 분석 초점 ({purpose})
 {purpose_focus}
 
-## 데이터 규칙 (반드시 준수)
-- 제공된 martSummary 데이터 범위 내에서만 분석합니다
+## 데이터 규칙 (반드시 준수 — 위반 시 환각/거짓)
+- 제공된 martSummary JSON에 포함된 데이터만 사용합니다
+- **martSummary에 없는 필드·차원·지표는 절대 언급하거나 수치를 만들지 않습니다**
+- **topChannels 필드가 없거나 빈 배열이면 채널 분석(유기검색, 직접유입, 소셜 등)을 하지 않습니다**
+- **topPages 필드가 없거나 빈 배열이면 페이지별 분석을 하지 않습니다**
+- **kpis 필드가 없으면 GA4 KPI(세션, 유저, 참여율 등) 분석을 하지 않습니다**
+- **csvMetrics만 있고 GA4 필드가 없으면 CSV 메트릭만 분석합니다**
 - 숫자를 추정하거나 날조하지 않습니다
 - 불확실한 내용은 "데이터로 확인 필요"라고 명시합니다
 - dataSources.integrated가 true이면 GA4와 CSV 데이터 통합 분석
@@ -154,15 +274,16 @@ def build_system_prompt(
 ### 작성 규칙
 - **자연스러운 문단 형식**으로 작성하되, 데이터는 반드시 **마크다운 테이블**로 제시
 - 마크다운 헤더(`##`)와 굵은 글씨(`**`) 활용
-- 구체적인 수치 인용 (예: "**총 세션 1,234회**", "**Organic Search 45%**")
+- 구체적인 수치 인용 (예: "**총 1,234회**", "**전환율 15%**")
 - **데이터 비교나 수치 제시 시 반드시 마크다운 테이블 사용**
   - 예시:
     ```
-    | 채널 | 세션 | 비율 | 변화율 |
-    |------|------|------|--------|
-    | Organic Search | 1,234 | 45% | +15% |
-    | Direct | 800 | 30% | -5% |
+    | 지표 | 값 | 변화율 |
+    |------|-----|--------|
+    | 총 세션 | 1,234 | +15% |
+    | 전환율 | 8.5% | -2% |
     ```
+- **martSummary에 없는 차원(채널, 페이지 등)의 테이블은 절대 만들지 않습니다**
 - 추세 설명 시 변화율 포함 (예: "지난주 대비 **15% 증가**")
 - **통계적 분석 결과가 있으면 반드시 포함** (상관관계, 인과관계 힌트)
   - 통계적 상관관계는 테이블로 정리하여 제시
@@ -297,11 +418,13 @@ def build_user_prompt(
     user_message: Optional[str] = None,
     chart_context: Optional[Dict[str, Any]] = None,
 ) -> str:
-    """사용자 프롬프트 생성. Epic 5.2: chart_context 있으면 채팅 시 '선택한 차트/메트릭' 문구 포함. 토큰 절감: trim + indent 없음."""
+    """사용자 프롬프트 생성. 토큰 절감: trim + clean + indent 없음. 실제 데이터(summary_json)를 반드시 포함."""
     import json
     trimmed = trim_mart_summary_for_prompt(mart_summary)
-    summary_json = json.dumps(trimmed, ensure_ascii=False)
+    cleaned = clean_summary_for_prompt(trimmed)
+    summary_json = json.dumps(cleaned, ensure_ascii=False)
     data_sources_desc = get_data_sources_description(mart_summary)
+    available_data_desc = _get_available_data_description(mart_summary)
     
     period = mart_summary.get("period", {})
     start_date = period.get("start", "")
@@ -390,15 +513,22 @@ def build_user_prompt(
         return f"""## 분석 데이터 ({start_date} ~ {end_date}, {days}일)
 데이터 소스: {data_sources_str}
 
-**중요**: 위 데이터 중 질문과 관련된 부분만 사용하세요. 관련 없는 데이터는 무시하세요.
+{available_data_desc}
+
+## martSummary (분석 대상 데이터 — 이 JSON에 있는 데이터만 사용할 것)
+```json
+{summary_json}
+```
+
+**중요**: 위 martSummary JSON에 포함된 필드와 수치만 사용하세요. JSON에 없는 차원(채널, 페이지 등)이나 지표는 절대 언급하지 마세요.
 {statistical_instruction}
-위 데이터와 통계적 분석 결과를 기반으로 **자연스럽고 읽기 쉬운** 종합 분석 리포트를 작성해주세요.
+위 martSummary 데이터를 기반으로 **자연스럽고 읽기 쉬운** 종합 분석 리포트를 작성해주세요.
 
 **작성 지침:**
 1. 자연스러운 문단 형식으로 작성 (과도한 구조화 금지)
 2. 중요한 수치는 `**굵은 글씨**`로 강조
 3. 데이터 소스는 자연스럽게 언급 (과도한 강조 금지)
-4. 관련 없는 데이터는 절대 포함하지 마세요
+4. **martSummary에 없는 데이터는 절대 포함하지 마세요** (환각/거짓 금지)
 5. 통계적 분석 결과가 있으면 반드시 활용하세요
 
 **응답 형식:**
@@ -460,7 +590,14 @@ def build_user_prompt(
     return f"""## 분석 데이터 ({start_date} ~ {end_date})
 데이터 소스: {data_sources_desc}
 
-**중요**: 위 데이터 중 질문과 직접 관련된 부분만 사용하세요. 관련 없는 데이터는 무시하세요.
+{available_data_desc}
+
+## martSummary (분석 대상 데이터 — 이 JSON에 있는 데이터만 사용할 것)
+```json
+{summary_json}
+```
+
+**중요**: 위 martSummary JSON에 포함된 필드와 수치만 사용하세요. JSON에 없는 차원이나 지표는 절대 언급하지 마세요.
 {statistical_instruction}
 {chart_context_block}
 ## 사용자 질문
